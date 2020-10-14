@@ -8,7 +8,7 @@ import numpy as np
 import sympy as sp
 import traits.api as tr
 import traitsui.api as ui
-from bmcs_utils.api import InteractiveModel, IPWInteract
+from bmcs_utils.api import InteractiveModel, View, Item
 
 class IMaterialModel(tr.Interface):
 
@@ -92,38 +92,22 @@ class ConcreteMaterialModel(InteractiveModel):
     node_name = 'material model'
 
     f_c = tr.Float(30.0,
-                   param=True,
-                   minmax=(10,180),
-                   latex='f_\mathrm{c}',
                    MAT=True,
                    unit=r'$\mathrm{MPa}$',
                    symbol=r'f_\mathrm{c}',
                    auto_set=False, enter_set=True,
                    desc='concrete strength')
     E_c = tr.Float(28000,
-                   param=True,
-                   minmax=(10000,60000),
-                   latex='E_\mathrm{c}',
                    MAT=True,
                    unit=r'$\mathrm{MPa}$',
                    symbol=r'E_\mathrm{c}',
                    auto_set=False, enter_set=True,
                    desc='concrete material stiffness')
 
-    f_t = tr.Float(3.0,
-                   param=True,
-                   minmax=(1, 10),
-                   latex='f_\mathrm{t}',
-                   MAT=True)
+    f_t = tr.Float(3.0, MAT=True)
     G_f = tr.Float(0.5,
-                   param=True,
-                   minmax=(0.01, 1.0),
-                   latex='G_\mathrm{f}',
                    MAT=True)
     L_fps = tr.Float(50,
-                     param=True,
-                     minmax=(1, 200),
-                     latex='L_\mathrm{fps}',
                      MAT=True)
 
     L_c = tr.Property
@@ -231,43 +215,36 @@ class ConcreteMaterialModel(InteractiveModel):
     # Bond-slip law
     #=========================================================================
     tau_1 = tr.Float(1.0,
-                     param=True,
-                     latex=r'\tau_1',
-                     minmax=(0.1,10),
                      MAT=True)
 
     s_1 = tr.Float(0.000001,
-                   param=True,
-                   latex='s_1',
-                   minmax=(1e-8,3),
                    MAT=True)
 
     tau_2 = tr.Float(0.9,
-                     param=True,
-                     latex=r'\tau_2',
-                     minmax=(0.1,10),
                      MAT=True)
 
     s_2 = tr.Float(1.4,
-                   param=True,
-                   latex='s_2',
-                   minmax=(0.001,5),
                    MAT=True)
 
     tau_3 = tr.Float(0.9,
-                     param=True,
-                     latex=r'\tau_3',
-                     minmax=(0,10),
                      MAT=True)
 
     s_3 = tr.Float(1.6,
-                   param=True,
-                   latex=r's_3',
-                   minmax=(0.1,10),
                    MAT=True)
 
-    param_names = ['f_c', 'E_c', 'f_t', 'G_f', 'L_fps',
-                   'tau_1', 'tau_2','tau_3','s_1','s_2','s_3']
+    ipw_view = View(
+        Item('f_t',minmax=(1, 10), latex='f_\mathrm{t}',),
+        Item('f_c', minmax=(10,180), latex='f_\mathrm{c}',),
+        Item('E_c', minmax=(10000,60000), latex='E_\mathrm{c}',),
+        Item('G_f', minmax=(0.01, 1.0), latex='G_\mathrm{f}'),
+        Item('L_fps', minmax=(1, 200), latex='L_\mathrm{fps}',),
+        Item('tau_1', latex=r'\tau_1', minmax=(0.1, 10),),
+        Item('s_1',latex='s_1',minmax=(1e-8,3)),
+        Item('tau_2',latex=r'\tau_2', minmax=(0.1,10),),
+        Item('s_2',latex='s_2',minmax=(0.001, 5)),
+        Item('tau_3', latex=r'\tau_3',minmax = (0, 10),),
+        Item('s_3', latex=r's_3',minmax = (0.1, 10), ),
+    )
 
     bond_law_data = tr.Property(depends_on='+param,+MAT')
 
@@ -379,7 +356,7 @@ if __name__ == '__main__':
         plt.show()
 
     if False:
-        inter = IPWInteract(smm)
+        inter = InteractiveWindow(smm)
         inter.interact()
 
     #smm.configure_traits()
