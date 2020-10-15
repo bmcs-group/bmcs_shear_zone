@@ -3,3 +3,57 @@
 # TODO: define the SZCrackTipOrientation model component
 
 # TODO: define the ResiduumIterationLoop that renders zero normal force and matching psi
+
+
+import sympy as sp
+import numpy as np
+import bmcs_utils.api as bu
+from bmcs_shear_zone.shear_crack.crack_tip_shear_stress import SZCrackTipShearStress
+from bmcs_shear_zone.shear_crack.stress_profile import SZStressProfile
+import traits.api as tr
+
+tau_fps, sigma_x, sigma_z = sp.symbols(r'\tau_\mathrm{fps}, sigma_x, sigma_z')
+f_ct = sp.Symbol('f_{\mathrm{ct}}', nonnegative=True)
+
+sigma_xz = sp.Matrix([[sigma_x, tau_fps],
+                      [tau_fps, sigma_z]])
+sigma_x0 = sigma_xz.subs(sigma_z, 0)
+
+P_xz, D_xz = sigma_xz.diagonalize()
+P_x0, D_x0 = P_xz.subs(sigma_z, 0), D_xz.subs(sigma_z, 0)
+
+subs_sigma_z = sp.solve({D_xz[1, 1] - f_ct}, {sigma_z})[0]
+P_xf = P_xz.subs(subs_sigma_z)
+
+theta_f = sp.atan(sp.simplify(-P_xf[0, 0] / P_xf[1, 0]))
+theta_0 = sp.atan(sp.simplify(-P_x0[0, 0] / P_x0[1, 0]))
+
+get_theta_f = sp.lambdify((tau_fps, sigma_x, f_ct), theta_f)
+get_theta_0 = sp.lambdify((tau_fps, sigma_x), theta_0)
+
+class SZCrackTipOrientation(bu.InteractiveModel):
+    name = "Orientation"
+    crack_tip_shear_stress = tr.Instance(SZCrackTipShearStress)
+    stress_profile = tr.Instance(SZStressProfile)
+
+    def get_psi(self):
+        ct_tau = self.crack_tip_shear_stress
+        tau_x_tip_1 = ct_tau.tau_x_tip_1k
+        stress_profile = self.stress_profile
+        sig_tip_1 = stress_profile.sig_x_tip_0k
+        return get_theta_0(tau_x_tip_1,sig_tip_1)
+
+    def update_plot(self, ax):
+        ct_tau = self.crack_tip_shear_stress
+        x_tip_an = ct_tau.sz_cp.sz_ctr.x_tip_an[:,0]
+        L_fps = ct_tau.sz_cp.sz_ctr.L_fps
+        psi = self.get_psi()
+        s_psi, c_psi = np.sin(psi), np.cos(psi)
+        x_fps_an = x_tip_an + np.array([-s_psi, c_psi]) * L_fps
+        v_fps_an = np.array([x_tip_an, x_fps_an])
+
+        sz_ctr = self.crack_tip_shear_stress.sz_cp.sz_ctr
+        ax.axis('equal')
+        sz_ctr.plot_crack_tip_rotation(ax)
+        ax.plot(*v_fps_an.T, '-o', color='magenta', lw=3)
+    ipw_view = bu.View()

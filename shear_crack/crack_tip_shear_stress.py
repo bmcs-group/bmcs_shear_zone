@@ -121,7 +121,7 @@ get_tau_z_fps = sp.lambdify(
 # In[86]:
 
 
-class SZShearProfile(InteractiveModel):
+class SZCrackTipShearStress(InteractiveModel):
     name = 'Shear profile'
 
     Q = tr.Property

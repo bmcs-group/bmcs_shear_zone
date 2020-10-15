@@ -12,6 +12,8 @@ from bmcs_shear_zone.shear_crack.crack_path import \
     SZCrackPath
 from bmcs_shear_zone.shear_crack.deformed_state import \
     SZDeformedState
+from scipy.interpolate import interp1d
+
 import ipywidgets as ipw
 from bmcs_shear_zone.api import SteelMaterialModel, ConcreteMaterialModel
 from bmcs_utils.api import SymbExpr, InjectSymbExpr
@@ -157,6 +159,29 @@ class SZStressProfile(InteractiveModel):
     def _get_get_u0(self):
         return 1 # interp1d(self.ds.x_Lb[:, 1], self.ds.u_Lb[:, 0],
                    #      fill_value='extrapolate')
+
+    sig_x_tip_0k = tr.Property(depends_on='state_changed')
+    '''Normal stress component in global $x$ direction in the fracture .
+    process segment.
+    '''
+
+    @tr.cached_property
+    def _get_sig_x_tip_0k(self):
+        x_tip_1k = self.sz_cp.sz_ctr.x_tip_ak[1][0]
+        return self.get_sig_x_tip_0k(x_tip_1k)
+
+    #         S_a = self.S_La[self.xd.n_m_fps, ...]
+    #         return S_a[0] / self.sim.B
+
+    get_sig_x_tip_0k = tr.Property(depends_on='state_changed')
+    '''Get an interpolator function returning horizontal stress 
+    component for a specified vertical coordinate of a ligament.
+    '''
+    @tr.cached_property
+    def _get_get_sig_x_tip_0k(self):
+        B = self.ds.sz_geo.B
+        return interp1d(self.sz_cp.x_Lb[:, 1], self.S_La[:, 0] / B,
+                        fill_value='extrapolate')
 
     # =========================================================================
     # Plotting methods

@@ -1,16 +1,6 @@
-#!/usr/bin/env python
-# coding: utf-8
 
-# In[1]:
-
-
-import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sp
-
-sp.init_printing()
-import ipywidgets as ipw
-from bmcs_shear_zone.api import SteelMaterialModel, ConcreteMaterialModel
 from bmcs_utils.api import SymbExpr, InjectSymbExpr
 
 # # Fracture process segment
@@ -26,9 +16,6 @@ from bmcs_utils.api import SymbExpr, InjectSymbExpr
 # \end{array}
 # \right]
 # \end{align}
-
-# In[2]:
-
 
 beta = sp.symbols(r'\beta', nonnegative=True)
 theta = sp.symbols(r'\theta', nonnegative=True)
@@ -762,7 +749,6 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
         ax.plot(*np.c_[self.x_fps_ak, self.x_rot_ak], color='blue')
 
     def update_plot(self, ax):
-        ax.clear()
         ax.axis('equal')
         self.plot_crack_tip_rotation(ax)
 
