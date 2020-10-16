@@ -43,7 +43,7 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         sig_tip_1 = stress_profile.sig_x_tip_0k
         return get_theta_0(tau_x_tip_1,sig_tip_1)
 
-    def update_plot(self, ax):
+    def plot(self, ax):
         ct_tau = self.crack_tip_shear_stress
         x_tip_an = ct_tau.sz_cp.sz_ctr.x_tip_an[:,0]
         L_fps = ct_tau.sz_cp.sz_ctr.L_fps
@@ -56,4 +56,8 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         ax.axis('equal')
         sz_ctr.plot_crack_tip_rotation(ax)
         ax.plot(*v_fps_an.T, '-o', color='magenta', lw=3)
+
+    def update_plot(self, ax):
+        self.plot(ax)
+
     ipw_view = bu.View()
