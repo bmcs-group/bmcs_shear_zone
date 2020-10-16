@@ -4,19 +4,11 @@ import traits.api as tr
 import numpy as np
 import sympy as sp
 from bmcs_utils.api import InteractiveModel, View, Item, mpl_align_xaxis
-from bmcs_shear_zone.shear_crack.crack_tip_rotation import \
-    SZCrackTipRotation
-from bmcs_shear_zone.shear_crack.beam_design import \
-    RCBeamDesign
 from bmcs_shear_zone.shear_crack.crack_path import \
     SZCrackPath
 from bmcs_shear_zone.shear_crack.deformed_state import \
     SZDeformedState
 from scipy.interpolate import interp1d
-
-import ipywidgets as ipw
-from bmcs_shear_zone.api import SteelMaterialModel, ConcreteMaterialModel
-from bmcs_utils.api import SymbExpr, InjectSymbExpr
 
 # # Stress profiles
 
@@ -61,6 +53,7 @@ class SZStressProfile(InteractiveModel):
 
     ipw_view = View()
 
+    state_changed = tr.DelegatesTo('sz_cp')
     # =========================================================================
     # Displacement interpolation and transformation
     # =========================================================================
@@ -106,6 +99,7 @@ class SZStressProfile(InteractiveModel):
     '''Transposed stresses'''
     @tr.cached_property
     def _get_S_La(self):
+
         S_Lb = self.S_Lb
         S_La = np.einsum('Lb,Lab->La', S_Lb, self.ds.sz_cp.T_Mab)
         return S_La

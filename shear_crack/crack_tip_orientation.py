@@ -32,14 +32,21 @@ get_theta_f = sp.lambdify((tau_fps, sigma_x, f_ct), theta_f)
 get_theta_0 = sp.lambdify((tau_fps, sigma_x), theta_0)
 
 class SZCrackTipOrientation(bu.InteractiveModel):
+    """Given the global and local stress state around the crack
+    tip determine the orientationof the crack orientation $\psi$
+    for the next iteration. Possible inputs that can be included
+    are the stress components defined in the vicinity of the crack.
+    Shear stress $\tau_{\mathrm{xz}}$, horizontal stress $\sigma_x$.
+    """
     name = "Orientation"
-    crack_tip_shear_stress = tr.Instance(SZCrackTipShearStress)
-    stress_profile = tr.Instance(SZStressProfile)
+    crack_tip_shear_stress = tr.Instance(SZCrackTipShearStress,())
+    sz_stress_profile = tr.DelegatesTo('crack_tip_shear_stress')
+    sz_cp = tr.DelegatesTo('crack_tip_shear_stress')
 
     def get_psi(self):
         ct_tau = self.crack_tip_shear_stress
         tau_x_tip_1 = ct_tau.tau_x_tip_1k
-        stress_profile = self.stress_profile
+        stress_profile = self.sz_stress_profile
         sig_tip_1 = stress_profile.sig_x_tip_0k
         return get_theta_0(tau_x_tip_1,sig_tip_1)
 

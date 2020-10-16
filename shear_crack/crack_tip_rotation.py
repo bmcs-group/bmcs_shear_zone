@@ -12,12 +12,12 @@ from bmcs_utils.api import SymbExpr, InjectSymbExpr
 # x^{\mathrm{fps}}_{ak} = x^{\mathrm{tip}}_{an} + L^{\mathrm{fps}}
 # \left[
 # \begin{array}{c}
-# -\sin(\beta) \\ \cos(\beta)
+# -\sin(\psi) \\ \cos(\psi)
 # \end{array}
 # \right]
 # \end{align}
 
-beta = sp.symbols(r'\beta', nonnegative=True)
+psi = sp.symbols(r'\psi', nonnegative=True)
 theta = sp.symbols(r'\theta', nonnegative=True)
 psi = sp.symbols(r'\psi', nonnegative=True)
 phi = sp.symbols(r'\phi', nonnegative=True)
@@ -61,25 +61,25 @@ w = sp.Symbol(r'w_\mathrm{cr}', nonnegative=True)
 # In[4]:
 
 
-c_beta = sp.Symbol('c_beta')
-s_beta = sp.Symbol('s_beta')
+c_psi = sp.Symbol('c_psi')
+s_psi = sp.Symbol('s_psi')
 
 # Assembling the unit vector components into the vector
 # \begin{align}
-# B_c = [ \cos(\beta), \sin(\beta) ]
+# B_c = [ \cos(\psi), \sin(\psi) ]
 # \end{align}
 
 # In[5]:
 
 
-B = sp.Matrix([c_beta, s_beta])
-B_ = sp.Matrix([sp.cos(beta), sp.sin(beta)])
+B = sp.Matrix([c_psi, s_psi])
+B_ = sp.Matrix([sp.cos(psi), sp.sin(psi)])
 
 # In[6]:
 
 
-t_vec = sp.Matrix([-s_beta, c_beta])
-n_vec = sp.Matrix([c_beta, s_beta])
+t_vec = sp.Matrix([-s_psi, c_psi])
+n_vec = sp.Matrix([c_psi, s_psi])
 t_vec, n_vec
 
 # In[7]:
@@ -164,7 +164,7 @@ Eq_xi_
 
 
 xi_solved = sp.solve(Eq_xi_, xi)[0]
-xi_solved_c = xi_solved.subs(c_beta ** 2 + s_beta ** 2, 1)
+xi_solved_c = xi_solved.subs(c_psi ** 2 + s_psi ** 2, 1)
 
 # In[15]:
 
@@ -174,7 +174,7 @@ sp.simplify(xi_solved_c)
 # In[16]:
 
 
-py_vars = ('beta', 'x_rot_1k', 'x_tip_0n', 'x_tip_1n', 'L_fps', 'ell', 'w')
+py_vars = ('psi', 'x_rot_1k', 'x_tip_0n', 'x_tip_1n', 'L_fps', 'ell', 'w')
 get_params = lambda py_vars, **kw: tuple(kw[name] for name in py_vars)
 sp_vars = tuple(globals()[py_var] for py_var in py_vars)
 sp_vars
@@ -182,13 +182,13 @@ sp_vars
 # In[17]:
 
 
-get_params(py_vars, beta=0, x_rot_1k=1, x_tip_0n=0, x_tip_1n=0, L_fps=0.1, ell=0.1, w=0.1)
+get_params(py_vars, psi=0, x_rot_1k=1, x_tip_0n=0, x_tip_1n=0, L_fps=0.1, ell=0.1, w=0.1)
 
 # In[18]:
 
 
 get_B = sp.lambdify(sp_vars, B_)
-get_xi_B = sp.lambdify(sp_vars + (c_beta, s_beta), xi_solved)
+get_xi_B = sp.lambdify(sp_vars + (c_psi, s_psi), xi_solved)
 
 
 def get_xi(*params):
@@ -201,12 +201,12 @@ def get_xi(*params):
 
 
 class CrackTipExpr(SymbExpr):
-    beta = beta
+    psi = psi
     x_rot_1k = x_rot_1k
     x_tip_0n = x_tip_0n
     x_tip_1n = x_tip_1n
-    c_beta = c_beta
-    s_beta = s_beta
+    c_psi = c_psi
+    s_psi = s_psi
 
     L_fps = L_fps
     ell = ell
@@ -216,8 +216,8 @@ class CrackTipExpr(SymbExpr):
     xi_solved = xi_solved
     symb_model_params = ['L_fps', 'ell', 'w']
     symb_expressions = [
-        ('B', ('beta', 'x_rot_1k', 'x_tip_0n', 'x_tip_1n')),
-        ('xi_solved', ('beta', 'x_rot_1k', 'x_tip_0n', 'x_tip_1n', 'c_beta', 's_beta')),
+        ('B', ('psi', 'x_rot_1k', 'x_tip_0n', 'x_tip_1n')),
+        ('xi_solved', ('psi', 'x_rot_1k', 'x_tip_0n', 'x_tip_1n', 'c_psi', 's_psi')),
     ]
 
 
@@ -226,7 +226,7 @@ class CrackTipExpr(SymbExpr):
 
 params = 0, 1, 0, 0, 0.1, 0.1, 0.1
 param_dict = dict(
-    beta=0, x_rot_1k=1, x_tip_0n=0, x_tip_1n=0, L_fps=0.1, ell=0.1, w=0.1
+    psi=0, x_rot_1k=1, x_tip_0n=0, x_tip_1n=0, L_fps=0.1, ell=0.1, w=0.1
 )
 get_xi(*params), get_xi(*get_params(py_vars, **param_dict))
 
@@ -238,7 +238,7 @@ x_theta_xi_ak
 # In[22]:
 
 
-get_x_theta_B_ak = sp.lambdify(sp_vars + (c_beta, s_beta, xi), x_theta_xi_ak)
+get_x_theta_B_ak = sp.lambdify(sp_vars + (c_psi, s_psi, xi), x_theta_xi_ak)
 
 
 def get_x_theta_ak(*params):
@@ -246,12 +246,12 @@ def get_x_theta_ak(*params):
     return get_x_theta_B_ak(*(params + (xi,)))
 
 
-get_x_tip_an = sp.lambdify(sp_vars + (c_beta, s_beta), x_tip_an)
-get_x_tip_ak = sp.lambdify(sp_vars + (c_beta, s_beta), x_tip_ak)
-get_x_rot_ak = sp.lambdify(sp_vars + (c_beta, s_beta), x_rot_ak)
-get_x_fps_ak = sp.lambdify(sp_vars + (c_beta, s_beta), x_fps_ak)
-get_p_a = sp.lambdify(sp_vars + (c_beta, s_beta), p_a)
-get_q_xi_a = sp.lambdify(sp_vars + (c_beta, s_beta, xi), q_xi_a)
+get_x_tip_an = sp.lambdify(sp_vars + (c_psi, s_psi), x_tip_an)
+get_x_tip_ak = sp.lambdify(sp_vars + (c_psi, s_psi), x_tip_ak)
+get_x_rot_ak = sp.lambdify(sp_vars + (c_psi, s_psi), x_rot_ak)
+get_x_fps_ak = sp.lambdify(sp_vars + (c_psi, s_psi), x_fps_ak)
+get_p_a = sp.lambdify(sp_vars + (c_psi, s_psi), p_a)
+get_q_xi_a = sp.lambdify(sp_vars + (c_psi, s_psi, xi), q_xi_a)
 
 
 def get_q_a(*params):
@@ -268,38 +268,38 @@ get_x_fps_ak(*(params + (0, 1)))
 
 # To derive an efficient Newton-Raphson algorithm, let us directly prepare the derivatives of $\xi$ with respect to the angle primary unknowns - crack inclination $\theta$ and to the vertical position of the center of rotation $x^\mathrm{rot}_{1k}$ assembled in a vector
 # \begin{align}
-# \zeta_I = [ \beta, x_{1k}^\mathrm{rot} ]
+# \zeta_I = [ \psi, x_{1k}^\mathrm{rot} ]
 # \end{align}
-# As the solution of $(\xi, x^\mathrm{rot}_{1k})$ has been obtained in terms of $\cos(\beta)$ and $\sin(\beta)$ the derivatives
+# As the solution of $(\xi, x^\mathrm{rot}_{1k})$ has been obtained in terms of $\cos(\psi)$ and $\sin(\psi)$ the derivatives
 # \begin{align}
 # \frac{\partial \xi}{\partial \zeta_I} &= \xi_{,I} =
-# \left[\frac{\partial \xi}{\partial \beta}, \frac{\partial \xi}{\partial x^\mathrm{rot}_{1k}}\right]
+# \left[\frac{\partial \xi}{\partial \psi}, \frac{\partial \xi}{\partial x^\mathrm{rot}_{1k}}\right]
 # \end{align}
 # where
 # \begin{align}
-# \frac{\partial \xi}{\partial \beta} &=
-# \frac{\partial \xi}{\partial \cos(\beta)}
-# \frac{\partial \cos(\theta)}{\partial \beta} +
-# \frac{\partial \xi}{\partial \sin(\beta)}
-# \frac{\partial \sin(\theta)}{\partial \beta} \\
-# &= \frac{\partial \xi}{\partial B_c} \frac{\partial B_c}{\partial \beta}
+# \frac{\partial \xi}{\partial \psi} &=
+# \frac{\partial \xi}{\partial \cos(\psi)}
+# \frac{\partial \cos(\theta)}{\partial \psi} +
+# \frac{\partial \xi}{\partial \sin(\psi)}
+# \frac{\partial \sin(\theta)}{\partial \psi} \\
+# &= \frac{\partial \xi}{\partial B_c} \frac{\partial B_c}{\partial \psi}
 # \end{align}
 
 # In[24]:
 
 
 dxi_dB = xi_solved_c.diff(B)
-dB_dbeta = B_.diff(beta)
-dB_dbeta_ = dB_dbeta.subs(
-    {sp.cos(beta): c_beta, sp.sin(beta): s_beta})
-dxi_beta = (dxi_dB.T * dB_dbeta)[0, 0]
+dB_dpsi = B_.diff(psi)
+dB_dpsi_ = dB_dpsi.subs(
+    {sp.cos(psi): c_psi, sp.sin(psi): s_psi})
+dxi_psi = (dxi_dB.T * dB_dpsi)[0, 0]
 dxi_x_rot_1k = xi_solved_c.diff(x_rot_1k)
-get_dxi_beta = sp.lambdify(sp_vars + (c_beta, s_beta), dxi_beta)
-get_dxi_x_rot_1k = sp.lambdify(sp_vars + (c_beta, s_beta), dxi_x_rot_1k)
+get_dxi_psi = sp.lambdify(sp_vars + (c_psi, s_psi), dxi_psi)
+get_dxi_x_rot_1k = sp.lambdify(sp_vars + (c_psi, s_psi), dxi_x_rot_1k)
 
-# Derivatives of the left side vector $p_{,I}$ with respect to $\beta$
+# Derivatives of the left side vector $p_{,I}$ with respect to $\psi$
 # \begin{align}
-# p_{a,\beta} = p_{a,B_c} B_{c,\beta}
+# p_{a,\psi} = p_{a,B_c} B_{c,\psi}
 # \end{align}
 # and with respect to $x^\mathrm{rot}_{1k}$
 # \begin{align}
@@ -312,29 +312,29 @@ get_dxi_x_rot_1k = sp.lambdify(sp_vars + (c_beta, s_beta), dxi_x_rot_1k)
 # In[25]:
 
 
-dp_a_beta = sp.Matrix([p_a.T.diff(c) for c in B]).T * B_
+dp_a_psi = sp.Matrix([p_a.T.diff(c) for c in B]).T * B_
 dp_a_x_rot_1k = p_a.diff(x_rot_1k)
-dp_aI_ = sp.Matrix([dp_a_beta.T, dp_a_x_rot_1k.T]).T
+dp_aI_ = sp.Matrix([dp_a_psi.T, dp_a_x_rot_1k.T]).T
 
 # In[26]:
 
 
-get_dp_a_beta = sp.lambdify(sp_vars + (c_beta, s_beta), dp_a_beta)
-get_dp_a_x_rot_1k = sp.lambdify(sp_vars + (c_beta, s_beta), dp_a_x_rot_1k)
+get_dp_a_psi = sp.lambdify(sp_vars + (c_psi, s_psi), dp_a_psi)
+get_dp_a_x_rot_1k = sp.lambdify(sp_vars + (c_psi, s_psi), dp_a_x_rot_1k)
 
 
 def get_p_a_dI(*params):
     p_a = get_p_a(*params)
-    dp_a_beta = get_dp_a_beta(*params)
+    dp_a_psi = get_dp_a_psi(*params)
     dp_a_x_rot_1k = get_dp_a_x_rot_1k(*params)
-    return p_a[:, 0], np.c_[dp_a_beta, dp_a_x_rot_1k]
+    return p_a[:, 0], np.c_[dp_a_psi, dp_a_x_rot_1k]
 
 
 get_p_a_dI(*(params + (0, 1)))
 
 # Derivatives of the right plate vector $q_{,I}$ with respect to $\theta$
 # \begin{align}
-# q_{a,beta} = q_{a,B_c} B_{c,beta} + q_{a,\xi} \xi_{,\beta}
+# q_{a,psi} = q_{a,B_c} B_{c,psi} + q_{a,\xi} \xi_{,\psi}
 # \end{align}
 # and with respect to $x^\mathrm{rot}_{1k}$
 # \begin{align}
@@ -345,29 +345,29 @@ get_p_a_dI(*(params + (0, 1)))
 
 # In[27]:
 
-dq_a_beta_dir = sp.Matrix([q_xi_a.T.diff(c) for c in B]).T * dB_dbeta_
+dq_a_psi_dir = sp.Matrix([q_xi_a.T.diff(c) for c in B]).T * dB_dpsi_
 dq_a_xi = q_xi_a.diff(xi)
 dq_a_x_rot_1k_dir = q_xi_a.diff(x_rot_1k)
-dq_aI_dir_ = sp.Matrix([dq_a_beta_dir.T, dq_a_x_rot_1k_dir.T]).T
+dq_aI_dir_ = sp.Matrix([dq_a_psi_dir.T, dq_a_x_rot_1k_dir.T]).T
 
 # In[28]:
 
-get_dq_a_beta_dir = sp.lambdify(sp_vars + (c_beta, s_beta, xi), dq_a_beta_dir)
-get_dq_a_x_rot_1k_dir = sp.lambdify(sp_vars + (c_beta, s_beta, xi), dq_a_x_rot_1k_dir)
-get_dq_a_xi = sp.lambdify(sp_vars + (c_beta, s_beta), dq_a_xi)
+get_dq_a_psi_dir = sp.lambdify(sp_vars + (c_psi, s_psi, xi), dq_a_psi_dir)
+get_dq_a_x_rot_1k_dir = sp.lambdify(sp_vars + (c_psi, s_psi, xi), dq_a_x_rot_1k_dir)
+get_dq_a_xi = sp.lambdify(sp_vars + (c_psi, s_psi), dq_a_xi)
 
 
 def get_q_a_dI(*params):
     xi = get_xi_B(*params)
     q_a = get_q_xi_a(*(params + (xi,)))
-    dq_a_beta_dir = get_dq_a_beta_dir(*(params + (xi,)))
+    dq_a_psi_dir = get_dq_a_psi_dir(*(params + (xi,)))
     dq_a_xi = get_dq_a_xi(*params)
-    dxi_beta = get_dxi_beta(*params)
-    dq_a_beta = dq_a_beta_dir + dq_a_xi * dxi_beta
+    dxi_psi = get_dxi_psi(*params)
+    dq_a_psi = dq_a_psi_dir + dq_a_xi * dxi_psi
     dq_a_x_rot_1k_dir = get_dq_a_x_rot_1k_dir(*(params + (xi,)))
     dxi_x_rot_1k = get_dxi_x_rot_1k(*params)
     dq_a_x_rot_1k = dq_a_x_rot_1k_dir + dq_a_xi * dxi_x_rot_1k
-    return q_a[:, 0], np.c_[dq_a_beta, dq_a_x_rot_1k]
+    return q_a[:, 0], np.c_[dq_a_psi, dq_a_x_rot_1k]
 
 
 get_q_a_dI(*(params + (0, 1)))
@@ -503,8 +503,8 @@ def get_cos_theta_dI(p_a, q_a, dp_aI, dq_aI):
 
 
 def get_cos_theta_dI2(*params):
-    c_beta, s_beta = get_B(*params)
-    params_B = params + (c_beta[0], s_beta[0])
+    c_psi, s_psi = get_B(*params)
+    params_B = params + (c_psi[0], s_psi[0])
     p_a, dp_aI = get_p_a_dI(*params_B)
     q_a, dq_aI = get_q_a_dI(*params_B)
     return get_cos_theta_dI(p_a, q_a, dp_aI, dq_aI)
@@ -645,7 +645,7 @@ np.einsum('ab,b->a', _T_ab, [1, -1])
 
 # **TODO:** Define the chained derivatives for the rotated coordinate
 # \begin{align}
-# x^{1}_{a,\beta \zeta} = x^{1}_{,\zeta} + x^{1}_{a, c} c_{,\beta \zeta}
+# x^{1}_{a,\psi \zeta} = x^{1}_{,\zeta} + x^{1}_{a, c} c_{,\psi \zeta}
 # \end{align}
 
 # In[48]:
@@ -661,16 +661,25 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
     name = 'Crack tip'
 
     # Define the free parameters as traits with default, min and max values
-    beta = tr.Float(0.8, param=True, latex=r'\beta', minmax=(0, np.pi / 2))
-    x_rot_1k = tr.Float(100, latex=r'x^\mathrm{rot}_{1k}', param=True, minmax=(0, 200))
-    x_tip_0n = tr.Float(200, latex=r'x^\mathrm{tip}_{0n}', param=True, minmax=(0, 500))
-    x_tip_1n = tr.Float(50, latex=r'x^\mathrm{tip}_{1n}', param=True, minmax=(0, 200))
-    L_fps = tr.Float(20, latex=r'L_\mathrm{fps}', param=True, minmax=(0, 100))
-    ell = tr.Float(5, latex=r'\ell', param=True, minmax=(0, 10))
-    w = tr.Float(0.3, latex=r'w', param=True, minmax=(0, 20))
+    # Classification to handle update of dependent components
+    # ITER - changes in an iteration
+    # INCR - changes in an increment
+    # PARAM - is constant
+    psi = tr.Float(0.8, ITER=True)
+    x_rot_1k = tr.Float(100,ITER=True)
+    x_tip_0n = tr.Float(200, INCR=True)
+    x_tip_1n = tr.Float(50, INCR=True)
+    L_fps = tr.Float(20, PARAM=True)
+    ell = tr.Float(5, PARAM=True)
+    w = tr.Float(0.3, PARAM=True)
+
+    state_changed = tr.Event
+    @tr.on_trait_change('+ITER, +INCR, +PARAM')
+    def change_state(self):
+        self.state_changed = True
 
     ipw_view = View(
-        Item('beta', latex=r'\beta', minmax=(0, np.pi / 2)),
+        Item('psi', latex=r'\psi', minmax=(0, np.pi / 2)),
         Item('x_rot_1k', latex=r'x^\mathrm{rot}_{1k}', minmax=(0, 200)),
         Item('x_tip_0n', latex=r'x^\mathrm{tip}_{0n}', minmax=(0, 500)),
         Item('x_tip_1n', latex=r'x^\mathrm{tip}_{1n}', minmax=(0, 200)),
@@ -679,13 +688,11 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
         Item('w', latex=r'w', minmax=(0, 20))
     )
 
-    param_names = ['beta', 'x_rot_1k', 'x_tip_0n', 'x_tip_1n', 'L_fps', 'ell', 'w']
-
-    all_points = tr.Property(depends_on='+param')
+    all_points = tr.Property(depends_on='+ITER, +INCR, +PARAM')
 
     @tr.cached_property
     def _get_all_points(self):
-        params = self.beta, self.x_rot_1k, self.x_tip_0n, self.x_tip_1n
+        params = self.psi, self.x_rot_1k, self.x_tip_0n, self.x_tip_1n
         c_theta, s_theta = self.symb.get_B(*params)
         model_params = self.symb.get_model_params()
         params = params + model_params + (c_theta[0], s_theta[0])
@@ -728,7 +735,7 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
 
     def get_T_ab_dT_dI_abI(self):
         '''Rotation matrix for the right plate'''
-        variables = self.beta, self.x_rot_1k, self.x_tip_0n, self.x_tip_1n
+        variables = self.psi, self.x_rot_1k, self.x_tip_0n, self.x_tip_1n
         model_params = self.symb.get_model_params()
         params = variables + model_params
         T_ab, dT_dI_abI = get_T_ab_dT_dI_abI(*params)
