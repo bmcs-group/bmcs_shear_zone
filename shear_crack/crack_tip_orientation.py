@@ -1,10 +1,5 @@
 
 
-# TODO: define the SZCrackTipOrientation model component
-
-# TODO: define the ResiduumIterationLoop that renders zero normal force and matching psi
-
-
 import sympy as sp
 import numpy as np
 import bmcs_utils.api as bu

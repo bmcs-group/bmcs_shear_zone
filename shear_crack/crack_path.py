@@ -154,20 +154,32 @@ class SZCrackPath(InteractiveModel):
         Item('x_00', latex=r'x_{00}', minmax=(1, 1000))
     )
 
-    sz_ctr = tr.Instance(SZCrackTipRotation ,)
-    def _sz_ctr_default(self):
-        # Initializa the crack tip at the bottom of a beam with beta=0
-        return SZCrackTipRotation(
-            x_tip_0n=self.x_00, x_tip_1n=0, beta=0
-        )
 
     sz_geo = tr.Instance(RCBeamDesign ,())
+
+    beam_design_changed = tr.DelegatesTo('sz_geo')
 
     beam_design = tr.Property()
     def _get_beam_design(self):
         return self.sz_geo
     def _set_beam_design(self,val):
         self.sz_geo = val
+
+    sz_ctr = tr.Property(depends_on='sz_geo')
+    @tr.cached_property
+    def _get_sz_ctr(self):
+        # Initializa the crack tip at the bottom of a beam with beta=0
+        cmm = self.beam_design.cmm
+        print('sz_ctr - init', cmm.w_cr)
+        return SZCrackTipRotation(x_tip_0n=self.x_00, x_tip_1n=0,
+                                  psi=0, w=cmm.w_cr)
+
+    @tr.on_trait_change('beam_deisgn_changed')
+    def _reset_sz_ctr(self):
+        cmm = self.beam_design.cmm
+        print('change', cmm.w_cr)
+        self.sz_ctr.trait_set(x_tip_0n=self.x_00, x_tip_1n=0,
+                             psi=0, w=cmm.w_cr)
 
     x_00 = tr.Float(300, param=True, latex='x_{00}', minmax=(0 ,1000))
     '''Initial crack position'''

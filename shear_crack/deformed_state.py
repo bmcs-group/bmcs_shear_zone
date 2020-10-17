@@ -1,17 +1,9 @@
 
 import traits.api as tr
 import numpy as np
-import sympy as sp
 from bmcs_utils.api import InteractiveModel, View, Item
-from bmcs_shear_zone.shear_crack.crack_tip_rotation import \
-    SZCrackTipRotation
-from bmcs_shear_zone.shear_crack.beam_design import \
-    RCBeamDesign
 from bmcs_shear_zone.shear_crack.crack_path import \
     SZCrackPath
-import ipywidgets as ipw
-from bmcs_shear_zone.api import SteelMaterialModel, ConcreteMaterialModel
-from bmcs_utils.api import SymbExpr, InjectSymbExpr
 
 
 # **Remark:** Upon a crack extension, the state parameters

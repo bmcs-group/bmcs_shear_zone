@@ -1,6 +1,6 @@
 
 import numpy as np
-from bmcs_shear_zone.api import SteelMaterialModel, ConcreteMaterialModel
+from bmcs_shear_zone.matmod.sz_matmod import SteelMaterialModel, ConcreteMaterialModel
 
 # # Material constitutive laws
 
@@ -59,6 +59,9 @@ class RCBeamDesign(InteractiveModel):
 
     cmm = tr.Instance(ConcreteMaterialModel, ())
     smm = tr.Instance(SteelMaterialModel, ())
+
+    # TODO: add the event upon the change in shape, layout and model.
+    beam_design_changed = tr.Event
 
     # Only for visualization to delimit the plotted area
     H = tr.Float(200)

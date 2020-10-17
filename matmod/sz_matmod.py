@@ -97,6 +97,7 @@ class ConcreteMaterialModel(InteractiveModel):
                    symbol=r'f_\mathrm{c}',
                    auto_set=False, enter_set=True,
                    desc='concrete strength')
+
     E_c = tr.Float(28000,
                    MAT=True,
                    unit=r'$\mathrm{MPa}$',
@@ -105,10 +106,10 @@ class ConcreteMaterialModel(InteractiveModel):
                    desc='concrete material stiffness')
 
     f_t = tr.Float(3.0, MAT=True)
-    G_f = tr.Float(0.5,
-                   MAT=True)
-    L_fps = tr.Float(50,
-                     MAT=True)
+
+    G_f = tr.Float(0.5, MAT=True)
+
+    L_fps = tr.Float(50, MAT=True)
 
     L_c = tr.Property
 
@@ -127,6 +128,11 @@ class ConcreteMaterialModel(InteractiveModel):
     tree_view = traits_view
 
     L = tr.Float(100, param=True)
+
+    w_cr = tr.Property
+    def _get_w_cr(self):
+        return self.f_t / self.E_c * self.L_c
+
     co_law_data = tr.Property(depends_on='+param,+MAT')
 
     @tr.cached_property

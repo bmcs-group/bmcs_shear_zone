@@ -212,6 +212,11 @@ class SZStressProfile(InteractiveModel):
 
     def plot_u_Lb(self, ax_w, vot=1):
         ax_s = ax_w.twiny()
+        # plot the critical displacement
+        sz_ctr = self.sz_cp.sz_ctr
+        x_tip_1k = sz_ctr.x_tip_ak[1,0]
+        w = sz_ctr.w
+        ax_w.plot([0, w],[x_tip_1k, x_tip_1k], '-o', lw=2, color='red')
         self.plot_u_Lc(ax_w, self.u_Lb, 0, label=r'$w$ [mm]', color='blue')
         ax_w.set_xlabel(r'opening $w$ [mm]')
         self.plot_u_Lc(ax_s, self.u_Lb, 1, label=r'$s$ [mm]', color='green')
@@ -220,6 +225,13 @@ class SZStressProfile(InteractiveModel):
 
     def plot_S_Lb(self, ax_sig, vot=1):
         ax_tau = ax_sig.twiny()
+        # plot the critical displacement
+        bd = self.sz_cp.beam_design
+        cmm = bd.cmm
+        sz_ctr = self.sz_cp.sz_ctr
+        x_tip_1k = sz_ctr.x_tip_ak[1,0]
+        S_t = cmm.f_t * bd.B
+        ax_sig.plot([0, S_t],[x_tip_1k, x_tip_1k], '-o', lw=2, color='red')
         self.plot_u_Lc(ax_sig, self.S_Lb, 0, label=r'$\sigma_\mathrm{N}$ [N/mm]', color='blue')
         ax_sig.set_xlabel(r'normal stress flow $\sigma_\mathrm{N}$ [N/mm]')
         self.plot_u_Lc(ax_tau, self.S_Lb, 1, label=r'$\sigma_\mathrm{T}$ [N/mm]', color='green')

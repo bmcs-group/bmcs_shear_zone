@@ -9,11 +9,22 @@ import bmcs_utils.api as bu
 from bmcs_shear_zone.shear_crack.crack_tip_shear_stress import SZCrackTipShearStress
 from bmcs_shear_zone.shear_crack.crack_tip_orientation import SZCrackTipOrientation
 
-
 class CrackExtension(bu.InteractiveModel):
     """Find the parameters of the crack extension
 
     TODO: Check if there are redundant computations involved upon updates of psi and x_rot_1k
+
+    TODO: Interaction - How to insert a trait DelegatedTo a model subcomponent
+     into a current ipw_view? Widgets that are transient are not visible within the
+     model component. Check if the trait object is necessary in the current model.
+
+    TODO: Would it be possible to insert an instance as a group into a widget as well?
+
+    TODO: Design CrackPropagation model component
+
+    TODO: Combination of DelegatesTo and ModelComponent with a state_changed Event seems to work.
+
+    TODO: Crack orientation - check the stress at crack normal to crack - should be f_t
     """
     name = "Crack extension"
     crack_tip_shear_stress = tr.Instance(SZCrackTipShearStress, ())
