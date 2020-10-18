@@ -117,24 +117,32 @@ get_tau_z_fps = sp.lambdify(
 class SZCrackTipShearStress(InteractiveModel):
     name = 'Shear profile'
 
+    sz_stress_profile = tr.Instance(SZStressProfile, ())
+    sz_cp = tr.DelegatesTo('sz_stress_profile')
+    sz_bd = tr.DelegatesTo('sz_cp', 'sz_bd')
+
+    _ALL = tr.DelegatesTo('sz_stress_profile')
+    _GEO = tr.DelegatesTo('sz_stress_profile')
+    _MAT = tr.DelegatesTo('sz_stress_profile')
+
     Q = tr.Property
 
     def _get_Q(self):
         M = self.sz_stress_profile.M
-        L = self.beam_design.L
+        L = self.sz_bd.L
         x_tip_0k = self.sz_cp.sz_ctr.x_tip_ak[0]
         Q = M / (L - x_tip_0k)[0]
         return Q
 
-    sz_cp = tr.Instance(SZCrackPath, ())
-
-    sz_stress_profile = tr.Property(depends_on='sz_cp')
-
-    @tr.cached_property
-    def _get_sz_stress_profile(self):
-        return SZStressProfile(sz_cp=self.sz_cp)
-
-    beam_design = tr.DelegatesTo('sz_cp', 'sz_geo')
+    F_beam = tr.Property
+    '''Use the reference to MQProfileand BoundaryConditions
+    to calculate the global load. Its interpretation depends on the   
+    nature of the load - single mid point, four-point, distributed.
+    '''
+    # TODO: Currently there is just a single midpoint load of a 3pt bending beam assumed.
+    #       then, the load is equal to the shear force
+    def _get_F_beam(self):
+        return 2 * self.Q
 
     x_tip_1k = tr.Property
 
@@ -144,8 +152,8 @@ class SZCrackTipShearStress(InteractiveModel):
     tau_x_tip_1k = tr.Property
 
     def _get_tau_x_tip_1k(self):
-        H = self.beam_design.H
-        B = self.beam_design.B
+        H = self.sz_bd.H
+        B = self.sz_bd.B
         return get_tau_z_fps(self.x_tip_1k, self.Q, H, B)[0]
 
     ipw_view = View(
@@ -157,8 +165,8 @@ class SZCrackTipShearStress(InteractiveModel):
 
     def update_plot(self, axes):
         ax1, ax2 = axes
-        H = self.beam_design.H
-        B = self.beam_design.B
+        H = self.sz_bd.H
+        B = self.sz_bd.B
 
         Q_val = np.linspace(0, self.Q, 100)
         z_fps_arr = np.linspace(0, H * 0.98, 100)

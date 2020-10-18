@@ -44,12 +44,20 @@ class SZStressProfile(InteractiveModel):
 
     name = "Profiles"
 
-    sz_cp = tr.Instance(SZCrackPath, ())
+    ds = tr.Instance(SZDeformedState, ())
+    sz_cp = tr.DelegatesTo('ds')
+    sz_bd = tr.DelegatesTo('sz_cp')
 
-    ds = tr.Property(depends_on='sz_cp')
-    @tr.cached_property
-    def _get_ds(self):
-        return SZDeformedState(sz_cp=self.sz_cp)
+    _ITR = tr.DelegatesTo('sz_cp')
+    _INC = tr.DelegatesTo('sz_cp')
+    _MAT = tr.DelegatesTo('sz_cp')
+    _GEO = tr.DelegatesTo('sz_cp')
+    _DSC = tr.DelegatesTo('sz_cp')
+    _ALL = tr.Event
+
+    @tr.on_trait_change('_ITR, _INC, _GEO, _MAT, _DSC')
+    def _reset_ALL(self):
+        self._ALL = True
 
     ipw_view = View()
 
@@ -58,7 +66,7 @@ class SZStressProfile(InteractiveModel):
     # Displacement interpolation and transformation
     # =========================================================================
 
-    u_La = tr.Property(depends_on='state_changed')
+    u_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Displacement of the segment midpoints '''
     @tr.cached_property
     def _get_u_La(self):
@@ -68,7 +76,16 @@ class SZStressProfile(InteractiveModel):
         u_La = np.sum(u_Lia, axis=1) / 2
         return u_La
 
-    u_Lb = tr.Property(depends_on='state_changed')
+    u_Ca = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    '''Displacement of the corner nodes '''
+    @tr.cached_property
+    def _get_u_Ca(self):
+        x_Ca = self.sz_bd.x_Ca
+        x1_Ca = self.ds.x1_Ca
+        u_Ca = x1_Ca - x_Ca
+        return u_Ca
+
+    u_Lb = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Displacement of the segment midpoints '''
     @tr.cached_property
     def _get_u_Lb(self):
@@ -83,19 +100,19 @@ class SZStressProfile(InteractiveModel):
     # Stress transformation and integration
     # =========================================================================
 
-    S_Lb = tr.Property(depends_on='state_changed')
+    S_Lb = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Stress returned by the material model
     '''
     @tr.cached_property
     def _get_S_Lb(self):
         u_a = self.u_Lb
-        cmm = self.ds.sz_geo.cmm
-        B = self.ds.sz_geo.B
-        Sig_w = self.ds.sz_geo.cmm.get_sig_w(u_a[..., 0]) * B
-        Tau_w = self.ds.sz_geo.cmm.get_tau_s(u_a[..., 1]) * B
+        cmm = self.ds.sz_bd.cmm
+        B = self.ds.sz_bd.B
+        Sig_w = self.ds.sz_bd.cmm.get_sig_w(u_a[..., 0]) * B
+        Tau_w = self.ds.sz_bd.cmm.get_tau_s(u_a[..., 1]) * B
         return np.einsum('b...->...b', np.array([Sig_w, Tau_w], dtype=np.float_))
 
-    S_La = tr.Property(depends_on='state_changed')
+    S_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Transposed stresses'''
     @tr.cached_property
     def _get_S_La(self):
@@ -108,7 +125,7 @@ class SZStressProfile(InteractiveModel):
     # Stress resultants
     # =========================================================================
 
-    F_La = tr.Property(depends_on='state_changed')
+    F_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Integrated segment forces'''
     @tr.cached_property
     def _get_F_La(self):
@@ -116,7 +133,7 @@ class SZStressProfile(InteractiveModel):
         F_La = np.einsum('La,L->La', S_La, self.ds.sz_cp.norm_n_vec_L)
         return F_La
 
-    M = tr.Property(depends_on='state_changed')
+    M = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Internal bending moment obtained by integrating the
     normal stresses with the lever arm rooted at the height of the neutral
     axis.
@@ -135,7 +152,7 @@ class SZStressProfile(InteractiveModel):
         #             M += (y - x_rot_1k) * self.F_f
         return -M
 
-    F_a = tr.Property(depends_on='state_changed')
+    F_a = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Integrated normal and shear force
     '''
     @tr.cached_property
@@ -145,7 +162,7 @@ class SZStressProfile(InteractiveModel):
         #         F_a[0] += np.sum(self.F_f)
         return F_a
 
-    get_u0 = tr.Property(depends_on='state_changed')
+    get_u0 = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Get an interpolator function returning horizontal displacement 
     component for a specified vertical coordinate of a ligament.
     '''
@@ -154,7 +171,7 @@ class SZStressProfile(InteractiveModel):
         return 1 # interp1d(self.ds.x_Lb[:, 1], self.ds.u_Lb[:, 0],
                    #      fill_value='extrapolate')
 
-    sig_x_tip_0k = tr.Property(depends_on='state_changed')
+    sig_x_tip_0k = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Normal stress component in global $x$ direction in the fracture .
     process segment.
     '''
@@ -167,13 +184,13 @@ class SZStressProfile(InteractiveModel):
     #         S_a = self.S_La[self.xd.n_m_fps, ...]
     #         return S_a[0] / self.sim.B
 
-    get_sig_x_tip_0k = tr.Property(depends_on='state_changed')
+    get_sig_x_tip_0k = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Get an interpolator function returning horizontal stress 
     component for a specified vertical coordinate of a ligament.
     '''
     @tr.cached_property
     def _get_get_sig_x_tip_0k(self):
-        B = self.ds.sz_geo.B
+        B = self.ds.sz_bd.B
         return interp1d(self.sz_cp.x_Lb[:, 1], self.S_La[:, 0] / B,
                         fill_value='extrapolate')
 
@@ -226,7 +243,7 @@ class SZStressProfile(InteractiveModel):
     def plot_S_Lb(self, ax_sig, vot=1):
         ax_tau = ax_sig.twiny()
         # plot the critical displacement
-        bd = self.sz_cp.beam_design
+        bd = self.sz_cp.sz_bd
         cmm = bd.cmm
         sz_ctr = self.sz_cp.sz_ctr
         x_tip_1k = sz_ctr.x_tip_ak[1,0]

@@ -154,43 +154,38 @@ class SZCrackPath(InteractiveModel):
         Item('x_00', latex=r'x_{00}', minmax=(1, 1000))
     )
 
+    sz_bd = tr.Instance(RCBeamDesign ,())
+    '''Beam design object provides geometrical data and maerial data.
+    '''
 
-    sz_geo = tr.Instance(RCBeamDesign ,())
-
-    beam_design_changed = tr.DelegatesTo('sz_geo')
-
-    beam_design = tr.Property()
-    def _get_beam_design(self):
-        return self.sz_geo
-    def _set_beam_design(self,val):
-        self.sz_geo = val
-
-    sz_ctr = tr.Property(depends_on='sz_geo')
-    @tr.cached_property
-    def _get_sz_ctr(self):
+    sz_ctr = tr.Instance(SZCrackTipRotation)
+    '''Center of tip rotation - private model component 
+       representing the crck tip kinematics.
+    '''
+    def _sz_ctr_default(self):
         # Initializa the crack tip at the bottom of a beam with beta=0
-        cmm = self.beam_design.cmm
-        print('sz_ctr - init', cmm.w_cr)
-        return SZCrackTipRotation(x_tip_0n=self.x_00, x_tip_1n=0,
-                                  psi=0, w=cmm.w_cr)
+        cmm = self.sz_bd.cmm
+        return SZCrackTipRotation(x_tip_0n=self.x_00, x_tip_1n=0, psi=0,
+                                  L_fps=cmm.L_fps, w=cmm.w_cr)
 
-    @tr.on_trait_change('beam_deisgn_changed')
+    @tr.on_trait_change('sz_bd, sz_bd._GEO, sz_bd._MAT')
     def _reset_sz_ctr(self):
-        cmm = self.beam_design.cmm
-        print('change', cmm.w_cr)
-        self.sz_ctr.trait_set(x_tip_0n=self.x_00, x_tip_1n=0,
-                             psi=0, w=cmm.w_cr)
+        cmm = self.sz_bd.cmm
+        self.sz_ctr.trait_set(x_tip_0n=self.x_00, x_tip_1n=0,psi=0,
+                              L_fps=cmm.L_fps, w=cmm.w_cr)
 
-    x_00 = tr.Float(300, param=True, latex='x_{00}', minmax=(0 ,1000))
+    x_00 = tr.Float(300, GEO=True)
     '''Initial crack position'''
-    def _x_00_changed(self):
-        self.x_t_Ia = np.zeros((0 ,2), dtype=np.float_)
-        self.add_x_tip_an(np.array([self.x_00, 0], dtype=np.float_))
-        if False:
-            self.sz_ctr.traits(trantient=False)['x_rot_1k'].minmax = (0, self.sz_geo.H)
-            self.sz_ctr.traits(trantient=False)['x_tip_0n'].minmax = (0, self.sz_geo.L)
-            self.sz_ctr.traits(trantient=False)['x_tip_1n'].minmax = (0, self.sz_geo.H)
-            self.traits(param=True)['x_00'].minmax = (0, self.sz_geo.L)
+
+    # TODO: adjust the range of parameters that support sliding.
+    #       this requires the definition of the traits using the tr.Range type
+    #       direct specification of the range from within the Range editor
+    #       provides an alternative solution - then, the min-max attribute
+    #       must be defined as a trait and named in low / high Range trait parameter.
+        # self.sz_ctr.traits(trantient=False)['x_rot_1k'].minmax = (0, self.sz_bd.H)
+        # self.sz_ctr.traits(trantient=False)['x_tip_0n'].minmax = (0, self.sz_bd.L)
+        # self.sz_ctr.traits(trantient=False)['x_tip_1n'].minmax = (0, self.sz_bd.H)
+        # self.traits(param=True)['x_00'].minmax = (0, self.sz_bd.L)
 
     x_t_Ia = tr.Array
     '''Crack nodes up to a crack tip'''
@@ -202,28 +197,58 @@ class SZCrackPath(InteractiveModel):
         value = np.array(value ,dtype=np.float_)
         self.x_t_Ia = np.vstack([self.x_t_Ia, value[np.newaxis, :]])
         self.sz_ctr.x_tip_0n, self.sz_ctr.x_tip_1n = value
-        self.sz_ctr.x_rot_1k = value[1] + (self.sz_geo.H - value[1]) / 2
+        self.sz_ctr.x_rot_1k = value[1] + (self.sz_bd.H - value[1]) / 2
         self.crack_extended = True
         self.sz_ctr.psi = self.beta
     def get_x_tip_an(self):
         return self.x_t_Ia[-1 ,:]
 
-    # TODO: distinguish the changes in ITER, INCR and PARAM
-    state_changed = tr.DelegatesTo('sz_ctr')
-    # state_changed = tr.Event
-    # '''Event controling an update of crack data after a crack extension.'''
-    #
-    # def _state_changed_changed(self):
-    #     self.state_changed = True
+    @tr.on_trait_change('_MAT, _GEO')
+    def _reset_crack(self):
+        self.x_t_Ia = np.zeros((0 ,2), dtype=np.float_)
+        self.add_x_tip_an(np.array([self.x_00, 0], dtype=np.float_))
 
-    x_Ia = tr.Property(depends_on='state_changed')
+    # TODO: distinguish the changes in ITER, INCR and PARAM
+    #       Following state changes can occur
+    #       ctr: +ITER - the control parameters changed by the
+    #            the iterative solver - currently psi and x_ctr_1k
+    #       ctr: +INCR - x_tip_an - crack tip positions
+    #       ctr: +MAT - material parameters only changed by user
+    #       self: +GEO - parameters describing the geometry
+    #                    that means initial crack position / length, / width
+    #       dependency - GEO|MAT -> INCR -> ITER - there must be a handling
+    #                    of the change at the higher level (reset)
+
+    _ITR = tr.DelegatesTo('sz_ctr', '_ITR')
+
+    _INC = tr.Event
+    @tr.on_trait_change('sz_ctr, +INC, sz_ctr._INC')
+    def _reset_INC(self):
+        self._INC = True
+
+    _GEO = tr.Event
+    @tr.on_trait_change('sz_bd, +GEO, sz_bd._GEO')
+    def _reset_GEO(self):
+        self._GEO = True
+
+    _MAT = tr.Event
+    @tr.on_trait_change('sz_bd, +MAT, sz_bd._MAT')
+    def _reset_MAT(self):
+        self._MAT = True
+
+    _DSC = tr.Event
+    @tr.on_trait_change('+DSC')
+    def _reset_DSC(self):
+        self._DSC = True
+
+    x_Ia = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Nodes along the crack path including the fps segment'''
     @tr.cached_property
     def _get_x_Ia(self):
         x_fps_ak = self.sz_ctr.x_fps_ak
         return np.vstack([self.x_t_Ia, x_fps_ak.T])
 
-    I_Li = tr.Property(depends_on='state_changed')
+    I_Li = tr.Property(depends_on='_INC, _GEO, _MAT')
     '''Crack segments'''
     @tr.cached_property
     def _get_I_Li(self):
@@ -231,20 +256,20 @@ class SZCrackPath(InteractiveModel):
         I_Li = np.array([N_I[:-1], N_I[1:]], dtype=np.int_).T
         return I_Li
 
-    x_Ja = tr.Property(depends_on='state_changed')
+    x_Ja = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Uncracked vertical section'''
     @tr.cached_property
     def _get_x_Ja(self):
-        x_J_1 = np.linspace(self.x_Ia[-1, 1], self.sz_geo.H, self.n_J)
+        x_J_1 = np.linspace(self.x_Ia[-1, 1], self.sz_bd.H, self.n_J)
         return np.c_[self.x_Ia[-1, 0] * np.ones_like(x_J_1), x_J_1]
 
-    xx_Ka = tr.Property(depends_on='state_changed')
+    xx_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Integrated section'''
     @tr.cached_property
     def _get_xx_Ka(self):
         return np.concatenate([self.x_Ia, self.x_Ja[1:]], axis=0)
 
-    x_Ka = tr.Property(depends_on='state_changed')
+    x_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Integration points'''
     @tr.cached_property
     def _get_x_Ka(self):
@@ -254,7 +279,7 @@ class SZCrackPath(InteractiveModel):
         x_Kma = self.xx_Ka[:-1, np.newaxis, :] + d_Kma
         return np.vstack([x_Kma[:, :-1, :].reshape(-1, 2), self.xx_Ka[[-1], :]])
 
-    K_Li = tr.Property(depends_on='state_changed')
+    K_Li = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Crack segments'''
     @tr.cached_property
     def _get_K_Li(self):
@@ -262,13 +287,13 @@ class SZCrackPath(InteractiveModel):
         K_Li = np.array([N_K[:-1], N_K[1:]], dtype=np.int_).T
         return K_Li
 
-    x_Lb = tr.Property(depends_on='state_changed')
+    x_Lb = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Midpoints'''
     @tr.cached_property
     def _get_x_Lb(self):
         return np.sum(self.x_Ka[self.K_Li], axis=1) / 2
 
-    beta = tr.Property(depends_on='state_changed')
+    beta = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Inclination of the last crack segment with respect to vertical axic'''
     @tr.cached_property
     def _get_beta(self):
@@ -280,7 +305,7 @@ class SZCrackPath(InteractiveModel):
             beta = np.arcsin(s_beta)
             return beta
 
-    norm_n_vec_L = tr.Property(depends_on='state_changed')
+    norm_n_vec_L = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Length of a discretization line segment. 
     '''
     @tr.cached_property
@@ -290,14 +315,14 @@ class SZCrackPath(InteractiveModel):
         n_vec_La = x_Lia[:, 1, :] - x_Lia[:, 0, :]
         return np.sqrt(np.einsum('...a,...a->...', n_vec_La, n_vec_La))
 
-    T_Lab = tr.Property(depends_on='state_changed')
+    T_Lab = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Orthonormal bases of the crack segments, first vector is the line vector.
     '''
     @tr.cached_property
     def _get_T_Lab(self):
         return get_T_Lab(self.x_t_Ia)
 
-    T_Mab = tr.Property(depends_on='state_changed')
+    T_Mab = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     '''Orthonormal bases of the integration segments, first vector is the line vector.
     '''
     @tr.cached_property
@@ -309,7 +334,7 @@ class SZCrackPath(InteractiveModel):
 
     def plot_sz0(self, ax):
         x_Ia = self.x_Ia
-        x_Ca = self.sz_geo.x_Ca
+        x_Ca = self.sz_bd.x_Ca
         x_aI = x_Ia.T
         x_LL = x_Ca[0]
         x_LU = x_Ca[3]
@@ -322,11 +347,10 @@ class SZCrackPath(InteractiveModel):
         ax.plot(*x_aI, lw=2, color='black')
 
     def update_plot(self, ax):
-        ax.set_ylim(ymin=0 ,ymax=self.sz_geo.H)
-        ax.set_xlim(xmin=0 ,xmax=self.sz_geo.L)
+        ax.set_ylim(ymin=0 ,ymax=self.sz_bd.H)
+        ax.set_xlim(xmin=0 ,xmax=self.sz_bd.L)
         ax.axis('equal');
         self.sz_ctr.plot_crack_tip_rotation(ax)
-        self.sz_geo.plot_sz_geo(ax)
+        self.sz_bd.plot_sz_bd(ax)
         self.plot_sz0(ax)
 #        self.plot_x_Ka(ax)
-

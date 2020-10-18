@@ -1,5 +1,4 @@
 
-
 import sympy as sp
 import numpy as np
 import bmcs_utils.api as bu
@@ -34,9 +33,14 @@ class SZCrackTipOrientation(bu.InteractiveModel):
     Shear stress $\tau_{\mathrm{xz}}$, horizontal stress $\sigma_x$.
     """
     name = "Orientation"
+
     crack_tip_shear_stress = tr.Instance(SZCrackTipShearStress,())
     sz_stress_profile = tr.DelegatesTo('crack_tip_shear_stress')
     sz_cp = tr.DelegatesTo('crack_tip_shear_stress')
+
+    _ALL = tr.DelegatesTo('crack_tip_shear_stress')
+    _GEO = tr.DelegatesTo('crack_tip_shear_stress')
+    _MAT = tr.DelegatesTo('crack_tip_shear_stress')
 
     def get_psi(self):
         ct_tau = self.crack_tip_shear_stress
@@ -45,7 +49,7 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         sig_tip_1 = stress_profile.sig_x_tip_0k
         return get_theta_0(tau_x_tip_1,sig_tip_1)
 
-    def plot(self, ax):
+    def plot_crack_extension(self, ax):
         ct_tau = self.crack_tip_shear_stress
         x_tip_an = ct_tau.sz_cp.sz_ctr.x_tip_an[:,0]
         L_fps = ct_tau.sz_cp.sz_ctr.L_fps
@@ -53,11 +57,13 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         s_psi, c_psi = np.sin(psi), np.cos(psi)
         x_fps_an = x_tip_an + np.array([-s_psi, c_psi]) * L_fps
         v_fps_an = np.array([x_tip_an, x_fps_an])
-
-        sz_ctr = self.crack_tip_shear_stress.sz_cp.sz_ctr
-        ax.axis('equal')
-        sz_ctr.plot_crack_tip_rotation(ax)
         ax.plot(*v_fps_an.T, '-o', color='magenta', lw=3)
+
+    def plot(self, ax):
+        sz_ctr = self.crack_tip_shear_stress.sz_cp.sz_ctr
+        sz_ctr.plot_crack_tip_rotation(ax)
+        self.plot_crack_extension(ax)
+        ax.axis('equal')
 
     def update_plot(self, ax):
         self.plot(ax)

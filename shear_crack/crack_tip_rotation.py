@@ -664,19 +664,30 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
     # Classification to handle update of dependent components
     # ITER - changes in an iteration
     # INCR - changes in an increment
-    # PARAM - is constant
-    psi = tr.Float(0.8, ITER=True)
-    x_rot_1k = tr.Float(100,ITER=True)
-    x_tip_0n = tr.Float(200, INCR=True)
-    x_tip_1n = tr.Float(50, INCR=True)
-    L_fps = tr.Float(20, PARAM=True)
-    ell = tr.Float(5, PARAM=True)
-    w = tr.Float(0.3, PARAM=True)
+    # MAT - material parameter changed by a user
+    psi = tr.Float(0.8, ITR=True)
+    x_rot_1k = tr.Float(100,ITR=True)
+    x_tip_0n = tr.Float(200, INC=True)
+    x_tip_1n = tr.Float(50, INC=True)
+    L_fps = tr.Float(20, MAT=True)
+    ell = tr.Float(5, MAT=True)
+    w = tr.Float(0.3, MAT=True)
 
-    state_changed = tr.Event
-    @tr.on_trait_change('+ITER, +INCR, +PARAM')
-    def change_state(self):
-        self.state_changed = True
+    # State change events classified
+    _ITR = tr.Event
+    @tr.on_trait_change('+ITR')
+    def _reset_ITR(self):
+        self._ITR = True
+
+    _INC = tr.Event
+    @tr.on_trait_change('+INC')
+    def _reset_INC(self):
+        self._INC = True
+
+    _MAT = tr.Event
+    @tr.on_trait_change('+MAT')
+    def _reset_MAT(self):
+        self._MAT = True
 
     ipw_view = View(
         Item('psi', latex=r'\psi', minmax=(0, np.pi / 2)),
@@ -688,7 +699,7 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
         Item('w', latex=r'w', minmax=(0, 20))
     )
 
-    all_points = tr.Property(depends_on='+ITER, +INCR, +PARAM')
+    all_points = tr.Property(depends_on='+ITR, +INC, +MAT')
 
     @tr.cached_property
     def _get_all_points(self):

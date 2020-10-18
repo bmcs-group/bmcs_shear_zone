@@ -121,19 +121,19 @@ class ConcreteMaterialModel(InteractiveModel):
         ui.Item('f_c'),
         ui.Item('E_c'),
         ui.Item('G_f'),
-        ui.Item('L'),
+        # ui.Item('L'),
         ui.Item('L_c', style='readonly'),
     )
 
     tree_view = traits_view
 
-    L = tr.Float(100, param=True)
-
+    # L = tr.Float(100, param=True)
+    #
     w_cr = tr.Property
     def _get_w_cr(self):
         return self.f_t / self.E_c * self.L_c
 
-    co_law_data = tr.Property(depends_on='+param,+MAT')
+    co_law_data = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_co_law_data(self):
@@ -142,15 +142,16 @@ class ConcreteMaterialModel(InteractiveModel):
                     f_c=self.f_c,
                     E_c=self.E_c,
                     L_c=self.L_c,
-                    L=self.L)
+                    # L=self.L
+                    )
 
-    get_sig_eps = tr.Property(depends_on='+param,+MAT')
+    get_sig_eps = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_get_sig_eps(self):
         return sp.lambdify(eps, sig_eps.subs(self.co_law_data), 'numpy')
 
-    get_d_sig_eps = tr.Property(depends_on='+param,+MAT')
+    get_d_sig_eps = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_get_d_sig_eps(self):
@@ -159,13 +160,13 @@ class ConcreteMaterialModel(InteractiveModel):
     #=========================================================================
     # Sig w
     #=========================================================================
-    get_sig_w = tr.Property(depends_on='+param,+MAT')
+    get_sig_w = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_get_sig_w(self):
         return sp.lambdify(w, sig_w.subs(self.co_law_data), 'numpy')
 
-    get_d_sig_w = tr.Property(depends_on='+param,+MAT')
+    get_d_sig_w = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_get_d_sig_w(self):
@@ -252,7 +253,7 @@ class ConcreteMaterialModel(InteractiveModel):
         Item('s_3', latex=r's_3',minmax = (0.1, 10), ),
     )
 
-    bond_law_data = tr.Property(depends_on='+param,+MAT')
+    bond_law_data = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_bond_law_data(self):
@@ -260,13 +261,13 @@ class ConcreteMaterialModel(InteractiveModel):
                     tau_2=self.tau_2, s_2=self.s_2,
                     tau_3=self.tau_3, s_3=self.s_3)
 
-    get_tau_s_plus = tr.Property(depends_on='+param,+MAT')
+    get_tau_s_plus = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_get_tau_s_plus(self):
         return sp.lambdify(s, tau_s.subs(self.bond_law_data), 'numpy')
 
-    get_d_tau_s_plus = tr.Property(depends_on='+param,+MAT')
+    get_d_tau_s_plus = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_get_d_tau_s_plus(self):
@@ -315,7 +316,7 @@ class SteelMaterialModel(InteractiveModel):
     E_f = tr.Float(210000, MAT=True)
     f_s_t = tr.Float(500, MAT=True)
 
-    steel_law_data = tr.Property(depends_on='+param,+MAT')
+    steel_law_data = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_steel_law_data(self):
@@ -323,13 +324,13 @@ class SteelMaterialModel(InteractiveModel):
                     E_f=float(self.E_f),
                     f_s_t=self.f_s_t)
 
-    get_sig_w_f = tr.Property(depends_on='+param,+MAT')
+    get_sig_w_f = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_get_sig_w_f(self):
         return sp.lambdify(w, sig_w_f.subs(self.steel_law_data), 'numpy')
 
-    get_d_sig_w_f = tr.Property(depends_on='+param,+MAT')
+    get_d_sig_w_f = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
     def _get_get_d_sig_eps_f(self):

@@ -51,24 +51,22 @@ class SZDeformedState(InteractiveModel):
     ipw_view = View()
 
     sz_cp = tr.Instance(SZCrackPath ,())
-
     sz_ctr = tr.DelegatesTo('sz_cp')
+    sz_bd = tr.DelegatesTo('sz_cp')
 
-    sz_geo = tr.DelegatesTo('sz_cp')
+    _ITR = tr.DelegatesTo('sz_cp')
+    _INC = tr.DelegatesTo('sz_cp')
+    _MAT = tr.DelegatesTo('sz_cp')
+    _GEO = tr.DelegatesTo('sz_cp')
+    _DSC = tr.DelegatesTo('sz_cp')
 
-    # state_changed = tr.Event
-    # @tr.on_trait_change('sz_cp.state_changed')
-    # def _trigger_event(self):
-    #     self.state_changed = True
-    state_changed = tr.DelegatesTo('sz_cp')
-
-    x1_Ia = tr.Property(depends_on='state_changed')
+    x1_Ia = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Displaced segment nodes'''
     @tr.cached_property
     def _get_x1_Ia(self):
         return self.sz_ctr.get_x1_La(self.sz_cp.x_Ia)
 
-    x1_Ja = tr.Property(depends_on='state_changed')
+    x1_Ja = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Displaced segment nodes'''
     @tr.cached_property
     def _get_x1_Ja(self):
@@ -76,7 +74,7 @@ class SZDeformedState(InteractiveModel):
         x_rot_a = self.sz_ctr.x_rot_ak[: ,0]
         return self.sz_ctr.get_x1_La(self.sz_cp.x_Ja)
 
-    x1_Ka = tr.Property(depends_on='state_changed')
+    x1_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Displaced integration points'''
     @tr.cached_property
     def _get_x1_Ka(self):
@@ -84,13 +82,13 @@ class SZDeformedState(InteractiveModel):
         x_rot_a = self.sz_ctr.x_rot_ak[: ,0]
         return self.sz_ctr.get_x1_La(self.sz_cp.x_Ka)
 
-    x1_Ca = tr.Property(depends_on='state_changed')
+    x1_Ca = tr.Property(depends_on='_INC, _GEO, _MAT')
     '''Diplaced corner nodes'''
     @tr.cached_property
     def _get_x1_Ca(self):
         P_ab, _ = self.sz_ctr.get_T_ab_dT_dI_abI()
         x_rot_a = self.sz_ctr.x_rot_ak[: ,0]
-        return self.sz_ctr.get_x1_La(self.sz_geo.x_Ca)
+        return self.sz_ctr.get_x1_La(self.sz_bd.x_Ca)
 
     def plot_sz1(self, ax):
         x_Ia = self.x1_Ia
@@ -110,7 +108,7 @@ class SZDeformedState(InteractiveModel):
         ax.plot(*x_aI, lw=2, color='black')
 
     def plot_sz_fill(self, ax):
-        x0_Ca = self.sz_geo.x_Ca
+        x0_Ca = self.sz_bd.x_Ca
         x1_Ca = self.x1_Ca
         x0_Ja = self.sz_cp.x_Ja
         x1_Ja = self.x1_Ja
@@ -127,16 +125,16 @@ class SZDeformedState(InteractiveModel):
 
     def plot_sz_x1_La(self, ax):
         x1_Ca = self.x1_Ca
-        x1_iCa = x1_Ca[self.sz_geo.C_Li]
+        x1_iCa = x1_Ca[self.sz_bd.C_Li]
         x1_aiM = np.einsum('iMa->aiM', x1_iCa)
         ax.plot(*x1_aiM ,color='red')
 
     def update_plot(self, ax):
-        ax.set_ylim(ymin=0 ,ymax=self.sz_geo.H)
-        ax.set_xlim(xmin=0 ,xmax=self.sz_geo.L)
+        ax.set_ylim(ymin=0 ,ymax=self.sz_bd.H)
+        ax.set_xlim(xmin=0 ,xmax=self.sz_bd.L)
         ax.axis('equal');
         self.sz_ctr.plot_crack_tip_rotation(ax)
-        #        self.sz_geo.plot_sz_geo(ax)
+        #        self.sz_bd.plot_sz_bd(ax)
         #        self.sz_cp.plot_x_Ka(ax)
         #        self.plot_sz_x1_La(ax)
         self.sz_cp.plot_sz0(ax)

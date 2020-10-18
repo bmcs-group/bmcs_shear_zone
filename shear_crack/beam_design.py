@@ -60,13 +60,22 @@ class RCBeamDesign(InteractiveModel):
     cmm = tr.Instance(ConcreteMaterialModel, ())
     smm = tr.Instance(SteelMaterialModel, ())
 
-    # TODO: add the event upon the change in shape, layout and model.
-    beam_design_changed = tr.Event
-
     # Only for visualization to delimit the plotted area
-    H = tr.Float(200)
-    L = tr.Float(800)
-    B = tr.Float(100)
+    H = tr.Float(200, GEO=True)
+    L = tr.Float(800, GEO=True)
+    B = tr.Float(100, GEO=True)
+
+    _GEO = tr.Event
+    @tr.on_trait_change('+GEO') #, cs_layout, cs_layout.+GEO')
+    def _reset_GEO(self):
+        print('bd - GEO - reset')
+        self._GEO = True
+
+    _MAT = tr.Event
+    @tr.on_trait_change('+MAT, cmm, cmm.+MAT, smm, smm.+MAT')
+    def _reset_MAT(self):
+        print('bd - MAT - reset')
+        self._MAT = True
 
     ipw_view = View(
         Item('H', minmax=(1, 400), latex=r'H'),
@@ -76,7 +85,7 @@ class RCBeamDesign(InteractiveModel):
 
     C_Li = tr.Array(value=[[0, 1, 2, 3], [1, 2, 3, 0]], dtype=np.int_)
 
-    x_Ca = tr.Property(depends_on='+param')
+    x_Ca = tr.Property(depends_on='+GEO')
     '''Array of corner nodes [C-node, a-dimension]'''
 
     @tr.cached_property
@@ -85,7 +94,7 @@ class RCBeamDesign(InteractiveModel):
                          [0, 0, self.H, self.H]], dtype=np.float_)
         return x_aC.T
 
-    x_aiM = tr.Property(depends_on='+param')
+    x_aiM = tr.Property(depends_on='+GEO')
     '''Array of boundary lines [a-dimension,i-line node,M-line]'''
 
     @tr.cached_property
@@ -93,7 +102,7 @@ class RCBeamDesign(InteractiveModel):
         x_iCa = self.x_Ca[self.C_Li]
         return np.einsum('iMa->aiM', x_iCa)
 
-    def plot_sz_geo(self, ax):
+    def plot_sz_bd(self, ax):
         ax.set_xlim(0, self.L)
         ax.set_ylim(0, self.H)
         ax.plot(*self.x_aiM, color='black')
@@ -106,6 +115,5 @@ class RCBeamDesign(InteractiveModel):
 
     def update_plot(self, ax1):
         ax1.axis('equal');
-        self.plot_sz_geo(ax1)
-#         ax2.axis('equal');
+        self.plot_sz_bd(ax1)
 #         self.plot_sz_cross_section(ax2)

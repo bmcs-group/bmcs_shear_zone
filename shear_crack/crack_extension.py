@@ -3,10 +3,7 @@ import traits.api as tr
 import numpy as np
 from scipy.optimize import root
 
-from bmcs_shear_zone.shear_crack.crack_tip_orientation import \
-    SZCrackTipOrientation
 import bmcs_utils.api as bu
-from bmcs_shear_zone.shear_crack.crack_tip_shear_stress import SZCrackTipShearStress
 from bmcs_shear_zone.shear_crack.crack_tip_orientation import SZCrackTipOrientation
 
 class CrackExtension(bu.InteractiveModel):
@@ -25,22 +22,22 @@ class CrackExtension(bu.InteractiveModel):
     TODO: Combination of DelegatesTo and ModelComponent with a state_changed Event seems to work.
 
     TODO: Crack orientation - check the stress at crack normal to crack - should be f_t
+
+    TODO: updated of traits displayed in the view from within the code does not update the value in widget.
     """
     name = "Crack extension"
-    crack_tip_shear_stress = tr.Instance(SZCrackTipShearStress, ())
+
+    crack_tip_orientation = tr.Instance(SZCrackTipOrientation, ())
+
+    crack_tip_shear_stress = tr.DelegatesTo('crack_tip_orientation')
     sz_stress_profile = tr.DelegatesTo('crack_tip_shear_stress')
     sz_cp = tr.DelegatesTo('crack_tip_shear_stress')
     sz_ctr = tr.DelegatesTo('sz_cp')
-    beam_design = tr.DelegatesTo('sz_cp')
-    crack_tip_orientation = tr.Property(depends_on='crack_tip_shear_stress')
-    @tr.cached_property
-    def _get_crack_tip_orientation(self):
-        return SZCrackTipOrientation(
-            crack_tip_shear_stress=self.crack_tip_shear_stress
-        )
+    sz_bd = tr.DelegatesTo('sz_cp')
 
-    def update_plot(self, ax):
-        self.crack_tip_orientation.plot(ax)
+    _ALL = tr.DelegatesTo('crack_tip_orientation')
+    _GEO = tr.DelegatesTo('crack_tip_orientation')
+    _MAT = tr.DelegatesTo('crack_tip_orientation')
 
     psi = tr.DelegatesTo('sz_ctr')
     x_rot_1k = tr.DelegatesTo('sz_ctr')
@@ -62,60 +59,64 @@ class CrackExtension(bu.InteractiveModel):
     - inclination angle of a new crack segment
     '''
 
-    def init_state(self):
+    xtol = tr.Float(1e-3, auto_set=False, enter_set=True)
+    '''Algorithmic parameter - tolerance
+    '''
+    maxfev = tr.Int(1000, auto_set=False, enter_set=True)
+    '''Algorithmic parameter maximum number of iterations
+    '''
+
+    ipw_view = bu.View(
+    )
+
+    initial_state = tr.Property(depends_on='_GEO,_MAT')
+    @tr.cached_property
+    def _get_initial_state(self):
         '''Initialize state.
         '''
         self.t_n1 = 0.0
         self.U_n[:] = 0.0
-        self.x_rot_1 = self.U_k[0]
+        self.x_rot_1 = self.U_k[1]
         self.U_k = [self.psi,
                     self.x_rot_1k]
-        self.X = self.U_k
+        self.X_iter = self.U_k
 
-    xtol = tr.Float(1e-3, auto_set=False, enter_set=True)
-    maxfev = tr.Int(1000, auto_set=False, enter_set=True)
+    X = tr.Property(depends_on='+TIME, _ALL')
+    @tr.cached_property
+    def _get_X(self):
+        self.initial_state
+        self.make_iter()
+        return self.X_iter
 
+    ############### Implementation ################
     def make_iter(self):
         '''Perform one iteration
         '''
-        X0 = np.copy(self.X[:])
+        X0 = np.copy(self.X_iter[:])
 
         def get_R_X(X):
-            self.X = X
+            self.X_iter = X
             R = self.get_R()
             return R
         res = root(get_R_X, X0, method='lm',
-                   options={'xtol': self.xtol,
-                            })
-        self.X[:] = res.x
-        self.psi = self.X[0]
-        self.x_rot_1k = self.X[1]
+                   options={'xtol': self.xtol,})
+        self.X_iter[:] = res.x
+        self.psi = self.X_iter[0]
+        self.x_rot_1k = self.X_iter[1]
 
         self.U_n[:] = self.U_k[:]
         R_k = self.get_R()
         nR_k = np.linalg.norm(R_k)
-        print('R_k', nR_k, self.psi, self.x_rot_1k, 'Success', res.success)
         if res.success == False:
             raise StopIteration('no solution found')
         return res.x
 
-    def make_incr(self):
-        '''Update the control, primary and state variabrles..
-        '''
-        R_k = self.get_R()
-        self.hist.record_timestep(self.t_n1, self.U_k, R_k)
-        self.t_n = self.t_n1
-        self.xd.x_t_Ia = np.vstack(
-            [self.xd.x_t_Ia, self.xd.x1_fps_a[np.newaxis, :]])
-        self.xd.state_changed = True
-        self.state_changed = True
+    X_iter = tr.Property()
 
-    X = tr.Property()
-
-    def _get_X(self):
+    def _get_X_iter(self):
         return self.U_k
 
-    def _set_X(self, value):
+    def _set_X_iter(self, value):
         self.U_k[:] = value
         self.psi = value[0]
         self.x_rot_1k = value[1]
@@ -132,11 +133,13 @@ class CrackExtension(bu.InteractiveModel):
         R = np.array([R_M, N], dtype=np.float_)
         return R
 
-
-
-
-    ipw_view = bu.View(
-    )
+    def plot(self, ax):
+        sz_cto = self.crack_tip_orientation
+        ds = self.sz_stress_profile.ds
+        ds.update_plot(ax)
+        sz_cto.plot_crack_extension(ax)
+        ax.axis('equal')
 
     def update_plot(self, ax):
-        self.crack_tip_orientation.update_plot(ax)
+        self.X
+        self.plot(ax)
