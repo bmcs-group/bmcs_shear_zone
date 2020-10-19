@@ -19,11 +19,11 @@ P_x0, D_x0 = P_xz.subs(sigma_z, 0), D_xz.subs(sigma_z, 0)
 subs_sigma_z = sp.solve({D_xz[1, 1] - f_ct}, {sigma_z})[0]
 P_xf = P_xz.subs(subs_sigma_z)
 
-theta_f = sp.atan(sp.simplify(-P_xf[0, 0] / P_xf[1, 0]))
-theta_0 = sp.atan(sp.simplify(-P_x0[0, 0] / P_x0[1, 0]))
+psi_f = sp.atan(sp.simplify(-P_xf[0, 0] / P_xf[1, 0]))
+psi_0 = sp.atan(sp.simplify(-P_x0[0, 0] / P_x0[1, 0]))
 
-get_theta_f = sp.lambdify((tau_fps, sigma_x, f_ct), theta_f)
-get_theta_0 = sp.lambdify((tau_fps, sigma_x), theta_0)
+get_psi_f = sp.lambdify((tau_fps, sigma_x, f_ct), psi_f)
+get_psi_0 = sp.lambdify((tau_fps, sigma_x), psi_0)
 
 class SZCrackTipOrientation(bu.InteractiveModel):
     """Given the global and local stress state around the crack
@@ -47,7 +47,7 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         tau_x_tip_1 = ct_tau.tau_x_tip_1k
         stress_profile = self.sz_stress_profile
         sig_tip_1 = stress_profile.sig_x_tip_0k
-        return get_theta_0(tau_x_tip_1,sig_tip_1)
+        return get_psi_0(tau_x_tip_1,sig_tip_1)
 
     def plot_crack_extension(self, ax):
         ct_tau = self.crack_tip_shear_stress

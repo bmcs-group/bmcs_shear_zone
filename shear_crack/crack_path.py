@@ -210,9 +210,9 @@ class SZCrackPath(InteractiveModel):
 
     # TODO: distinguish the changes in ITER, INCR and PARAM
     #       Following state changes can occur
-    #       ctr: +ITER - the control parameters changed by the
+    #       ctr: +ITR - the control parameters changed by the
     #            the iterative solver - currently psi and x_ctr_1k
-    #       ctr: +INCR - x_tip_an - crack tip positions
+    #       ctr: +INC - x_tip_an - crack tip positions
     #       ctr: +MAT - material parameters only changed by user
     #       self: +GEO - parameters describing the geometry
     #                    that means initial crack position / length, / width
