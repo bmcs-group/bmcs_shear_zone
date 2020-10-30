@@ -1,4 +1,0 @@
-numpy~=1.18.4
-sympy~=1.5.1
-traits~=6.0.0
-traitsui~=6.1.3
