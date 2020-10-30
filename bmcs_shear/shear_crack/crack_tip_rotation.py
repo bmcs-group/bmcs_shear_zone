@@ -652,7 +652,8 @@ np.einsum('ab,b->a', _T_ab, [1, -1])
 
 
 import traits.api as tr
-from bmcs_utils.api import InteractiveModel, InteractiveWindow, Item, View, mpl_align_xaxis
+from bmcs_utils.api import \
+    InteractiveModel, InteractiveWindow, Item, View, Float
 
 
 class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
@@ -665,13 +666,13 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
     # ITER - changes in an iteration
     # INCR - changes in an increment
     # MAT - material parameter changed by a user
-    psi = tr.Float(0.8, ITR=True)
-    x_rot_1k = tr.Float(100,ITR=True)
-    x_tip_0n = tr.Float(200, INC=True)
-    x_tip_1n = tr.Float(50, INC=True)
-    L_fps = tr.Float(20, MAT=True)
-    ell = tr.Float(5, MAT=True)
-    w = tr.Float(0.3, MAT=True)
+    psi = Float(0.8, ITR=True)
+    x_rot_1k = Float(100,ITR=True)
+    x_tip_0n = Float(200, INC=True)
+    x_tip_1n = Float(50, INC=True)
+    L_fps = Float(20, MAT=True)
+    ell = Float(5, MAT=True)
+    w = Float(0.3, MAT=True)
 
     # State change events classified
     _ITR = tr.Event

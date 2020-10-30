@@ -4,9 +4,7 @@ import traits.api as tr
 import numpy as np
 import sympy as sp
 from bmcs_utils.api import InteractiveModel, View, Item
-from bmcs_shear_zone.shear_crack.crack_path import \
-    SZCrackPath
-from bmcs_shear_zone.shear_crack.stress_profile import \
+from bmcs_shear.shear_crack.stress_profile import \
     SZStressProfile
 
 # # Shear stress profile

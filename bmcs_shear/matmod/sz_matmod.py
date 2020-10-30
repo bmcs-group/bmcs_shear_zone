@@ -7,8 +7,7 @@ Created on Mar 2, 2020
 import numpy as np
 import sympy as sp
 import traits.api as tr
-import traitsui.api as ui
-from bmcs_utils.api import InteractiveModel, View, Item
+from bmcs_utils.api import InteractiveModel, View, Item, Float
 
 class IMaterialModel(tr.Interface):
 
@@ -91,43 +90,32 @@ class ConcreteMaterialModel(InteractiveModel):
     name = 'Concrete behavior'
     node_name = 'material model'
 
-    f_c = tr.Float(30.0,
+    f_c = Float(30.0,
                    MAT=True,
                    unit=r'$\mathrm{MPa}$',
                    symbol=r'f_\mathrm{c}',
                    auto_set=False, enter_set=True,
                    desc='concrete strength')
 
-    E_c = tr.Float(28000,
+    E_c = Float(28000,
                    MAT=True,
                    unit=r'$\mathrm{MPa}$',
                    symbol=r'E_\mathrm{c}',
                    auto_set=False, enter_set=True,
                    desc='concrete material stiffness')
 
-    f_t = tr.Float(3.0, MAT=True)
+    f_t = Float(3.0, MAT=True)
 
-    G_f = tr.Float(0.5, MAT=True)
+    G_f = Float(0.5, MAT=True)
 
-    L_fps = tr.Float(50, MAT=True)
+    L_fps = Float(50, MAT=True)
 
     L_c = tr.Property
 
     def _get_L_c(self):
         return self.E_c * self.G_f / self.f_t**2
 
-    traits_view = ui.View(
-        ui.Item('f_t'),
-        ui.Item('f_c'),
-        ui.Item('E_c'),
-        ui.Item('G_f'),
-        # ui.Item('L'),
-        ui.Item('L_c', style='readonly'),
-    )
-
-    tree_view = traits_view
-
-    # L = tr.Float(100, param=True)
+    # L = Float(100, param=True)
     #
     w_cr = tr.Property
     def _get_w_cr(self):
@@ -189,8 +177,8 @@ class ConcreteMaterialModel(InteractiveModel):
         ax2.set_ylabel(r'$\mathrm{d}\sigma/\mathrm{d}w\;\;\mathrm{[MPa/mm]}$')
         ax2.set_title('tangential stiffness')
 
-    w_min_factor = tr.Float(1.2)
-    w_max_factor = tr.Float(3)
+    w_min_factor = Float(1.2)
+    w_max_factor = Float(3)
     def plot_sig_w(self, ax, vot=1.0):
 
         w_min_expr = -(self.f_c / self.E_c * self.L_c)
@@ -221,22 +209,22 @@ class ConcreteMaterialModel(InteractiveModel):
     #=========================================================================
     # Bond-slip law
     #=========================================================================
-    tau_1 = tr.Float(1.0,
+    tau_1 = Float(1.0,
                      MAT=True)
 
-    s_1 = tr.Float(0.000001,
+    s_1 = Float(0.000001,
                    MAT=True)
 
-    tau_2 = tr.Float(0.9,
+    tau_2 = Float(0.9,
                      MAT=True)
 
-    s_2 = tr.Float(1.4,
+    s_2 = Float(1.4,
                    MAT=True)
 
-    tau_3 = tr.Float(0.9,
+    tau_3 = Float(0.9,
                      MAT=True)
 
-    s_3 = tr.Float(1.6,
+    s_3 = Float(1.6,
                    MAT=True)
 
     ipw_view = View(
@@ -312,9 +300,9 @@ class SteelMaterialModel(InteractiveModel):
     #=========================================================================
     # Steel sig_eps
     #=========================================================================
-    L_f = tr.Float(200.0, MAT=True)
-    E_f = tr.Float(210000, MAT=True)
-    f_s_t = tr.Float(500, MAT=True)
+    L_f = Float(200.0, MAT=True)
+    E_f = Float(210000, MAT=True)
+    f_s_t = Float(500, MAT=True)
 
     steel_law_data = tr.Property(depends_on='+MAT')
 

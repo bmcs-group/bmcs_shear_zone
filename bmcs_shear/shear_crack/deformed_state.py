@@ -2,7 +2,7 @@
 import traits.api as tr
 import numpy as np
 from bmcs_utils.api import InteractiveModel, View, Item
-from bmcs_shear_zone.shear_crack.crack_path import \
+from bmcs_shear.shear_crack.crack_path import \
     SZCrackPath
 
 

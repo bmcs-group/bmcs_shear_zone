@@ -1,6 +1,6 @@
 
 import numpy as np
-from bmcs_shear_zone.matmod.sz_matmod import SteelMaterialModel, ConcreteMaterialModel
+from bmcs_shear.matmod.sz_matmod import SteelMaterialModel, ConcreteMaterialModel
 
 # # Material constitutive laws
 
@@ -51,7 +51,8 @@ np.einsum('iLa->aiL', x_iLa)
 
 
 import traits.api as tr
-from bmcs_utils.api import InteractiveModel, InteractiveWindow, View, Item
+from bmcs_utils.api import \
+    InteractiveModel, InteractiveWindow, View, Item, Float
 
 
 class RCBeamDesign(InteractiveModel):
@@ -61,20 +62,18 @@ class RCBeamDesign(InteractiveModel):
     smm = tr.Instance(SteelMaterialModel, ())
 
     # Only for visualization to delimit the plotted area
-    H = tr.Float(200, GEO=True)
-    L = tr.Float(800, GEO=True)
-    B = tr.Float(100, GEO=True)
+    H = Float(200, GEO=True)
+    L = Float(800, GEO=True)
+    B = Float(100, GEO=True)
 
     _GEO = tr.Event
     @tr.on_trait_change('+GEO') #, cs_layout, cs_layout.+GEO')
     def _reset_GEO(self):
-        print('bd - GEO - reset')
         self._GEO = True
 
     _MAT = tr.Event
     @tr.on_trait_change('+MAT, cmm, cmm.+MAT, smm, smm.+MAT')
     def _reset_MAT(self):
-        print('bd - MAT - reset')
         self._MAT = True
 
     ipw_view = View(

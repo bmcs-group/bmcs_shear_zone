@@ -2,11 +2,8 @@
 
 import traits.api as tr
 import numpy as np
-import sympy as sp
 from bmcs_utils.api import InteractiveModel, View, Item, mpl_align_xaxis
-from bmcs_shear_zone.shear_crack.crack_path import \
-    SZCrackPath
-from bmcs_shear_zone.shear_crack.deformed_state import \
+from bmcs_shear.shear_crack.deformed_state import \
     SZDeformedState
 from scipy.interpolate import interp1d
 

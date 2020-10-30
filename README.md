@@ -4,7 +4,7 @@
 The project implements a discrete crack propagation through 
 a two dimensional domain cut out from a shear zone of a bended beam.  
 
-[Crack propagation app](shear_crack/crack_propagation.ipynb)
+[Crack propagation app](bmcs_shear/shear_crack/crack_propagation.ipynb)
 
 The model has been developed by using a sketch 
 in [notebooks/shear_zone.ipynb]([notebooks/shear_zone.ipynb])
@@ -25,7 +25,7 @@ in the following steps.
  * crack extension
  * crack propagation
 
-The directory [shear_crack](shear_crack) demonstrates the 
+The directory [shear_crack](bmcs_shear/shear_crack) demonstrates the 
 applied development process. Each of the classes is implemented
 in a separate Python file, i.e. `beam_design.py` and its functionality is demostrated
 in the corresponding jupyter file, i.e. `beam_design.ipynb`.

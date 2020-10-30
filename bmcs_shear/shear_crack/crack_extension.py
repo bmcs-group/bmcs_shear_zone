@@ -4,7 +4,7 @@ import numpy as np
 from scipy.optimize import root
 
 import bmcs_utils.api as bu
-from bmcs_shear_zone.shear_crack.crack_tip_orientation import SZCrackTipOrientation
+from bmcs_shear.shear_crack.crack_tip_orientation import SZCrackTipOrientation
 
 class CrackExtension(bu.InteractiveModel):
     """Find the parameters of the crack extension

@@ -2,8 +2,8 @@
 import sympy as sp
 import numpy as np
 import bmcs_utils.api as bu
-from bmcs_shear_zone.shear_crack.crack_tip_shear_stress import SZCrackTipShearStress
-from bmcs_shear_zone.shear_crack.stress_profile import SZStressProfile
+from bmcs_shear.shear_crack.crack_tip_shear_stress import SZCrackTipShearStress
+from bmcs_shear.shear_crack.stress_profile import SZStressProfile
 import traits.api as tr
 
 tau_fps, sigma_x, sigma_z = sp.symbols(r'\tau_\mathrm{fps}, sigma_x, sigma_z')

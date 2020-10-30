@@ -3,17 +3,17 @@ import traits.api as tr
 import numpy as np
 
 import bmcs_utils.api as bu
-from bmcs_shear_zone.shear_crack.crack_extension import CrackExtension
+from bmcs_shear.shear_crack.crack_extension import CrackExtension
 
 class CrackPropagation(CrackExtension):
     """Control a loop simulating the crack propagation
     """
     name = "Crack extension"
 
-    t_n = tr.Float(0.0, auto_set=False, enter_set=True)
+    t_n = bu.Float(0.0, auto_set=False, enter_set=True)
     '''Fundamental state time.
     '''
-    t_n1 = tr.Float(0.0, auto_set=False, enter_set=True)
+    t_n1 = bu.Float(0.0, auto_set=False, enter_set=True)
     '''Target value of the control variable.
     '''
     U_n = tr.Array(np.float_,
@@ -27,8 +27,8 @@ class CrackPropagation(CrackExtension):
     - inclination angle of a new crack segment
     '''
 
-    xtol = tr.Float(1e-3, auto_set=False, enter_set=True)
-    maxfev = tr.Int(1000, auto_set=False, enter_set=True)
+    xtol = bu.Float(1e-3, auto_set=False, enter_set=True)
+    maxfev = bu.Int(1000, auto_set=False, enter_set=True)
 
     R_n = tr.List
     M_n = tr.List([0])
@@ -52,24 +52,34 @@ class CrackPropagation(CrackExtension):
         self.sz_cp.add_x_tip_an(self.sz_cp.sz_ctr.x_tip_ak[:,0])
         self.record_timestep()
 
-    n_seg = tr.Int(5, TIME=True)
+    n_seg = bu.Int(5, TIME=True)
 
     simulated_crack = tr.Property(depends_on='+TIME, _GEO,_MAT')
     @tr.cached_property
     def _get_simulated_crack(self):
-        crack_seg = np.arange(self.n_seg)
+        self.run()
+
+    def run(self, update_progress=lambda t:t):
+        crack_seg = np.arange(1, self.n_seg+1)
+        self.sz_cp.reset_crack()
         self.R_n = [0]
         self.F_beam = [0]
         self.v_n = [0]
         for c in crack_seg:
             self.make_incr()
+            update_progress(c/self.n_seg)
+
+    def reset(self):
+        self.sz_cp.reset_crack()
+        self.R_n = [0]
+        self.F_beam = [0]
+        self.v_n = [0]
 
     def subplots(self, fig):
         return fig.subplots(1,2)
 
     def update_plot(self, ax):
         ax1, ax2 = ax
-        self.simulated_crack
         self.plot(ax1)
         F_beam_kN = np.array(self.F_beam).flatten() / 1000
         v_n = np.array(self.v_n)
@@ -78,7 +88,9 @@ class CrackPropagation(CrackExtension):
         ax2.set_ylabel(r'Load $F$ [kN]')
 
     ipw_view = bu.View(
-        bu.Item('n_seg', latex=r'n_\mathrm{seg}', minmax=(1,100))
+        bu.Item('n_seg', latex=r'n_\mathrm{seg}', minmax=(1,100)),
+        simulator='run',
+        reset_simulator='reset',
     )
 
 

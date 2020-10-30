@@ -1,9 +1,9 @@
 import numpy as np
 import traits.api as tr
-from bmcs_utils.api import InteractiveModel, InteractiveWindow, View, Item
-from bmcs_shear_zone.shear_crack.crack_tip_rotation import \
+from bmcs_utils.api import InteractiveModel, InteractiveWindow, View, Item, Float, Int
+from bmcs_shear.shear_crack.crack_tip_rotation import \
     SZCrackTipRotation
-from bmcs_shear_zone.shear_crack.beam_design import \
+from bmcs_shear.shear_crack.beam_design import \
     RCBeamDesign
 
 # # Crack path
@@ -145,8 +145,8 @@ class SZCrackPath(InteractiveModel):
 
     name = 'Crack path'
 
-    n_m = tr.Int(4, param=True, latex='n_m', minmax=(1 ,10))
-    n_J = tr.Int(10, param=True, latex='n_J', minmax=(1 ,20))
+    n_m = Int(4, param=True, latex='n_m', minmax=(1 ,10))
+    n_J = Int(10, param=True, latex='n_J', minmax=(1 ,20))
 
     ipw_view = View(
         Item('n_m', latex='n_m', minmax=(1 ,10)),
@@ -174,7 +174,7 @@ class SZCrackPath(InteractiveModel):
         self.sz_ctr.trait_set(x_tip_0n=self.x_00, x_tip_1n=0,psi=0,
                               L_fps=cmm.L_fps, w=cmm.w_cr)
 
-    x_00 = tr.Float(300, GEO=True)
+    x_00 = Float(300, GEO=True)
     '''Initial crack position'''
 
     # TODO: adjust the range of parameters that support sliding.
@@ -200,11 +200,12 @@ class SZCrackPath(InteractiveModel):
         self.sz_ctr.x_rot_1k = value[1] + (self.sz_bd.H - value[1]) / 2
         self.crack_extended = True
         self.sz_ctr.psi = self.beta
+
     def get_x_tip_an(self):
         return self.x_t_Ia[-1 ,:]
 
     @tr.on_trait_change('_MAT, _GEO')
-    def _reset_crack(self):
+    def reset_crack(self):
         self.x_t_Ia = np.zeros((0 ,2), dtype=np.float_)
         self.add_x_tip_an(np.array([self.x_00, 0], dtype=np.float_))
 
