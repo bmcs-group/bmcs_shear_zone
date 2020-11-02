@@ -53,9 +53,10 @@ np.einsum('iLa->aiL', x_iLa)
 import traits.api as tr
 from bmcs_utils.api import \
     InteractiveModel, InteractiveWindow, View, Item, Float
+from bmcs_beam.beam_design.beam_design import BeamDesign
 
 
-class RCBeamDesign(InteractiveModel):
+class RCBeamDesign(BeamDesign):
     name = 'Beam design'
 
     cmm = tr.Instance(ConcreteMaterialModel, ())

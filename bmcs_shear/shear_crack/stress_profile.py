@@ -38,7 +38,9 @@ from scipy.interpolate import interp1d
 
 
 class SZStressProfile(InteractiveModel):
-
+    '''
+    @todo: check the update upon the discretization attributes
+    '''
     name = "Profiles"
 
     ds = tr.Instance(SZDeformedState, ())
@@ -105,8 +107,8 @@ class SZStressProfile(InteractiveModel):
         u_a = self.u_Lb
         cmm = self.ds.sz_bd.cmm
         B = self.ds.sz_bd.B
-        Sig_w = self.ds.sz_bd.cmm.get_sig_w(u_a[..., 0]) * B
-        Tau_w = self.ds.sz_bd.cmm.get_tau_s(u_a[..., 1]) * B
+        Sig_w = cmm.get_sig_w(u_a[..., 0]) * B
+        Tau_w = cmm.get_tau_s(u_a[..., 1]) * B
         return np.einsum('b...->...b', np.array([Sig_w, Tau_w], dtype=np.float_))
 
     S_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
@@ -217,6 +219,8 @@ class SZStressProfile(InteractiveModel):
                 color='black', linestyle='-.')
 
     def plot_u_La(self, ax_w, vot=1):
+        '''Plot the displacement along the crack (w and s) in global coordinates
+        '''
         ax_s = ax_w.twiny()
         self.plot_u_Lc(ax_w, self.u_La, 0, label=r'$u_x$ [mm]', color='blue')
         ax_w.set_xlabel(r'$u_x$ [mm]')
@@ -225,6 +229,8 @@ class SZStressProfile(InteractiveModel):
         mpl_align_xaxis(ax_w, ax_s)
 
     def plot_u_Lb(self, ax_w, vot=1):
+        '''Plot the displacement (u_x, u_y) in local crack coordinates
+        '''
         ax_s = ax_w.twiny()
         # plot the critical displacement
         sz_ctr = self.sz_cp.sz_ctr
@@ -238,6 +244,8 @@ class SZStressProfile(InteractiveModel):
         mpl_align_xaxis(ax_w, ax_s)
 
     def plot_S_Lb(self, ax_sig, vot=1):
+        '''Plot the stress components (sig, tau) in local crack coordinates
+        '''
         ax_tau = ax_sig.twiny()
         # plot the critical displacement
         bd = self.sz_cp.sz_bd

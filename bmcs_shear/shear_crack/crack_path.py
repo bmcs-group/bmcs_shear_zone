@@ -145,13 +145,13 @@ class SZCrackPath(InteractiveModel):
 
     name = 'Crack path'
 
-    n_m = Int(4, param=True, latex='n_m', minmax=(1 ,10))
-    n_J = Int(10, param=True, latex='n_J', minmax=(1 ,20))
+    n_m = Int(4, DSC=True)
+    n_J = Int(10, DSC=True)
 
     ipw_view = View(
-        Item('n_m', latex='n_m', minmax=(1 ,10)),
-        Item('n_J', latex='n_J', minmax=(1 ,20)),
-        Item('x_00', latex=r'x_{00}', minmax=(1, 1000))
+        Item('n_m', latex='n_m'),
+        Item('n_J', latex='n_J'),
+        Item('x_00', latex=r'x_{00}')
     )
 
     sz_bd = tr.Instance(RCBeamDesign ,())
@@ -264,13 +264,13 @@ class SZCrackPath(InteractiveModel):
         x_J_1 = np.linspace(self.x_Ia[-1, 1], self.sz_bd.H, self.n_J)
         return np.c_[self.x_Ia[-1, 0] * np.ones_like(x_J_1), x_J_1]
 
-    xx_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    xx_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Integrated section'''
     @tr.cached_property
     def _get_xx_Ka(self):
         return np.concatenate([self.x_Ia, self.x_Ja[1:]], axis=0)
 
-    x_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    x_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Integration points'''
     @tr.cached_property
     def _get_x_Ka(self):
@@ -280,7 +280,7 @@ class SZCrackPath(InteractiveModel):
         x_Kma = self.xx_Ka[:-1, np.newaxis, :] + d_Kma
         return np.vstack([x_Kma[:, :-1, :].reshape(-1, 2), self.xx_Ka[[-1], :]])
 
-    K_Li = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    K_Li = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Crack segments'''
     @tr.cached_property
     def _get_K_Li(self):
@@ -288,7 +288,7 @@ class SZCrackPath(InteractiveModel):
         K_Li = np.array([N_K[:-1], N_K[1:]], dtype=np.int_).T
         return K_Li
 
-    x_Lb = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    x_Lb = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Midpoints'''
     @tr.cached_property
     def _get_x_Lb(self):
@@ -306,7 +306,7 @@ class SZCrackPath(InteractiveModel):
             beta = np.arcsin(s_beta)
             return beta
 
-    norm_n_vec_L = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    norm_n_vec_L = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Length of a discretization line segment. 
     '''
     @tr.cached_property
@@ -323,7 +323,7 @@ class SZCrackPath(InteractiveModel):
     def _get_T_Lab(self):
         return get_T_Lab(self.x_t_Ia)
 
-    T_Mab = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    T_Mab = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DCS')
     '''Orthonormal bases of the integration segments, first vector is the line vector.
     '''
     @tr.cached_property
