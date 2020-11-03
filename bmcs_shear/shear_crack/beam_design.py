@@ -52,7 +52,7 @@ np.einsum('iLa->aiL', x_iLa)
 
 import traits.api as tr
 from bmcs_utils.api import \
-    InteractiveModel, InteractiveWindow, View, Item, Float
+    View, Item, Float
 from bmcs_beam.beam_design.beam_design import BeamDesign
 
 
@@ -80,7 +80,7 @@ class RCBeamDesign(BeamDesign):
     ipw_view = View(
         Item('H', minmax=(1, 400), latex=r'H'),
         Item('L', minmax=(1, 1000), latex=r'L'),
-        Item('B', minmax=(1, 200), latex=r'B')
+        Item('B', minmax=(1, 100), latex=r'B')
     )
 
     C_Li = tr.Array(value=[[0, 1, 2, 3], [1, 2, 3, 0]], dtype=np.int_)

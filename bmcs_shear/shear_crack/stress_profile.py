@@ -34,8 +34,6 @@ from scipy.interpolate import interp1d
 # + \int \sigma_1 \left(x_0 - x^\mathrm{rot}_0\right) \mathrm{d}x_0
 # \end{align}
 
-# In[72]:
-
 
 class SZStressProfile(InteractiveModel):
     '''
@@ -132,6 +130,55 @@ class SZStressProfile(InteractiveModel):
         F_La = np.einsum('La,L->La', S_La, self.ds.sz_cp.norm_n_vec_L)
         return F_La
 
+    get_w_z = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    '''Get an interpolator function returning crack opening displacement 
+    for a specified vertical coordinate of a ligament.
+    '''
+    @tr.cached_property
+    def _get_get_w_z(self):
+        return interp1d(self.x_Lb[:, 1], self.u_Lb[:, 0],
+                        fill_value='extrapolate')
+
+    get_s_z = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    '''Get an interpolator function returning slip displacement 
+    component for a specified vertical coordinate of a ligament.
+    '''
+    @tr.cached_property
+    def _get_get_s_z(self):
+        return interp1d(self.x_Lb[:, 1], self.u_Lb[:, 1],
+                        fill_value='extrapolate')
+
+    F_Na = tr.Property(depends_on='state_changed')
+    '''Get the discrete force in the reinforcement z_N
+    '''
+    @tr.cached_property
+    def _get_F_Na(self):
+        w_N = self.get_w_z(self.z_N)
+        s_N = self.get_s_z(self.z_N)
+        F_N0 = self.sz_bd.A_N * self.sz_bd.get_sig_w_f(w_N)
+        F_N1 = self.sz_bd.A_N * self.sz_bd.get_sig_s_f(s_N)
+        F_Nb = np.c_[F_N0, F_N1]
+        # to transform into the global coordinates identify the
+        # segment of the ligament L corresponding to the position
+        # of the reinforcement N
+        z_L = self.sz_bd.x_La[1]
+        z_N = self.sz_bd.z_N
+        L_N = np.argmax(z_L[np.newaxis, :] >= z_N[:, np.newaxis], axis=1)
+        T_Nab = self.sz_cp.T_Lab[L_N,...]
+        F_Na = np.einsum('...ab,...a->...a', T_Nab, F_Nb)
+        return F_Na
+
+    F_a = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    '''Integrated normal and shear force
+    '''
+    @tr.cached_property
+    def _get_F_a(self):
+        F_La = self.F_La
+#        F_Na = self.F_Na
+        F_a = np.sum(F_La, axis=0) \
+#        F_a += np.sum(F_Na, axis=0)
+        return F_a
+
     M = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Internal bending moment obtained by integrating the
     normal stresses with the lever arm rooted at the height of the neutral
@@ -147,34 +194,13 @@ class SZStressProfile(InteractiveModel):
         x_rot_1k = self.ds.sz_ctr.x_rot_1k
         M_L = (x_La[:, 1] - x_rot_1k) * F_La[:, 0]
         M = np.sum(M_L, axis=0)
-        #         for y in self.z_f:
-        #             M += (y - x_rot_1k) * self.F_f
+#        M_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:,0])
         return -M
-
-    F_a = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
-    '''Integrated normal and shear force
-    '''
-    @tr.cached_property
-    def _get_F_a(self):
-        F_La = self.F_La
-        F_a = np.sum(F_La, axis=0)
-        #         F_a[0] += np.sum(self.F_f)
-        return F_a
-
-    get_u0 = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
-    '''Get an interpolator function returning horizontal displacement 
-    component for a specified vertical coordinate of a ligament.
-    '''
-    @tr.cached_property
-    def _get_get_u0(self):
-        return 1 # interp1d(self.ds.x_Lb[:, 1], self.ds.u_Lb[:, 0],
-                   #      fill_value='extrapolate')
 
     sig_x_tip_0k = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Normal stress component in global $x$ direction in the fracture .
     process segment.
     '''
-
     @tr.cached_property
     def _get_sig_x_tip_0k(self):
         x_tip_1k = self.sz_cp.sz_ctr.x_tip_ak[1][0]
