@@ -13,5 +13,6 @@ dependencies:
 - ipympl
 - pip
 - pip:
-  - bmcs_utils
   - -e .
+  - bmcs_utils
+  - bmcs_beam
