@@ -37,17 +37,11 @@ class SZCrackTipOrientation(bu.InteractiveModel):
     crack_tip_shear_stress = tr.Instance(SZCrackTipShearStress, ())
     sz_stress_profile = tr.DelegatesTo('crack_tip_shear_stress')
     sz_cp = tr.DelegatesTo('crack_tip_shear_stress')
+    sz_bd = tr.DelegatesTo('crack_tip_shear_stress')
 
     _ALL = tr.DelegatesTo('crack_tip_shear_stress')
     _GEO = tr.DelegatesTo('crack_tip_shear_stress')
     _MAT = tr.DelegatesTo('crack_tip_shear_stress')
-
-    def xget_psi(self):
-        ct_tau = self.crack_tip_shear_stress
-        tau_x_tip_1 = ct_tau.tau_x_tip_1k
-        stress_profile = self.sz_stress_profile
-        sig_tip_1 = stress_profile.sig_x_tip_0k
-        return get_psi_0(tau_x_tip_1, sig_tip_1)
 
     def get_psi(self):
         # TODO: check why the normal stress at tip is not
@@ -56,7 +50,8 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         tau_x_tip_1 = ct_tau.tau_x_tip_1k
         f_t = self.sz_cp.sz_bd.cmm.f_t
         sig_tip_1 = f_t
-        return get_psi_0(tau_x_tip_1, sig_tip_1)
+        psi_0 = get_psi_0(tau_x_tip_1, sig_tip_1)
+        return psi_0
 
     def plot_crack_extension(self, ax):
         ct_tau = self.crack_tip_shear_stress

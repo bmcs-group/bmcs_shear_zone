@@ -140,3 +140,4 @@ class SZDeformedState(InteractiveModel):
         self.sz_cp.plot_sz0(ax)
         self.plot_sz1(ax)
         self.plot_sz_fill(ax)
+        self.sz_bd.plot_reinforcement(ax)

@@ -174,6 +174,13 @@ class SZCrackPath(InteractiveModel):
         self.sz_ctr.trait_set(x_tip_0n=self.x_00, x_tip_1n=0,psi=0,
                               L_fps=cmm.L_fps, w=cmm.w_cr)
 
+    @tr.on_trait_change('_MAT, _GEO')
+    def reset_crack(self):
+        self.x_t_Ia = np.zeros((0 ,2), dtype=np.float_)
+        self.add_x_tip_an(np.array([self.x_00, 0], dtype=np.float_))
+        self.sz_ctr.x_rot_1k = self.sz_bd.H / 2
+        self.sz_ctr.psi = 0
+
     x_00 = Float(300, GEO=True)
     '''Initial crack position'''
 
@@ -197,17 +204,10 @@ class SZCrackPath(InteractiveModel):
         value = np.array(value ,dtype=np.float_)
         self.x_t_Ia = np.vstack([self.x_t_Ia, value[np.newaxis, :]])
         self.sz_ctr.x_tip_0n, self.sz_ctr.x_tip_1n = value
-        self.sz_ctr.x_rot_1k = value[1] + (self.sz_bd.H - value[1]) / 2
         self.crack_extended = True
-        self.sz_ctr.psi = self.beta
 
     def get_x_tip_an(self):
         return self.x_t_Ia[-1 ,:]
-
-    @tr.on_trait_change('_MAT, _GEO')
-    def reset_crack(self):
-        self.x_t_Ia = np.zeros((0 ,2), dtype=np.float_)
-        self.add_x_tip_an(np.array([self.x_00, 0], dtype=np.float_))
 
     # TODO: distinguish the changes in ITER, INCR and PARAM
     #       Following state changes can occur
