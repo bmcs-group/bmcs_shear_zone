@@ -297,6 +297,7 @@ class ConcreteMaterialModel(InteractiveModel):
 
 @tr.provides(IMaterialModel)
 class SteelMaterialModel(InteractiveModel):
+    name = 'Steel behavior'
     #=========================================================================
     # Steel sig_eps
     #=========================================================================
@@ -304,6 +305,11 @@ class SteelMaterialModel(InteractiveModel):
     E_f = Float(210000, MAT=True)
     f_s_t = Float(500, MAT=True)
 
+    ipw_view = View(
+        Item('L_f'),
+        Item('E_f'),
+        Item('f_s_t')
+    )
     steel_law_data = tr.Property(depends_on='+MAT')
 
     @tr.cached_property
