@@ -8,11 +8,7 @@ import numpy as np
 import sympy as sp
 import traits.api as tr
 from bmcs_utils.api import InteractiveModel, View, Item, Float
-
-class IMaterialModel(tr.Interface):
-
-    get_sig_w = tr.Property(depends_on='+param')
-    get_tau_s = tr.Property(depends_on='+param')
+from .i_matmod import IMaterialModel
 
 
 eps, f_c, E_c, L_c = sp.symbols(
@@ -43,18 +39,6 @@ sig_eps = sp.Piecewise(
 
 d_sig_eps = sig_eps.diff(eps)
 
-#=========================================================================
-# Steel
-#=========================================================================
-
-L_f, E_f, f_s_t = sp.symbols('L_f, E_f, f_s_t')
-
-sig_w_f = sp.Piecewise(
-    (E_f * w / L_f, E_f * w / L_f <= f_s_t),
-    (f_s_t, E_f * w / L_f > f_s_t)
-)
-
-d_sig_w_f = sig_w_f.diff(eps)
 
 #=========================================================================
 # Crack opening law
@@ -295,69 +279,3 @@ class ConcreteMaterialModel(InteractiveModel):
         self.plot_tau_s(ax2)
         self.plot_d_tau_s(ax2)
 
-@tr.provides(IMaterialModel)
-class SteelMaterialModel(InteractiveModel):
-    name = 'Steel behavior'
-    #=========================================================================
-    # Steel sig_eps
-    #=========================================================================
-    L_f = Float(200.0, MAT=True)
-    E_f = Float(210000, MAT=True)
-    f_s_t = Float(500, MAT=True)
-
-    ipw_view = View(
-        Item('L_f'),
-        Item('E_f'),
-        Item('f_s_t')
-    )
-    steel_law_data = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_steel_law_data(self):
-        return dict(L_f=float(self.L_f),
-                    E_f=float(self.E_f),
-                    f_s_t=self.f_s_t)
-
-    get_sig_w_f = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_get_sig_w_f(self):
-        return sp.lambdify(w, sig_w_f.subs(self.steel_law_data), 'numpy')
-
-    get_d_sig_w_f = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_get_d_sig_eps_f(self):
-        return sp.lambdify(w, d_sig_w_f.subs(self.steel_law_data), 'numpy')
-
-    def plot_sig_w_f(self, ax, vot=1.0):
-        w_max_expr = (f_s_t / E_f * L_f * 2).subs(self.steel_law_data)
-        w_min_expr = 0
-        w_max = np.float_(w_max_expr)
-        w_min = np.float_(w_min_expr)
-        w_data = np.linspace(w_min, w_max, 50)
-        ax.plot(w_data, self.get_sig_w_f(w_data), lw=2, color='darkred')
-        ax.fill_between(w_data, self.get_sig_w_f(w_data),
-                        color='darkred', alpha=0.2)
-        ax.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        ax.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$')
-        ax.set_title('crack opening law')
-
-    def update_plot(self, axes):
-        ax = axes
-        self.plot_sig_w_f(ax)
-
-
-if __name__ == '__main__':
-    smm = ConcreteMaterialModel()
-    if True:
-        import matplotlib.pylab as plt
-        fig, ax = plt.subplots(1,2)
-        smm.update_plot(ax)
-        plt.show()
-
-    if False:
-        inter = InteractiveWindow(smm)
-        inter.interact()
-
-    #smm.configure_traits()

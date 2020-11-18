@@ -171,9 +171,8 @@ class SZStressProfile(InteractiveModel):
         w_N = self.get_w_z(self.z_N)
         s_N = self.get_s_z(self.z_N)
         #F_N0 = self.A_N * self.E_N * w_N # self.sz_bd.get_sig_w_f(w_N)
-        F_N0 = self.A_N * self.sz_bd.smm.get_sig_w_f(w_N)
-        print('F_N0', F_N0)
-        F_N1 = self.A_N * 0 # self.sz_bd.get_sig_s_f(s_N)
+        F_N0 = self.sz_bd.smm.get_sig_w_f(w_N)
+        F_N1 = 0 # self.sz_bd.smm.get_sig_s_f(s_N)
         F_Nb = np.c_[F_N0, F_N1]
         return F_Nb
         # to transform into the global coordinates identify the

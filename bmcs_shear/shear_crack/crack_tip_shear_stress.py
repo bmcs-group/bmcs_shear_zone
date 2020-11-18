@@ -152,7 +152,8 @@ class SZCrackTipShearStress(InteractiveModel):
     def _get_tau_x_tip_1k(self):
         H = self.sz_bd.H
         B = self.sz_bd.B
-        return get_tau_z_fps(self.x_tip_1k, self.Q, H, B)[0]
+        Q_reduced = self.Q - self.sz_stress_profile.F_a[1]
+        return get_tau_z_fps(self.x_tip_1k, Q_reduced, H, B)[0]
 
     ipw_view = View(
         #        Item('Q', latex='Q', minmax=(0,100000)),

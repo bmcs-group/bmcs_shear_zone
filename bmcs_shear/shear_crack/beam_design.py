@@ -1,6 +1,6 @@
 
 import numpy as np
-from bmcs_shear.matmod.sz_matmod import SteelMaterialModel, ConcreteMaterialModel
+from bmcs_shear.matmod import CrackBridgeSteel, ConcreteMaterialModel, SteelMaterialModel
 import traits.api as tr
 from bmcs_utils.api import \
     View, Item, Float
@@ -59,7 +59,7 @@ class RCBeamDesign(BeamDesign):
     name = 'Beam design'
 
     cmm = tr.Instance(ConcreteMaterialModel, ())
-    smm = tr.Instance(SteelMaterialModel, ())
+    smm = tr.Instance(CrackBridgeSteel, ())
 
     # Only for visualization to delimit the plotted area
     H = Float(200, GEO=True)
