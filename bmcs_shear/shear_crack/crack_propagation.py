@@ -49,16 +49,19 @@ class CrackPropagation(CrackExtension):
         self.X
         R_k = self.get_R()
         self.t_n = self.t_n1
-        self.sz_cp.add_x_tip_an(self.sz_cp.sz_ctr.x_tip_ak[:, 0])
         self.record_timestep()
 
     n_seg = bu.Int(5, TIME=True)
 
-    simulated_crack = tr.Property(depends_on='+TIME, _GEO,_MAT')
+    # simulated_crack = tr.Property(depends_on='+TIME, _GEO,_MAT')
+    #
+    # @tr.cached_property
+    # def _get_simulated_crack(self):
+    #     self.run()
 
-    @tr.cached_property
-    def _get_simulated_crack(self):
-        self.run()
+    seg = bu.Int(0)
+
+    interrupt = tr.Bool(False)
 
     def run(self, update_progress=lambda t: t):
         crack_seg = np.arange(1, self.n_seg + 1)
@@ -66,12 +69,18 @@ class CrackPropagation(CrackExtension):
         self.R_n = [0]
         self.F_beam = [0]
         self.v_n = [0]
-        for c in crack_seg:
+        while self.seg <= self.n_seg:
+            if self.interrupt:
+                break
             self.make_incr()
-            update_progress(c / self.n_seg)
+            if self.seg < self.n_seg:
+                self.sz_cp.add_x_tip_an(self.sz_cp.sz_ctr.x_tip_ak[:, 0])
+            self.seg += 1
 
     def reset(self):
+        self.seg=0
         self.sz_cp.reset_crack()
+        self.init()
         self.R_n = [0]
         self.F_beam = [0]
         self.v_n = [0]
@@ -81,7 +90,7 @@ class CrackPropagation(CrackExtension):
 
     def update_plot(self, ax):
         ax1, ax2 = ax
-        self.plot(ax1)
+        self.plot_geo(ax1)
         F_beam_kN = np.array(self.F_beam).flatten() / 1000
         v_n = np.array(self.v_n)
         ax2.plot(v_n, F_beam_kN)
@@ -89,7 +98,12 @@ class CrackPropagation(CrackExtension):
         ax2.set_ylabel(r'Load $F$ [kN]')
 
     ipw_view = bu.View(
+        bu.Item('c', editor=bu.ProgressEditor(
+            run_method='run',
+            reset_method='reset',
+            interrupt_var='interrupt',
+            time_var='seg',
+            time_max='n_seg'
+        )),
         bu.Item('n_seg', latex=r'n_\mathrm{seg}', minmax=(1, 100)),
-        simulator='run',
-        reset_simulator='reset',
     )

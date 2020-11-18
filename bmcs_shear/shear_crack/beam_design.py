@@ -1,6 +1,11 @@
 
 import numpy as np
 from bmcs_shear.matmod.sz_matmod import SteelMaterialModel, ConcreteMaterialModel
+import traits.api as tr
+from bmcs_utils.api import \
+    View, Item, Float
+from bmcs_beam.beam_config.beam_design import BeamDesign
+
 
 # # Material constitutive laws
 
@@ -48,12 +53,6 @@ np.einsum('iLa->aiL', x_iLa)
 # ## Reinforcement layout
 
 # In[54]:
-
-
-import traits.api as tr
-from bmcs_utils.api import \
-    View, Item, Float
-from bmcs_beam.beam_design.beam_design import BeamDesign
 
 
 class RCBeamDesign(BeamDesign):

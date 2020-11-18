@@ -42,12 +42,6 @@ class CrackExtension(bu.InteractiveModel):
     psi = tr.DelegatesTo('sz_ctr')
     x_rot_1k = tr.DelegatesTo('sz_ctr')
 
-    t_n = tr.Float(0.0, auto_set=False, enter_set=True)
-    '''Fundamental state time.
-    '''
-    t_n1 = tr.Float(0.0, auto_set=False, enter_set=True)
-    '''Target value of the control variable.
-    '''
     U_n = tr.Array(np.float_,
                    value=[0.0, 0.0], auto_set=False, enter_set=True)
     '''Current fundamental value of the primary variable.
@@ -69,22 +63,17 @@ class CrackExtension(bu.InteractiveModel):
     ipw_view = bu.View(
     )
 
-    initial_state = tr.Property(depends_on='_GEO,_MAT')
-    @tr.cached_property
-    def _get_initial_state(self):
+    def init(self):
         '''Initialize state.
         '''
-        self.t_n1 = 0.0
         self.U_n[:] = 0.0
-        self.x_rot_1 = self.U_k[1]
-        self.U_k = [self.psi,
-                    self.x_rot_1k]
+        self.U_k = [self.psi, self.x_rot_1k]
         self.X_iter = self.U_k
 
     X = tr.Property(depends_on='+TIME, _ALL')
     @tr.cached_property
     def _get_X(self):
-        self.initial_state
+        self.init()
         self.make_iter()
         return self.X_iter
 
@@ -93,7 +82,6 @@ class CrackExtension(bu.InteractiveModel):
         '''Perform one iteration
         '''
         X0 = np.copy(self.X_iter[:])
-
         def get_R_X(X):
             self.X_iter = X
             R = self.get_R()
@@ -133,7 +121,7 @@ class CrackExtension(bu.InteractiveModel):
         R = np.array([R_M, N], dtype=np.float_)
         return R
 
-    def plot(self, ax):
+    def plot_geo(self, ax):
         sz_cto = self.crack_tip_orientation
         ds = self.sz_stress_profile.ds
         ds.update_plot(ax)
@@ -142,4 +130,4 @@ class CrackExtension(bu.InteractiveModel):
 
     def update_plot(self, ax):
         self.X
-        self.plot(ax)
+        self.plot_geo(ax)

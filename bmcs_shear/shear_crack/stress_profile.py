@@ -136,7 +136,7 @@ class SZStressProfile(InteractiveModel):
     '''
     @tr.cached_property
     def _get_get_w_z(self):
-        return interp1d(self.x_Lb[:, 1], self.u_Lb[:, 0],
+        return interp1d(self.sz_cp.x_Lb[:, 1], self.u_Lb[:, 0],
                         fill_value='extrapolate')
 
     get_s_z = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
@@ -145,19 +145,35 @@ class SZStressProfile(InteractiveModel):
     '''
     @tr.cached_property
     def _get_get_s_z(self):
-        return interp1d(self.x_Lb[:, 1], self.u_Lb[:, 1],
+        return interp1d(self.sz_cp.x_Lb[:, 1], self.u_Lb[:, 1],
                         fill_value='extrapolate')
 
-    F_Na = tr.Property(depends_on='state_changed')
+    z_N = tr.Property
+    def _get_z_N(self):
+        # @todo [RC]: adapt to the finished CS-design later
+        return self.sz_bd.cross_section_layout.reinforcement.z_j
+
+    A_N = tr.Property
+    def _get_A_N(self):
+        # @todo [RC]: adapt to the finished CS-design later
+        return self.sz_bd.cross_section_layout.reinforcement.A_j
+
+    E_N = tr.Property
+    def _get_E_N(self):
+        # @todo [RC]: adapt to the finished CS-design later
+        return self.sz_bd.cross_section_layout.reinforcement.E_j
+
+    F_Na = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Get the discrete force in the reinforcement z_N
     '''
     @tr.cached_property
     def _get_F_Na(self):
         w_N = self.get_w_z(self.z_N)
         s_N = self.get_s_z(self.z_N)
-        F_N0 = self.sz_bd.A_N * self.sz_bd.get_sig_w_f(w_N)
-        F_N1 = self.sz_bd.A_N * self.sz_bd.get_sig_s_f(s_N)
+        F_N0 = self.A_N * self.E_N * w_N # self.sz_bd.get_sig_w_f(w_N)
+        F_N1 = self.A_N * 0 # self.sz_bd.get_sig_s_f(s_N)
         F_Nb = np.c_[F_N0, F_N1]
+        return F_Nb
         # to transform into the global coordinates identify the
         # segment of the ligament L corresponding to the position
         # of the reinforcement N
@@ -174,10 +190,12 @@ class SZStressProfile(InteractiveModel):
     @tr.cached_property
     def _get_F_a(self):
         F_La = self.F_La
-#        F_Na = self.F_Na
-        F_a = np.sum(F_La, axis=0) \
-#        F_a += np.sum(F_Na, axis=0)
-        return F_a
+        F_Na = self.F_Na
+        sum_F_La = np.sum(F_La, axis=0)
+        sum_F_Na = np.sum(F_Na, axis=0)
+        x_rot_1k = self.ds.sz_ctr.x_rot_1k
+
+        return sum_F_La + sum_F_Na
 
     M = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Internal bending moment obtained by integrating the
@@ -194,8 +212,8 @@ class SZStressProfile(InteractiveModel):
         x_rot_1k = self.ds.sz_ctr.x_rot_1k
         M_L = (x_La[:, 1] - x_rot_1k) * F_La[:, 0]
         M = np.sum(M_L, axis=0)
-#        M_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:,0])
-        return -M
+        M_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:,0])
+        return -M - M_z
 
     sig_x_tip_0k = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Normal stress component in global $x$ direction in the fracture .
