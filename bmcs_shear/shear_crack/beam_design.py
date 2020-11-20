@@ -1,6 +1,7 @@
 
 import numpy as np
 from bmcs_shear.matmod import CrackBridgeSteel, ConcreteMaterialModel, SteelMaterialModel
+from bmcs_shear.matmod import DowelAction, AggregateInterlock
 import traits.api as tr
 from bmcs_utils.api import \
     View, Item, Float
@@ -60,6 +61,8 @@ class RCBeamDesign(BeamDesign):
 
     cmm = tr.Instance(ConcreteMaterialModel, ())
     smm = tr.Instance(CrackBridgeSteel, ())
+    da = tr.Instance(DowelAction, ())
+    ag_in = tr.Instance(AggregateInterlock,())
 
     # Only for visualization to delimit the plotted area
     H = Float(200, GEO=True)
@@ -115,4 +118,4 @@ class RCBeamDesign(BeamDesign):
     def update_plot(self, ax1):
         ax1.axis('equal');
         self.plot_sz_bd(ax1)
-#         self.plot_sz_cross_section(ax2)
+#        self.plot_sz_cross_section(ax2)

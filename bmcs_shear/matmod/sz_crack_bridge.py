@@ -63,6 +63,8 @@ class CrackBridgeSteel(InteractiveModel, InjectSymbExpr):
         w_range = np.linspace(0, 3*w_argmax)
         sig = self.get_sig_w_f(w_range)
         ax_w.plot(w_range, sig)
+        ax_w.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
+        ax_w.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$')
 
 
 #=========================================================================
