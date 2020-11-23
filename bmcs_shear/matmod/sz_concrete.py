@@ -27,6 +27,10 @@ s, tau_1, s_1, tau_2, s_2, tau_3, s_3 = sp.symbols(
     r's, tau_1, s_1, tau_2, s_2, tau_3, s_3 '
 )
 
+s, tau_1, s_1, tau_2, s_2, tau_3, s_3, d_a = sp.symbols(
+    r's, tau_1, s_1, tau_2, s_2, tau_3, s_3, d_a '
+)
+
 #=========================================================================
 # Unkcracked concrete
 #=========================================================================
@@ -67,6 +71,20 @@ tau_s = sp.Piecewise(
 )
 d_tau_s = tau_s.diff(s)
 
+#=========================================================================
+# Aggregate Interlock
+#=========================================================================
+
+tau_0 = 0.25 * f_c
+
+a_3 = 2.45 / tau_0
+
+a_4 = 2.44 * (1 - (4 / tau_0))
+
+tau_ag = tau_0 * (1 - sp.sqrt((2 * w)/d_a)) * s / w * (a_3 + (a_4 * sp.Abs(s / w)**3)) / (1 + (a_4 *(s / w)**4))
+
+sigma_ag = -0.62 * sp.sqrt(w) * (s / w) / ((1 + (s / w) ** 2) ** 0.25) * tau_ag
+
 
 @tr.provides(IMaterialModel)
 class ConcreteMaterialModel(InteractiveModel):
@@ -94,6 +112,8 @@ class ConcreteMaterialModel(InteractiveModel):
 
     L_fps = Float(50, MAT=True)
 
+    d_a = Float(22.0, MAT=True)
+
     L_c = tr.Property
 
     def _get_L_c(self):
@@ -114,6 +134,7 @@ class ConcreteMaterialModel(InteractiveModel):
                     f_c=self.f_c,
                     E_c=self.E_c,
                     L_c=self.L_c,
+                    d_a = self.d_a
                     # L=self.L
                     )
 
@@ -253,29 +274,74 @@ class ConcreteMaterialModel(InteractiveModel):
         signs = np.sign(s)
         return signs * self.get_d_tau_s_plus(signs * s)
 
-    def plot_tau_s(self, ax, vot=1.0):
-        s_max = float(s_3.subs(self.bond_law_data))
-        s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100)
-        ax.plot(s_data, self.get_tau_s(s_data), lw=2, color='blue')
-        ax.fill_between(
-            s_data, self.get_tau_s(s_data), color='blue', alpha=0.2
-        )
-        ax.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
-        ax.set_ylabel(r'$\tau\;\;\mathrm{[MPa]}$')
-        ax.set_title('crack interface law')
+    # def plot_tau_s(self, ax, vot=1.0):
+    #     s_max = float(s_3.subs(self.bond_law_data))
+    #     s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100)
+    #     ax.plot(s_data, self.get_tau_s(s_data), lw=2, color='blue')
+    #     ax.fill_between(
+    #         s_data, self.get_tau_s(s_data), color='blue', alpha=0.2
+    #     )
+    #     ax.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
+    #     ax.set_ylabel(r'$\tau\;\;\mathrm{[MPa]}$')
+    #     ax.set_title('crack interface law')
+    #
+    # def plot_d_tau_s(self, ax2, vot=1.0):
+    #     s_max = float(s_3.subs(self.bond_law_data))
+    #     s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100)
+    #     ax2.plot(s_data, self.get_d_tau_s(s_data), color='orange')
+    #
+    # def subplots(self, fig):
+    #     return fig.subplots(1,2)
+    #
+    # def update_plot(self, axes):
+    #     ax1, ax2 = axes
+    #     self.plot_sig_w(ax1)
+    #     self.plot_d_sig_w(ax1)
+    #     self.plot_tau_s(ax2)
+    #     self.plot_d_tau_s(ax2)
 
-    def plot_d_tau_s(self, ax2, vot=1.0):
+    # =========================================================================
+    # Aggregate-Interlock Mechanism
+    # =========================================================================
+
+
+    get_tau_ag = tr.Property(depends_on='+MAT')
+
+    @tr.cached_property
+    def _get_get_tau_ag(self):
+        return sp.lambdify((w, s), tau_ag.subs(self.co_law_data), 'numpy')
+
+    get_sigma_ag = tr.Property(depends_on='+MAT')
+
+    @tr.cached_property
+    def _get_get_tau_ag(self):
+        return sp.lambdify((w, s), sigma_ag.subs(self.co_law_data), 'numpy')
+
+    def plot_tau_ag(self, ax2, vot=1.0):
+        s_max = float(s_3.subs(self.bond_law_data))
+        w =0.1
+        s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100)
+        ax2.plot(s_data, self.get_tau_ag(w, s_data), lw=2, color='blue')
+        ax2.fill_between(
+            s_data, self.get_tau_ag(w, s_data), color='blue', alpha=0.2
+        )
+        ax2.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
+        ax2.set_ylabel(r'$\tau\;\;\mathrm{[MPa]}$')
+        ax2.set_title('crack interface law')
+
+    def plot_sigma_ag(self, ax2, vot=1.0):
+        w = 0.1
         s_max = float(s_3.subs(self.bond_law_data))
         s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100)
-        ax2.plot(s_data, self.get_d_tau_s(s_data), color='orange')
+        ax2.plot(s_data, self. get_sigma_ag(w, s_data), color='orange')
 
     def subplots(self, fig):
         return fig.subplots(1,2)
 
     def update_plot(self, axes):
         ax1, ax2 = axes
+        w = 0.1
         self.plot_sig_w(ax1)
         self.plot_d_sig_w(ax1)
-        self.plot_tau_s(ax2)
-        self.plot_d_tau_s(ax2)
-
+        self.get_tau_ag(w,ax2)
+        self.get_sigma_ag(w,ax2)
