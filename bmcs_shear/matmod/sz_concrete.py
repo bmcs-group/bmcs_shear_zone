@@ -31,6 +31,8 @@ s, tau_1, s_1, tau_2, s_2, tau_3, s_3, d_a = sp.symbols(
     r's, tau_1, s_1, tau_2, s_2, tau_3, s_3, d_a '
 )
 
+lamda, w_1, w_2 = sp.symbols(r'\lambda, w_1, w_2')
+
 #=========================================================================
 # Unkcracked concrete
 #=========================================================================
@@ -70,6 +72,20 @@ tau_s = sp.Piecewise(
     (tau_2 + (tau_3 - tau_2) / (s_3 - s_2) * (s - s_2), s > s_2)
 )
 d_tau_s = tau_s.diff(s)
+
+#=========================================================================
+# Bilinear Law for Tensile Behavior
+#=========================================================================
+
+alpha_f = lamda - d_a/8
+
+sigma_s = (f_t * (2 - f_t * (w_1 / G_f))) / alpha_f #w_1 = CTOD_c
+
+sigma_w = sp.Piecewise(
+            (f_t - (f_t - sigma_s) * (w / w_1), w <= w_1 ),
+            (sigma_s * (w_2 - w) / (w_2 - w_1),  w <= w_2),
+)
+sigma_w
 
 #=========================================================================
 # Aggregate Interlock
