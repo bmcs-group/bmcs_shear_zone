@@ -2,6 +2,7 @@
 import numpy as np
 from bmcs_shear.matmod import CrackBridgeSteel, ConcreteMaterialModel, SteelMaterialModel
 from bmcs_shear.matmod import DowelAction, AggregateInterlock
+from bmcs_cross_section.cs_design import CrossSectionDesign
 import traits.api as tr
 from bmcs_utils.api import \
     View, Item, Float
@@ -56,7 +57,7 @@ np.einsum('iLa->aiL', x_iLa)
 # In[54]:
 
 
-class RCBeamDesign(BeamDesign):
+class RCBeamDesign(BeamDesign,CrossSectionDesign):
     name = 'Beam design'
 
     cmm = tr.Instance(ConcreteMaterialModel, ())
@@ -114,6 +115,9 @@ class RCBeamDesign(BeamDesign):
                 [0, 0, self.H, self.H, 0], color='black')
         ax.set_xlim(0, self.B)
         ax.set_ylim(0, self.H)
+
+    def subplots(self, fig):
+        return fig.subplots(1,1)
 
     def update_plot(self, ax1):
         ax1.axis('equal');

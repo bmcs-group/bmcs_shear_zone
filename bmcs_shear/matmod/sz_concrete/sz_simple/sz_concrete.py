@@ -8,7 +8,7 @@ import numpy as np
 import sympy as sp
 import traits.api as tr
 from bmcs_utils.api import InteractiveModel, View, Item, Float
-from .i_matmod import IMaterialModel
+from bmcs_shear.matmod.i_matmod import IMaterialModel
 
 
 eps, f_c, E_c, L_c = sp.symbols(

@@ -2,7 +2,7 @@ import numpy as np
 import sympy as sp
 import traits.api as tr
 from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, InjectSymbExpr
-from .i_matmod import IMaterialModel
+from bmcs_shear.matmod.i_matmod import IMaterialModel
 
 class AggregateInterlockSymb(SymbExpr):
     d_g, f_c = sp.symbols(r'd_g, f_c', nonnegative=True)

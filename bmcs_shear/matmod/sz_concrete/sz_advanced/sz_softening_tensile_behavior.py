@@ -2,7 +2,7 @@ import numpy as np
 import sympy as sp
 import traits.api as tr
 from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, InjectSymbExpr
-from .i_matmod import IMaterialModel
+from bmcs_shear.matmod.i_matmod import IMaterialModel
 
 class TensileSofteningBehaviorSymb(SymbExpr):
     w_1, w_2 = sp.symbols(r'w_1, w_2')

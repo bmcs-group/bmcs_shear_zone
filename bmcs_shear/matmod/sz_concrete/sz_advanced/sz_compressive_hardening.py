@@ -2,7 +2,7 @@ import numpy as np
 import sympy as sp
 import traits.api as tr
 from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, InjectSymbExpr
-from .i_matmod import IMaterialModel
+from bmcs_shear.matmod.i_matmod import IMaterialModel
 
 class CompressiveHardeningBehaviorSymb(SymbExpr):
     eps_cp = sp.Symbol('\epsilon_{cp}', nonnegative=True)

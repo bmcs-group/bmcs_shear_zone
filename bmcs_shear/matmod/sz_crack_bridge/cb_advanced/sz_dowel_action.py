@@ -2,7 +2,8 @@ import numpy as np
 import sympy as sp
 import traits.api as tr
 from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, InjectSymbExpr
-from .i_matmod import IMaterialModel
+from bmcs_shear.matmod.i_matmod import IMaterialModel
+
 
 class DowelActionSymb(SymbExpr):
     b_w, f_c = sp.symbols(r'b_w, f_c', nonnegative=True)
@@ -19,11 +20,12 @@ class DowelActionSymb(SymbExpr):
 
     V_da = sp.Piecewise(
         (V_da_1, delta <= 0.05),
-        (V_da_2, True )) #delta > 0.05
+        (V_da_2, True))  # delta > 0.05
 
     symb_model_params = ['b_w', 'f_c', 'n', 'd_s']
 
     symb_expressions = [('V_da', ('delta',))]
+
 
 @tr.provides(IMaterialModel)
 class DowelAction(InteractiveModel, InjectSymbExpr):
@@ -31,12 +33,11 @@ class DowelAction(InteractiveModel, InjectSymbExpr):
 
     symb_class = DowelActionSymb
 
-
-    #delta = Float(0.1) ##mm (vertical displacement)
-    b_w = Float(75) ##mm (width of the beam)
-    n = Float(4) ##number of bars
-    d_s = Float(16) ##dia of steel mm
-    f_c = Float(37.9) ## compressive strength of Concrete in MPa
+    # delta = Float(0.1) ##mm (vertical displacement)
+    b_w = Float(75)  ##mm (width of the beam)
+    n = Float(4)  ##number of bars
+    d_s = Float(16)  ##dia of steel mm
+    f_c = Float(37.9)  ## compressive strength of Concrete in MPa
 
     ipw_view = View(
         Item('b_w'),
@@ -45,17 +46,14 @@ class DowelAction(InteractiveModel, InjectSymbExpr):
         Item('f_c')
     )
 
-
-
     def get_sig_s_f(self, delta):
         # calculating the dowel action force
         return self.symb.get_V_da(delta)
 
+    def subplots(self, fig):
+        return fig.subplots(1, 2)
 
-    def subplots(self,fig):
-        return fig.subplots(1,2)
-
-    def update_plot(self,axes):
+    def update_plot(self, axes):
         ax_w, ax_s = axes
         delta_range = np.linspace(0, 2)
         V = self.get_sig_s_f(delta_range)

@@ -105,8 +105,10 @@ class SZStressProfile(InteractiveModel):
         u_a = self.u_Lb
         cmm = self.ds.sz_bd.cmm
         B = self.ds.sz_bd.B
+        # Sig_a = cmm.get_sig(u_a)
+        # return Sig_a
         Sig_w = cmm.get_sig_w(u_a[..., 0]) * B
-        Tau_w = cmm.get_tau_ag(u_a[0,0], u_a[..., 1]) * B #get_tau_s
+        Tau_w = cmm.get_tau_ag(u_a[..., 0], u_a[..., 1]) * B #get_tau_s
         return np.einsum('b...->...b', np.array([Sig_w, Tau_w], dtype=np.float_))
 
     S_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
@@ -179,6 +181,7 @@ class SZStressProfile(InteractiveModel):
         # segment of the ligament L corresponding to the position
         # of the reinforcement N
         z_L = self.sz_bd.x_La[1]
+        
         z_N = self.sz_bd.z_N
         L_N = np.argmax(z_L[np.newaxis, :] >= z_N[:, np.newaxis], axis=1)
         T_Nab = self.sz_cp.T_Lab[L_N,...]
