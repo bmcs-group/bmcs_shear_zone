@@ -169,6 +169,11 @@ class ConcreteMaterialModel(InteractiveModel):
     def _get_get_d_sig_eps(self):
         return sp.lambdify(eps, d_sig_eps.subs(self.co_law_data), 'numpy')
 
+    def get_sig_a(self, u_a):
+        sig = self.get_sig_w(u_a[...,0])
+        tau = self.get_tau_s(u_a[...,1])
+        return np.einsum('b...->...b', np.array([sig, tau], dtype=np.float_))
+
     #=========================================================================
     # Sig w
     #=========================================================================

@@ -57,15 +57,16 @@ np.einsum('iLa->aiL', x_iLa)
 # In[54]:
 
 
-class RCBeamDesign(BeamDesign,CrossSectionDesign):
+class RCBeamDesign(BeamDesign):
     name = 'Beam design'
 
     cmm = tr.Instance(ConcreteMaterialModel, ())
     smm = tr.Instance(CrackBridgeSteel, ())
-    da = tr.Instance(DowelAction, ())
-    ag_in = tr.Instance(AggregateInterlock,())
+    # da = tr.Instance(DowelAction, ())
+    # ag_in = tr.Instance(AggregateInterlock,())
 
     # Only for visualization to delimit the plotted area
+    # @todo [FS] - this should be obtained from the design classes.
     H = Float(200, GEO=True)
     L = Float(800, GEO=True)
     B = Float(100, GEO=True)

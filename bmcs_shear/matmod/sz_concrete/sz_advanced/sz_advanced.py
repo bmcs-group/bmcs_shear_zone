@@ -7,7 +7,10 @@ from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, Inject
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
-from .sz_pull_out_fib import PullOut
+
+class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
+    # continue here
+    pass
 
 @tr.provides(IMaterialModel)
 class ConcreteMaterialModelAdv(bu.InteractiveModel):
@@ -18,8 +21,6 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel):
     tension = tr.Instance(TensileSofteningBehavior, ())
     compression = tr.Instance(CompressiveHardeningBehavior, ())
     interlock = tr.Instance(AggregateInterlock, ())
-    pullout = tr.Instance(PullOut ,())
-
 
     f_t = Float(3.0,
                    MAT=True,
@@ -118,6 +119,10 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel):
 
     def _get_f_ce(self):
         return self.f_c * (1 / (0.8))
+
+    def get_sig_a(self, u_a):
+        w, s = u_a[...,0], u_a[...,1]
+
 
     sigma_w = tr.Property(depends_on='+MAT')
 

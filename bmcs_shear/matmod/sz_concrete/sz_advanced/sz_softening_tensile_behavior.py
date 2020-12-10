@@ -17,6 +17,7 @@ class TensileSofteningBehaviorSymb(SymbExpr):
 
     sigma_s = (f_t * (2 - f_t * (w_1 / G_f))) / alpha_f #w_1 = CTOD_c
 
+    #
     sigma_w = sp.Piecewise(
             (f_t - (f_t - sigma_s) * (w / w_1), w <= w_1 ),
             (sigma_s * (w_2 - w) / (w_2 - w_1),  w <= w_2),
@@ -24,7 +25,9 @@ class TensileSofteningBehaviorSymb(SymbExpr):
 
     w_tc = 5.14 * G_f/f_t
 
-    sigma_t = f_t * (1 + ((c_1 * w)/(w_tc))**3) * sp.exp((-c_2* w)/(w_tc)) - (w/w_tc) * (1 + c_1**3) * sp.exp(-c_2)
+    sigma_t = f_t * (1 + ((c_1 * w)/(w_tc))**3) * \
+              sp.exp((-c_2* w)/(w_tc)) - (w/w_tc) * \
+              (1 + c_1**3) * sp.exp(-c_2)
 
     sigma_t_diff = sigma_t.diff(w)
 
@@ -50,6 +53,8 @@ class TensileSofteningBehavior(InteractiveModel, InjectSymbExpr):
     c_1 = Float(3)
     c_2 = Float(6.93)
 
+    E_ct = Float(28000, desc='E modulus in tension')
+
     ipw_view = View(
         Item('w_1'),
         Item('w_2'),
@@ -62,7 +67,8 @@ class TensileSofteningBehavior(InteractiveModel, InjectSymbExpr):
     )
 
     def get_sigma_w(self, w):
-        return self.symb.get_sigma_w(w)
+        sig = self.symb.get_sigma_w(w)
+
 
     def get_w_tc(self):
         return 5.14 * self.G_f/self.f_t

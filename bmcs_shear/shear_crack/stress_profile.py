@@ -105,11 +105,11 @@ class SZStressProfile(InteractiveModel):
         u_a = self.u_Lb
         cmm = self.ds.sz_bd.cmm
         B = self.ds.sz_bd.B
-        # Sig_a = cmm.get_sig(u_a)
-        # return Sig_a
-        Sig_w = cmm.get_sig_w(u_a[..., 0]) * B #get_sig_w
-        Tau_w = cmm.get_tau_s(u_a[..., 1]) * B #get_tau_s get_tau_ag u_a[..., 0],
-        return np.einsum('b...->...b', np.array([Sig_w, Tau_w], dtype=np.float_))
+        sig_a = cmm.get_sig(u_a)
+        return sig_a * B
+        # Sig_w = cmm.get_sig_w(u_a[..., 0]) * B #get_sig_w
+        # Tau_w = cmm.get_tau_s(u_a[..., 1]) * B #get_tau_s get_tau_ag u_a[..., 0],
+        # return np.einsum('b...->...b', np.array([Sig_w, Tau_w], dtype=np.float_))
 
     S_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Transposed stresses'''
