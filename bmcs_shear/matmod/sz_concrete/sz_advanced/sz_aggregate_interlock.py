@@ -7,9 +7,9 @@ from bmcs_shear.matmod.i_matmod import IMaterialModel
 class AggregateInterlockSymb(SymbExpr):
     d_g, f_c = sp.symbols(r'd_g, f_c', nonnegative=True)
     w = sp.symbols(r'w', nonnegative=True)
-    delta = sp.symbols(r'\delta', nonnegative=True)
+    s = sp.symbols(r's', nonnegative=True)
 
-    r = delta / w
+    r = s / w
 
     tau_0 = 0.25 * f_c
 
@@ -21,11 +21,12 @@ class AggregateInterlockSymb(SymbExpr):
 
     sigma_ag = -0.62 * sp.sqrt(w) * (r) / ((1 + r ** 2) ** 0.25) * tau_ag
 
+    tau_ag_diff = tau_ag.diff(s)
 
     symb_model_params = ['d_g', 'f_c']
 
-    symb_expressions = [('tau_ag', ('w','delta',)),
-                        ('sigma_ag', ('w','delta',))]
+    symb_expressions = [('tau_ag', ('w','s',)),
+                        ('sigma_ag', ('w','s',))]
 
 @tr.provides(IMaterialModel)
 class AggregateInterlock(InteractiveModel, InjectSymbExpr):
@@ -43,13 +44,16 @@ class AggregateInterlock(InteractiveModel, InjectSymbExpr):
         Item('f_c')
     )
 
-    def get_tau_ag(self, w, delta):
+    def get_tau_ag(self, w, s):
         # calculating the shear stress due to aggregate interlocking
-        return self.symb.get_tau_ag(w, delta)
+        return self.symb.get_tau_ag(w, s)
 
-    def get_sigma_ag(self, w, delta):
+    # def get_tau_ag_diff(self,w , s):
+    #     return self.symb.tau_ag_diff(w, s)
+
+    def get_sigma_ag(self, w, s):
         # calculating the normal stress due to aggregate interlocking
-        return self.symb.get_sigma_ag(w, delta)
+        return self.symb.get_sigma_ag(w, s)
 
 
     def subplots(self,fig):
@@ -58,18 +62,28 @@ class AggregateInterlock(InteractiveModel, InjectSymbExpr):
     def update_plot(self,axes):
         ax_w, ax_s = axes
         w_range = np.linspace(0.1, 1, 3)
+        # s_range = np.linspace(0.001, 1, 100)
+        # tau_ag = np.zeros((100, 100))
+        # sigma_ag = np.zeros((100, 100))
         tau_ag = np.zeros((100, 3))
         sigma_ag = np.zeros((100, 3))
+
+        # for i, w in enumerate(w_range):
+        #     tau_ag[i] = self.get_tau_ag(w, s_range)
+        #     sigma_ag[i] = self.get_sigma_ag(w, s_range)
+
         for i, w in enumerate(w_range):
-            delta_range = np.linspace(0.001, 1, 100)
-            for j, delta in enumerate(delta_range):
-                tau_ag[j, i] = self.get_tau_ag(w, delta)
-                sigma_ag[j, i] = self.get_sigma_ag(w, delta)
+            s_range = np.linspace(-6, 6, 100)
+            for j, s in enumerate(s_range):
+                tau_ag[j, i] = self.get_tau_ag(w, s)
+                sigma_ag[j, i] = self.get_sigma_ag(w, s)
         #V = self.get_sig_s_f(delta_range)
-        ax_w.plot(delta_range, tau_ag[:,:])
-        ax_s.plot(delta_range, sigma_ag[:,:])
-        ax_w.set_xlabel(r'$\delta\;\;\mathrm{[mm]}$')
+        ax_w.plot(s_range, tau_ag[:,:])
+        ax_s.plot(s_range, sigma_ag[:,:])
+        ax_w.plot(s_range, tau_ag[:])
+        ax_s.plot(s_range, sigma_ag[:])
+        ax_w.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
         ax_w.set_ylabel(r'$\tau_{\mathrm{ag}}\;\;\mathrm{[MPa]}$')
-        ax_s.set_xlabel(r'$\delta\;\;\mathrm{[mm]}$')
+        ax_s.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
         ax_s.set_ylabel(r'$\sigma_{\mathrm{ag}}\;\;\mathrm{[MPa]}$')
 

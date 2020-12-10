@@ -107,8 +107,8 @@ class SZStressProfile(InteractiveModel):
         B = self.ds.sz_bd.B
         # Sig_a = cmm.get_sig(u_a)
         # return Sig_a
-        Sig_w = cmm.get_sig_w(u_a[..., 0]) * B
-        Tau_w = cmm.get_tau_ag(u_a[..., 0], u_a[..., 1]) * B #get_tau_s
+        Sig_w = cmm.get_sig_w(u_a[..., 0]) * B #get_sig_w
+        Tau_w = cmm.get_tau_s(u_a[..., 1]) * B #get_tau_s get_tau_ag u_a[..., 0],
         return np.einsum('b...->...b', np.array([Sig_w, Tau_w], dtype=np.float_))
 
     S_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
@@ -173,6 +173,7 @@ class SZStressProfile(InteractiveModel):
         w_N = self.get_w_z(self.z_N)
         s_N = self.get_s_z(self.z_N)
         #F_N0 = self.A_N * self.E_N * w_N # self.sz_bd.get_sig_w_f(w_N)
+        # TODO: I have replaced smm with bond model from fib and dowel action please take care and watch out! (Fahad)
         F_N0 = self.sz_bd.smm.get_sig_w_f(w_N)
         F_N1 = self.sz_bd.da.get_sig_s_f(s_N) #smm
         F_Nb = np.c_[F_N0, F_N1]

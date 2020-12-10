@@ -26,10 +26,13 @@ class TensileSofteningBehaviorSymb(SymbExpr):
 
     sigma_t = f_t * (1 + ((c_1 * w)/(w_tc))**3) * sp.exp((-c_2* w)/(w_tc)) - (w/w_tc) * (1 + c_1**3) * sp.exp(-c_2)
 
+    sigma_t_diff = sigma_t.diff(w)
+
     symb_model_params = ['w_1', 'w_2', 'lamda', 'd_a', 'f_t', 'G_f', 'c_1', 'c_2']
 
     symb_expressions = [('sigma_w', ('w',)),
-                        ('sigma_t', ('w',))]
+                        ('sigma_t', ('w',)),
+                        ('sigma_t_diff', ('w',))]
 
 @tr.provides(IMaterialModel)
 class TensileSofteningBehavior(InteractiveModel, InjectSymbExpr):
@@ -66,6 +69,9 @@ class TensileSofteningBehavior(InteractiveModel, InjectSymbExpr):
 
     def get_sigma_w_t(self, w):
         return self.symb.get_sigma_t(w)
+
+    def get_sigma_w_t_diff(self,w):
+        return self.symb.get_sigma_t_diff(w)
 
     def subplots(self,fig):
         return fig.subplots(1,2)
