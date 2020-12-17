@@ -2,3 +2,5 @@
 from .sz_aggregate_interlock import AggregateInterlock
 from .sz_compressive_hardening import CompressiveHardeningBehavior
 from .sz_softening_tensile_behavior import TensileSofteningBehavior
+from .sz_advanced_ver2 import SZAdancedConModel
+from .sz_advanced import ConcreteMaterialModelAdv
