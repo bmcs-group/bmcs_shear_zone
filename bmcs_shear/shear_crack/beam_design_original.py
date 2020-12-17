@@ -1,14 +1,12 @@
 
 import numpy as np
 from bmcs_shear.matmod import CrackBridgeSteel, ConcreteMaterialModel, SteelMaterialModel
-from bmcs_shear.matmod.sz_concrete.sz_advanced.sz_advanced import ConcreteMaterialModelAdv
-#from bmcs_shear.matmod import DowelAction, AggregateInterlock
-from bmcs_cross_section.cs_design import CrossSectionDesign
+from bmcs_shear.matmod import DowelAction, AggregateInterlock
 import traits.api as tr
 from bmcs_utils.api import \
     View, Item, Float
 from bmcs_beam.beam_config.beam_design import BeamDesign
-#from bmcs_cross_section.cs_design.cs_design import CrossSectionDesign
+from bmcs_cross_section.cs_design.cs_design import CrossSectionDesign
 
 
 # # Material constitutive laws
@@ -62,14 +60,12 @@ np.einsum('iLa->aiL', x_iLa)
 class RCBeamDesign(BeamDesign):
     name = 'Beam design'
 
-    cmm = tr.Instance(ConcreteMaterialModel, ()) #ConcreteMaterialModelAdv
-    #cmmadv = tr.Instance(ConcreteMaterialModelAdv,())
+    cmm = tr.Instance(ConcreteMaterialModel, ())
     smm = tr.Instance(CrackBridgeSteel, ())
-    # da = tr.Instance(DowelAction, ())
-    # ag_in = tr.Instance(AggregateInterlock,())
+    da = tr.Instance(DowelAction, ())
+    ag_in = tr.Instance(AggregateInterlock,())
 
     # Only for visualization to delimit the plotted area
-    # @todo [FS] - this should be obtained from the design classes.
     H = Float(200, GEO=True)
     L = Float(800, GEO=True)
     B = Float(100, GEO=True)
@@ -120,10 +116,7 @@ class RCBeamDesign(BeamDesign):
         ax.set_xlim(0, self.B)
         ax.set_ylim(0, self.H)
 
-    def subplots(self, fig):
-        return fig.subplots(1,1)
-
     def update_plot(self, ax1):
         ax1.axis('equal');
         self.plot_sz_bd(ax1)
-#        self.plot_sz_cross_section(ax1)
+#        self.plot_sz_cross_section(ax2)
