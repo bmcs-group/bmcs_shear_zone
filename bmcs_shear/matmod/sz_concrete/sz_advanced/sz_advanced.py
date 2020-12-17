@@ -114,10 +114,12 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     def subplots(self, fig):
         return fig.subplots(1, 2)
 
+    w_max = bu.Float(1)
+
     def update_plot(self, axes):
         '''Plotting function '''
         ax_w, ax_s = axes
-        w_ = np.linspace(1e-9, self.get_w_tc(), 100)
+        w_ = np.linspace(1e-9, self.w_max, 100)
         s_ = np.linspace(-1,1, 100)
         s_2d, w_2d = np.meshgrid(s_,w_)
         #w_ag = np.linspace(0, 1, 100)

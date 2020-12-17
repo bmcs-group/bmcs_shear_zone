@@ -102,11 +102,11 @@ class SZStressProfile(InteractiveModel):
     '''
     @tr.cached_property
     def _get_S_Lb(self):
-        u_a = self.u_Lb
+        u_Lb = self.u_Lb
         cmm = self.ds.sz_bd.cmm  #adv
         B = self.ds.sz_bd.B
-        sig_a = cmm.get_sig(u_a)#    get_sig_a(u_a[...,0], u_a[...,1])
-        return sig_a * B
+        sig_La = cmm.get_sig_a(u_Lb)
+        return sig_La * B
         # Sig_w = cmm.get_sig_w(u_a[..., 0]) * B #get_sig_w
         # Tau_w = cmm.get_tau_s(u_a[..., 1]) * B #get_tau_s get_tau_ag u_a[..., 0],
         # return np.einsum('b...->...b', np.array([Sig_w, Tau_w], dtype=np.float_))
@@ -175,14 +175,14 @@ class SZStressProfile(InteractiveModel):
         #F_N0 = self.A_N * self.E_N * w_N # self.sz_bd.get_sig_w_f(w_N)
         # TODO: I have replaced smm with bond model from fib and dowel action please take care and watch out! (Fahad)
         F_N0 = self.sz_bd.smm.get_sig_w_f(w_N)
-        F_N1 = self.sz_bd.da.get_sig_s_f(s_N) #smm
+#        F_N1 = self.sz_bd.smm.get_sig_s_f(s_N) #smm
+        F_N1 = np.zeros_like(F_N0)
         F_Nb = np.c_[F_N0, F_N1]
         return F_Nb
         # to transform into the global coordinates identify the
         # segment of the ligament L corresponding to the position
         # of the reinforcement N
         z_L = self.sz_bd.x_La[1]
-        
         z_N = self.sz_bd.z_N
         L_N = np.argmax(z_L[np.newaxis, :] >= z_N[:, np.newaxis], axis=1)
         T_Nab = self.sz_cp.T_Lab[L_N,...]
