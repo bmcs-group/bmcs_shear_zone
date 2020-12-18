@@ -132,23 +132,33 @@ class SZStressProfile(InteractiveModel):
         F_La = np.einsum('La,L->La', S_La, self.ds.sz_cp.norm_n_vec_L)
         return F_La
 
-    get_w_z = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    get_w_N = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Get an interpolator function returning crack opening displacement 
     for a specified vertical coordinate of a ligament.
     '''
     @tr.cached_property
-    def _get_get_w_z(self):
-        return interp1d(self.sz_cp.x_Lb[:, 1], self.u_Lb[:, 0],
+    def _get_get_w_N(self):
+        return interp1d(self.sz_cp.x_Lb[:, 1], self.u_La[:, 0],
                         fill_value='extrapolate')
 
-    get_s_z = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    get_s_N = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Get an interpolator function returning slip displacement 
     component for a specified vertical coordinate of a ligament.
     '''
     @tr.cached_property
-    def _get_get_s_z(self):
-        return interp1d(self.sz_cp.x_Lb[:, 1], self.u_Lb[:, 1],
+    def _get_get_s_N(self):
+        return interp1d(self.sz_cp.x_Lb[:, 1], self.u_La[:, 1],
                         fill_value='extrapolate')
+
+    u_Na = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    '''Get an interpolator function returning slip displacement 
+    component for a specified vertical coordinate of a ligament.
+    '''
+    @tr.cached_property
+    def _get_u_Na(self):
+        w_N = self.get_w_N(self.z_N)
+        s_N = self.get_s_N(self.z_N)
+        return np.array([w_N, s_N], dtype = np.float_).T
 
     z_N = tr.Property
     def _get_z_N(self):
@@ -170,15 +180,14 @@ class SZStressProfile(InteractiveModel):
     '''
     @tr.cached_property
     def _get_F_Na(self):
-        w_N = self.get_w_z(self.z_N)
-        s_N = self.get_s_z(self.z_N)
+        u_Na = self.u_Na
         #F_N0 = self.A_N * self.E_N * w_N # self.sz_bd.get_sig_w_f(w_N)
         # TODO: I have replaced smm with bond model from fib and dowel action please take care and watch out! (Fahad)
-        F_N0 = self.sz_bd.smm.get_sig_w_f(w_N)
+        F_Na = self.sz_bd.smm.get_F_a(u_Na)
+#        F_N0 = self.sz_bd.smm.get_sig_w_f(w_N)
 #        F_N1 = self.sz_bd.smm.get_sig_s_f(s_N) #smm
-        F_N1 = np.zeros_like(F_N0)
-        F_Nb = np.c_[F_N0, F_N1]
-        return F_Nb
+#        F_N1 = np.zeros_like(F_N0)
+        return F_Na
         # to transform into the global coordinates identify the
         # segment of the ligament L corresponding to the position
         # of the reinforcement N
@@ -314,6 +323,9 @@ class SZStressProfile(InteractiveModel):
         self.plot_u_Lc(ax_tau, self.S_La, 1, label=r'$f_z$ [N/mm]', color='green')
         ax_tau.set_xlabel(r'vertical stress flow $f_z$ [N/mm]')
         mpl_align_xaxis(ax_sig, ax_tau)
+
+    def plot_N_a(self, ax_N):
+        pass
 
     def subplots(self, fig):
         return fig.subplots(1 ,4)

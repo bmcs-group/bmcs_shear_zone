@@ -49,6 +49,11 @@ class CrackBridgeSteel(InteractiveModel, InjectSymbExpr):
         Item('sig_y')
     )
 
+    def get_F_a(self, u_a):
+        F_w = self.get_sig_w_f(u_a[...,0])
+        F_s = np.zeros_like(F_w)
+        return np.array([F_w,F_s], dtype=np.float_).T
+
     def get_sig_w_f(self, w):
         # distinguish the crack width from the end slip of the pullout
         # which delivers the crack bridging force
