@@ -103,7 +103,7 @@ class SZStressProfile(InteractiveModel):
     @tr.cached_property
     def _get_S_Lb(self):
         u_Lb = self.u_Lb
-        cmm = self.ds.sz_bd.cmm  #adv
+        cmm = self.ds.sz_bd.cmm  #adv cmm_adv
         B = self.ds.sz_bd.B
         sig_La = cmm.get_sig_a(u_Lb)
         return sig_La * B

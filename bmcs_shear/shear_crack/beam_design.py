@@ -62,8 +62,8 @@ np.einsum('iLa->aiL', x_iLa)
 class RCBeamDesign(BeamDesign):
     name = 'Beam design'
 
-    cmm = tr.Instance(ConcreteMaterialModel, ()) #ConcreteMaterialModelAdv
-    #cmmadv = tr.Instance(ConcreteMaterialModelAdv,())
+    cmm = tr.Instance(ConcreteMaterialModelAdv, ()) # ConcreteMaterialModel
+    cmm_adv = tr.Instance(ConcreteMaterialModelAdv,())
     smm = tr.Instance(CrackBridgeSteel, ())
     # da = tr.Instance(DowelAction, ())
     # ag_in = tr.Instance(AggregateInterlock,())

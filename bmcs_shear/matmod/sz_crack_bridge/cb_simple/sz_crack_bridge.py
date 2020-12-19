@@ -43,10 +43,10 @@ class CrackBridgeSteel(InteractiveModel, InjectSymbExpr):
     sig_y = Float(500)
 
     ipw_view = View(
-        Item('E_f'),
-        Item('d_s'),
-        Item('tau'),
-        Item('sig_y')
+        Item('E_f', latex=r'E_f'),
+        Item('d_s', latex=r'd_s'),
+        Item('tau', latex=r'\tau'),
+        Item('sig_y', latex=r'\sigma_y')
     )
 
     def get_F_a(self, u_a):
