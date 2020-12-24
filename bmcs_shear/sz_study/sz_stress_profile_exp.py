@@ -1,5 +1,3 @@
-
-
 import traits.api as tr
 import numpy as np
 from bmcs_utils.api import InteractiveModel, View, Item, mpl_align_xaxis
@@ -131,6 +129,15 @@ class SZStressProfile(InteractiveModel):
         F_La = np.einsum('La,L->La', S_La, self.ds.sz_cp.norm_n_vec_L)
         return F_La
 
+    F_ag = tr.Property(depends_on = '_ITR, _INC, _GEO, _MAT, _DSC')
+    '''Integrated Aggregate Interlock forces'''
+    @tr.cached_property
+    def _get_F_ag(self):
+        S_La = self.S_La
+        B = self.ds.sz_bd.B
+        F_ag = S_La[...,1] * B * np.sin(self.sz_cp._get_beta())
+        return F_ag
+
     get_w_N = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Get an interpolator function returning crack opening displacement 
     for a specified vertical coordinate of a ligament.
@@ -249,6 +256,26 @@ class SZStressProfile(InteractiveModel):
         return interp1d(self.sz_cp.x_Lb[:, 1], self.S_La[:, 0] / B,
                         fill_value='extrapolate')
 
+    tau_exp = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+
+    @tr.cached_property
+    def _get_tau_exp(self):
+        B = self.ds.sz_bd.B
+        D = self.ds.sz_bd.B
+        F_La = self.F_La
+        F_Na = self.F_Na
+        V_exp = F_La[..., 1] + F_Na[...,1]
+        print((V_exp )/ (B * D))
+        return V_exp / (B * D)
+
+    normalized_def = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+
+    @tr.cached_property
+    def _get_normalized_def(self):
+        L = self.ds.sz_bd.L
+        delta_ = self.u_La[:,1]
+        #print(delta_)
+        return (delta_)
 
     # =========================================================================
     # Plotting methods
@@ -325,6 +352,12 @@ class SZStressProfile(InteractiveModel):
         ax_tau.set_xlabel(r'vertical stress flow $f_z$ [N/mm]')
         mpl_align_xaxis(ax_sig, ax_tau)
 
+    def plot_tau_exp(self, ax, vot=1.0):
+        ax.plot(self.normalized_def, self.tau_exp, lw=2, color='blue')
+        ax.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
+        ax.set_ylabel(r'$\tau_{Exp}\;\;\mathrm{[MPa]}$')
+        ax.set_title('Calculated Shear Stress')
+
     def plot_N_a(self, ax_N):
         pass
 
@@ -333,8 +366,9 @@ class SZStressProfile(InteractiveModel):
 
     def update_plot(self, axes):
         ax_u_La, ax_u_Lb, ax_S_Lb, ax_S_La = axes
-        self.plot_u_La(ax_u_La)
-        self.plot_u_Lb(ax_u_Lb)
-        self.plot_S_Lb(ax_S_Lb)
-        self.plot_S_La(ax_S_La)
+        #self.plot_u_La(ax_u_La)
+        #self.plot_u_Lb(ax_u_Lb)
+        #self.plot_S_Lb(ax_S_Lb)
+        self.plot_tau_exp(ax_S_La)
+        #self.plot_S_La(ax_S_La)
 

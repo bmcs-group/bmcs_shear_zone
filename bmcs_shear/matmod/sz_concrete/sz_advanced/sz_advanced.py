@@ -101,14 +101,17 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         Item('L_fps', latex=r'L_{fps}')
     )
 
-    def get_L_c(self):
+    L_c = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+
+    @tr.cached_property
+    def _get_L_c(self):
         return self.E_c * self.get_G_f() / self.f_t ** 2
 
 
     w_cr = tr.Property
 
     def _get_w_cr(self):
-        return self.f_t / self.E_c * self.get_L_c()
+        return self.f_t / self.E_c * self._get_L_c()
 
     def get_G_f(self):
         '''''''Calculating fracture energy '''''''
@@ -140,7 +143,7 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     w_max_factor = Float(3)
     def plot_sig_w(self, ax, vot=1.0):
 
-        w_min_expr = -(self.f_c / self.E_c * self.get_L_c())
+        w_min_expr = -(self.f_c / self.E_c * self._get_L_c())
         w_max_expr = 3
         # w_max_expr = (sp.solve(self.f_w + self.f_w.diff(w) * w, w)
         #               [0]).subs(self.co_law_data)
