@@ -129,6 +129,19 @@ class SZDeformedState(InteractiveModel):
         x1_aiM = np.einsum('iMa->aiM', x1_iCa)
         ax.plot(*x1_aiM ,color='red')
 
+    def plot_reinf1(self, ax):
+        """Plot the reinforcement
+        """
+        x_N = self.sz_cp.x_00
+        # loop over the reinforcement layers and plot them.
+        for z in self.sz_bd.z_N:
+            L = self.sz_bd.L
+            x_reinf0 = np.array([[0,z], [x_N, z]], dtype=np.float_)
+            x_reinf1_ = np.array([[x_N, z], [L, z]], dtype=np.float_)
+            x_reinf1 = self.sz_ctr.get_x1_La(x_reinf1_)
+            x_reinf_Ia = np.vstack([x_reinf0, x_reinf1])
+            ax.plot(*(x_reinf_Ia.T), color='brown')
+
     def update_plot(self, ax):
         ax.set_ylim(ymin=0 ,ymax=self.sz_bd.H)
         ax.set_xlim(xmin=0 ,xmax=self.sz_bd.L)
@@ -140,5 +153,4 @@ class SZDeformedState(InteractiveModel):
         self.sz_cp.plot_sz0(ax)
         self.plot_sz1(ax)
         self.plot_sz_fill(ax)
-        #@todo: reactivate - this should be the part of the beam design.
-        #self.sz_bd.plot_reinforcement(ax)
+        self.plot_reinf1(ax)

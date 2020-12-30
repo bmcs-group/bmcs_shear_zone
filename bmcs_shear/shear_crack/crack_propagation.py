@@ -8,7 +8,7 @@ from bmcs_shear.shear_crack.crack_extension import CrackExtension
 class CrackPropagation(CrackExtension):
     """Control a loop simulating the crack propagation
     """
-    name = "Crack extension"
+    name = "Crack Propagation"
 
     t_n = bu.Float(0.0, auto_set=False, enter_set=True)
     '''Fundamental state time.

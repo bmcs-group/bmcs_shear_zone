@@ -109,6 +109,11 @@ class RCBeamDesign(BeamDesign):
         x_iCa = self.x_Ca[self.C_Li]
         return np.einsum('iMa->aiM', x_iCa)
 
+    z_N = tr.Property
+    def _get_z_N(self):
+        # @todo [RC]: adapt to the finished CS-design later
+        return self.cross_section_layout.reinforcement.z_j
+
     def plot_sz_bd(self, ax):
         ax.set_xlim(0, self.L)
         ax.set_ylim(0, self.H)
