@@ -23,7 +23,7 @@ class PullOutSymb(SymbExpr):
     )
 
     d_tau_b = tau_b.diff(s)
-    print(d_tau_b)
+    # print(d_tau_b)
 
     symb_model_params = ['s_1', 's_2', 's_3', 'f_c', 'alpha']
 
