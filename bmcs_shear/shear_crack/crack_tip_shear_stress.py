@@ -132,6 +132,13 @@ class SZCrackTipShearStress(InteractiveModel):
         Q = M / (L - x_tip_0k)[0]
         return Q
 
+    Q_reduced = tr.Property
+
+    def _get_Q_reduced(self):
+        Q_reduced = self.Q - self.sz_stress_profile.F_a[1]
+        return Q_reduced
+
+
     F_beam = tr.Property
     '''Use the reference to MQProfileand BoundaryConditions
     to calculate the global load. Its interpretation depends on the   
@@ -141,6 +148,24 @@ class SZCrackTipShearStress(InteractiveModel):
     #       then, the load is equal to the shear force
     def _get_F_beam(self):
         return 2 * self.Q
+
+    # Q_da = tr.Property
+    #
+    # def _get_Q_da(self):
+    #     M_da = self.sz_stress_profile.M_da
+    #     L = self.sz_bd.L
+    #     x_tip_0k = self.sz_cp.sz_ctr.x_tip_ak[0]
+    #     Q_da = M_da / (L - x_tip_0k)[0]
+    #     return Q_da
+    #
+    # F_beam_da = tr.Property
+    # '''Use the reference to MQProfileand BoundaryConditions
+    # to calculate the global load. Its interpretation depends on the
+    # nature of the load - single mid point, four-point, distributed.
+    # '''
+    #
+    # def _get_F_beam_da(self):
+    #     return 2 * self.Q_da
 
     x_tip_1k = tr.Property
 
@@ -154,6 +179,14 @@ class SZCrackTipShearStress(InteractiveModel):
         B = self.sz_bd.B
         Q_reduced = self.Q - self.sz_stress_profile.F_a[1]
         return get_tau_z_fps(self.x_tip_1k, Q_reduced, H, B)[0]
+
+    tau_z = tr.Property
+
+    def _get_tau_z(self):
+        H = self.sz_bd.H
+        B = self.sz_bd.B
+        z_arr = np.linspace(0, H, 100)
+        return get_tau_z(z_arr, self.x_tip_1k, self.Q, H, B)
 
     ipw_view = View(
         #        Item('Q', latex='Q', minmax=(0,100000)),

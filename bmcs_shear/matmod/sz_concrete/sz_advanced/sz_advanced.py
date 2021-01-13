@@ -69,10 +69,16 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
 
     )
 
+    sigma_ag = sp.Piecewise(
+        (0, w <= 0),
+        (-0.62 * sp.sqrt(w) * (r) / (1 + r ** 2) ** 0.25 * tau_s, w > 0)
+    )
+
     symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c', 'L'] #'mu', 'chi'
 
     symb_expressions = [('sig_w', ('w',)),
-                        ('tau_s', ('w', 's',))] #u_a
+                        ('tau_s', ('w', 's',)),
+                        ('sigma_ag', ('w','s',))] #u_a
 
 @tr.provides(IMaterialModel)
 class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
@@ -138,6 +144,11 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
     def get_tau_s(self, w, s):
         return self.symb.get_tau_s(w, s)
+
+    get_sigma_ag = tr.Property(depends_on='+MAT')
+
+    def get_sigma_ag(self, w, s):
+        return self.symb.get_sigma_ag(w,s)
 
     w_min_factor = Float(1.2)
     w_max_factor = Float(3)

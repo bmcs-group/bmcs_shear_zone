@@ -2,6 +2,7 @@
 import numpy as np
 from bmcs_shear.matmod import CrackBridgeSteel, ConcreteMaterialModel, SteelMaterialModel
 from bmcs_shear.matmod.sz_concrete.sz_advanced.sz_advanced import ConcreteMaterialModelAdv
+from bmcs_shear.matmod.sz_crack_bridge.cb_advanced import CrackBridgeAdv
 #from bmcs_shear.matmod import DowelAction, AggregateInterlock
 from bmcs_cross_section.cs_design import CrossSectionDesign
 import traits.api as tr
@@ -64,7 +65,8 @@ class RCBeamDesign(BeamDesign):
 
     cmm = tr.Instance(ConcreteMaterialModelAdv, ()) # ConcreteMaterialModel
     cmm_adv = tr.Instance(ConcreteMaterialModelAdv,())
-    smm = tr.Instance(CrackBridgeSteel, ())
+    smm = tr.Instance(CrackBridgeAdv, ()) #CrackBridgeSteel
+    smm_adv = tr.Instance(CrackBridgeAdv, ())
     # da = tr.Instance(DowelAction, ())
     # ag_in = tr.Instance(AggregateInterlock,())
 
