@@ -114,7 +114,6 @@ class SZStressProfile(InteractiveModel):
     '''Transposed stresses'''
     @tr.cached_property
     def _get_S_La(self):
-
         S_Lb = self.S_Lb
         S_La = np.einsum('Lb,Lab->La', S_Lb, self.ds.sz_cp.T_Mab)
         return S_La
