@@ -156,6 +156,7 @@ class SZStressProfile(InteractiveModel):
     def _get_u_Na(self):
         w_N = self.get_w_N(self.z_N)
         s_N = self.get_s_N(self.z_N)
+        #print(np.array([w_N, s_N]))
         return np.array([w_N, s_N], dtype = np.float_).T
 
     z_N = tr.Property
@@ -184,6 +185,7 @@ class SZStressProfile(InteractiveModel):
 #        F_N0 = self.sz_bd.smm.get_sig_w_f(w_N)
 #        F_N1 = self.sz_bd.smm.get_sig_s_f(s_N) #smm
 #        F_N1 = np.zeros_like(F_N0)
+        #print(F_Na)
         return F_Na
 
     # F_Na_da = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
@@ -216,12 +218,10 @@ class SZStressProfile(InteractiveModel):
     def _get_F_a(self):
         F_La = self.F_La
         F_Na = self.F_Na
-        #F_ag = self.F_ag
         sum_F_La = np.sum(F_La, axis=0)
         sum_F_Na = np.sum(F_Na, axis=0)
-        #sum_F_ag = np.sum(F_ag, axis=0)
-        return sum_F_La + sum_F_Na #+ sum_F_ag
-
+        #print(sum_F_La + sum_F_Na)
+        return sum_F_La + sum_F_Na
 
 
     M = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')

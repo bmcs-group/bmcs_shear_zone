@@ -7,6 +7,7 @@ import sympy as sp
 from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_pull_out_fib import PullOut
 from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_dowel_action import DowelAction
 
+
 class CrackBridgeModelAdvExpr(bu.SymbExpr):
     w_1, w_2 = sp.symbols(r's_1, s_2', nonnegative=True)
     w_3 = sp.symbols(r's_3', nonnegative=True)
@@ -90,8 +91,9 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         V_df = self.dowelaction.get_sig_s_f(s)
         return V_df
 
+
     def get_F_a(self, u_a):
-        F_w = self.get_sig_w_f(u_a[...,0])
+        F_w = self.get_sig_w_f(u_a[...,0]) * self.n * (np.pi * self.d_s ** 2) / 4
         F_s = self.get_df(u_a[...,1])#np.zeros_like(F_w)
         return np.array([F_w,F_s], dtype=np.float_).T
 
