@@ -41,14 +41,13 @@ class CrackBridgeModelAdvExpr(bu.SymbExpr):
 
     V_da = sp.Piecewise(
         (V_da_1, s <= 0.05),
-        (V_da_2, True))  # delta > 0.05
+        (V_da_2, s > 0.05))  # delta > 0.05 True
 
     symb_model_params = ['w_1', 'w_2', 'w_3', 'f_c', 'alpha', 'B', 'n', 'd_s']
 
     symb_expressions = [('tau_b', ('w',)),
                         ('d_tau_b', ('w',)),
                         ('V_da', ('s',))]
-    pass
 
 @tr.provides(IMaterialModel)
 class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
@@ -64,11 +63,11 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     w_1 = Float(1)
     w_2 = Float(2)
     w_3 = Float(4)
-    f_c = Float(37.9)  ## compressive strength of Concrete in MPa
+    f_c = Float(33.3)  ## compressive strength of Concrete in MPa
     alpha = Float(0.4)
-    B = Float(75)  ##mm (width of the beam)
-    n = Float(4)  ##number of bars
-    d_s = Float(16)  ##dia of steel mm
+    B = Float(250)  ##mm (width of the beam)
+    n = Float(2)  ##number of bars
+    d_s = Float(28)  ##dia of steel mm
 
     ipw_view = View(
         Item('w_1', latex=r'w_1'),
@@ -86,15 +85,22 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         tau_b = self.symb.get_tau_b(w)
         return tau_b
 
-    def get_df(self, s):
+    # V_d_max = tr.Property
+    #
+    # @tr.cached_property
+    # def _get_V_d_max(self):
+    #     return self.symb.V_d_max
+
+    def get_V_df(self, s):
         '''Calculating dowel action force '''
-        V_df = self.dowelaction.get_sig_s_f(s)
+        V_df = self.symb.get_V_da(s)
+        #print(V_df)
         return V_df
 
 
     def get_F_a(self, u_a):
         F_w = self.get_sig_w_f(u_a[...,0]) * self.n * (np.pi * self.d_s ** 2) / 4
-        F_s = self.get_df(u_a[...,1])#np.zeros_like(F_w)
+        F_s = self.get_V_df(u_a[...,1])#np.zeros_like(F_w)
         return np.array([F_w,F_s], dtype=np.float_).T
 
     def subplots(self,fig):
@@ -104,9 +110,10 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         '''Plotting function '''
         ax_w, ax_s = axes
         w_ = np.linspace(0, 1, 100)
-        s_ = np.linspace(0, 1, 100)
+        s_ = np.linspace(0, 0.1, 100)
+        #print(s_)
         tau_b_ = self.get_sig_w_f(w_)
-        V_df_ = self.get_df(s_)
+        V_df_ = self.get_V_df(s_)
         ax_w.plot(w_, tau_b_)
         ax_s.plot(s_, V_df_)
         ax_w.set_xlabel(r'$w\;\;\mathrm{[mm]}$')

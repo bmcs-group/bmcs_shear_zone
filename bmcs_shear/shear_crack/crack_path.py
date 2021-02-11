@@ -295,7 +295,7 @@ class SZCrackPath(InteractiveModel):
         return np.sum(self.x_Ka[self.K_Li], axis=1) / 2
 
     beta = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
-    '''Inclination of the last crack segment with respect to vertical axic'''
+    '''Inclination of the last crack segment with respect to vertical axis'''
     @tr.cached_property
     def _get_beta(self):
         if len(self.x_t_Ia) <= 2:

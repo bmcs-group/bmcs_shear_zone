@@ -70,7 +70,7 @@ class SZStressProfile(InteractiveModel):
         u_Ka = self.ds.x1_Ka - self.sz_cp.x_Ka
         u_Lia = u_Ka[K_Li]
         u_La = np.sum(u_Lia, axis=1) / 2
-        return u_La
+        return u_La #np.array([u_La[:,0], u_La[:,1]], dtype = np.float_).T #u_La
 
     u_Ca = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Displacement of the corner nodes '''
