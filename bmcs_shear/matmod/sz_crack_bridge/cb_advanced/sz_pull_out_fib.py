@@ -5,7 +5,7 @@ from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, Inject
 from bmcs_shear.matmod.i_matmod import IMaterialModel
 
 
-class PullOutSymb(SymbExpr):
+class PullOutFibSymb(SymbExpr):
     s_1, s_2 = sp.symbols(r's_1, s_2', nonnegative=True)
     s_3 = sp.symbols(r's_3', nonnegative=True)
     s, f_c = sp.symbols(r's, f_c', real=True)
@@ -32,10 +32,13 @@ class PullOutSymb(SymbExpr):
 
 
 @tr.provides(IMaterialModel)
-class PullOut(InteractiveModel, InjectSymbExpr):
-    name = 'Pull Out'
+class PullOutFib(InteractiveModel, InjectSymbExpr):
+    '''
+    Explicitly defined Pullout using the Fib code
+    '''
+    name = 'Pull Out Fib'
 
-    symb_class = PullOutSymb
+    symb_class = PullOutFibSymb
 
     s_1 = Float(1)
     s_2 = Float(2)

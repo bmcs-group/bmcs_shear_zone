@@ -4,7 +4,7 @@ import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
 import sympy as sp
-from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_pull_out_fib import PullOut
+from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_pull_out_fib import PullOutFib
 from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_dowel_action import DowelAction
 
 class CrackBridgeModelAdvExpr(bu.SymbExpr):
@@ -57,7 +57,7 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
     symb_class = CrackBridgeModelAdvExpr
 
-    pullout = tr.Instance(PullOut, ())
+    pullout = tr.Instance(PullOutFib, ())
     dowelaction = tr.Instance(DowelAction, ())
 
     w_1 = Float(1)

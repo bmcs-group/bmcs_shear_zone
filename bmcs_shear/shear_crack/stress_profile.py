@@ -179,11 +179,7 @@ class SZStressProfile(InteractiveModel):
     @tr.cached_property
     def _get_F_Na(self):
         u_Na = self.u_Na
-        #F_N0 = self.A_N * self.E_N * w_N # self.sz_bd.get_sig_w_f(w_N)
         F_Na = self.sz_bd.smm.get_F_a(u_Na)
-#        F_N0 = self.sz_bd.smm.get_sig_w_f(w_N)
-#        F_N1 = self.sz_bd.smm.get_sig_s_f(s_N) #smm
-#        F_N1 = np.zeros_like(F_N0)
         return F_Na
 
     # F_Na_da = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
@@ -216,13 +212,9 @@ class SZStressProfile(InteractiveModel):
     def _get_F_a(self):
         F_La = self.F_La
         F_Na = self.F_Na
-        #F_ag = self.F_ag
         sum_F_La = np.sum(F_La, axis=0)
         sum_F_Na = np.sum(F_Na, axis=0)
-        #sum_F_ag = np.sum(F_ag, axis=0)
         return sum_F_La + sum_F_Na #+ sum_F_ag
-
-
 
     M = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Internal bending moment obtained by integrating the
@@ -236,11 +228,14 @@ class SZStressProfile(InteractiveModel):
         x_Lia = x_Ka[K_Li]
         x_La = np.sum(x_Lia, axis=1) / 2
         F_La = self.F_La
-        x_rot_1k = self.ds.sz_ctr.x_rot_1k
+        x_rot_0k = self.ds.sz_ctr.x_rot_ak[0,0]
+        x_rot_1k = self.ds.sz_ctr.x_rot_ak[1,0]
         M_L = (x_La[:, 1] - x_rot_1k) * F_La[:, 0]
         M = np.sum(M_L, axis=0)
         M_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:,0])
-        return -M - M_z
+        x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
+        M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_Na[:,1])
+        return -M - M_z + M_da
 
     # M_da = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     # '''Internal bending moment obtained by integrating the
