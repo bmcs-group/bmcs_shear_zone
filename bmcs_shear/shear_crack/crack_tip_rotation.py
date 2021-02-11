@@ -112,12 +112,12 @@ x_tip_an, x_tip_ak, x_rot_ak, x_fps_ak
 x_theta_xi_ak = x_tip_ak + w * n_vec + xi * t_vec
 x_theta_xi_ak
 
-# Vector connecting rotation center with the curent crack tip point on the fixed plate $k$
+# Vector connecting rotation center with the current crack tip point on the fixed plate $k$
 # \begin{align}
 # p_{a} = x^{\mathrm{tip}}_{ak} - x^{\mathrm{rot}}_{ak}
 # \end{align}
 
-# Vector connecting the rotation center with the current crak tip point on the rotated plate
+# Vector connecting the rotation center with the current crack tip point on the rotated plate
 # \begin{align}
 # q_{a}(\xi)
 # = x^{\mathrm{tip},\varphi}_{ak}(\xi) - x^{\mathrm{rot}}_{ak}

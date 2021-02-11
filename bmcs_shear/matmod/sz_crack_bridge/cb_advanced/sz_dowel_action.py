@@ -34,10 +34,10 @@ class DowelAction(InteractiveModel, InjectSymbExpr):
     symb_class = DowelActionSymb
 
     # delta = Float(0.1) ##mm (vertical displacement)
-    b_w = Float(75)  ##mm (width of the beam)
-    n = Float(4)  ##number of bars
-    d_s = Float(16)  ##dia of steel mm
-    f_c = Float(37.9)  ## compressive strength of Concrete in MPa
+    b_w = Float(250)  ##mm (width of the beam)
+    n = Float(2)  ##number of bars
+    d_s = Float(28)  ##dia of steel mm
+    f_c = Float(33.3)  ## compressive strength of Concrete in MPa
 
     ipw_view = View(
         Item('b_w'),

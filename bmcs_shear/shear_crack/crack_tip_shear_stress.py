@@ -161,25 +161,7 @@ class SZCrackTipShearStress(InteractiveModel):
     # TODO: Currently there is just a single midpoint load of a 3pt bending beam assumed.
     #       then, the load is equal to the shear force
     def _get_F_beam(self):
-        return 2 * self.Q
-
-    # Q_da = tr.Property
-    #
-    # def _get_Q_da(self):
-    #     M_da = self.sz_stress_profile.M_da
-    #     L = self.sz_bd.L
-    #     x_tip_0k = self.sz_cp.sz_ctr.x_tip_ak[0]
-    #     Q_da = M_da / (L - x_tip_0k)[0]
-    #     return Q_da
-    #
-    # F_beam_da = tr.Property
-    # '''Use the reference to MQProfileand BoundaryConditions
-    # to calculate the global load. Its interpretation depends on the
-    # nature of the load - single mid point, four-point, distributed.
-    # '''
-    #
-    # def _get_F_beam_da(self):
-    #     return 2 * self.Q_da
+        return  2 * self.Q
 
     x_tip_1k = tr.Property
 

@@ -33,18 +33,41 @@ class CrackPropagation(CrackExtension):
     R_n = tr.List
     M_n = tr.List([0])
     F_beam = tr.List([0])
+    Q = tr.List([0])
     Q_red = tr.List([0])
-    #F_beam_da = tr.List([0])
+    F_s = tr.List([0])
+    x_tip_1n = tr.List([0])
+    x_tip_0n = tr.List([0])
+    x_tip_1k = tr.List([0])
+    F_a = tr.List([0])
+    F_Na = tr.List([0])
+    s_steel = tr.List([0])
+    w = tr.List([0])
+    w_steel = tr.List([0])
+    slip = tr.List([0])
+    shear_agg = tr.List([0])
     v_n = tr.List([0])
     CMOD_n = tr.List([0])
 
     def record_timestep(self):
         R_k = self.get_R()
         v_k = self.sz_stress_profile.u_Ca[1, 1]
+        x_tip_1k = self.sz_cp.sz_ctr.x_tip_ak[:, 0]
         self.R_n.append(R_k)
         self.F_beam.append(self.crack_tip_shear_stress.F_beam)
+        self.Q.append(self.crack_tip_shear_stress.Q)
         self.Q_red.append(self.crack_tip_shear_stress.Q_reduced)
-        #self.F_beam_da.append(self.crack_tip_shear_stress.F_beam_da)
+        self.F_a.append(self.sz_stress_profile.F_a[:])
+        self.x_tip_1n.append(self.sz_ctr.x_tip_an[1])
+        self.x_tip_0n.append(self.sz_ctr.x_tip_an[0])
+        self.x_tip_1k.append(self.sz_ctr.x_tip_ak[1])
+        self.s_steel.append(self.sz_stress_profile.u_Na[:,1])
+        self.w_steel.append(self.sz_stress_profile.u_Na[:, 0])
+        self.shear_agg.append(self.sz_stress_profile.S_Lb[:,1])
+        self.slip.append(self.sz_stress_profile.u_Lb[:,1])
+        self.w.append(self.sz_stress_profile.u_Lb[:,0])
+        self.F_s.append(self.sz_stress_profile.F_Na[:,0])
+        self.F_Na.append(self.sz_stress_profile.F_Na[:,1])
         self.v_n.append(v_k)
 
     def make_incr(self):
@@ -66,90 +89,53 @@ class CrackPropagation(CrackExtension):
     seg = bu.Int(0)
 
     interrupt = tr.Bool(False)
+
     def run(self, update_progress=lambda t: t):
-        ''''The run function also evaluates the argmax for the F_beam and furhtermore, it stores the contribution
-        of each component (i.e. Aggregate Interlock, Dowel Action and Uncracked Section) contribution at that 
-        particular argmax and stores it in return (Fahad)'''''
         crack_seg = np.arange(1, self.n_seg + 1)
         self.sz_cp.reset_crack()
         self.R_n = [0]
         self.F_beam = [0]
-        #self.F_beam_da = [0]
+        self.Q = [0]
+        self.Q_red = [0]
+        self.F_a = [0]
+        self.F_Na = [0]
+        self.F_s = [0]
+        self.s_steel = [0]
+        self.w_steel = [0]
+        self.slip = [0]
+        self.w = [0]
+        self.shear_agg = [0]
+        self.x_tip_1n = [0]
+        self.x_tip_0n = [0]
+        self.x_tip_1k = [0]
         self.v_n = [0]
-        F_max = 0
-        #F_max_da = 0
-        F_La_max = []
-        #F_La_max_da = []
-        F_Na_max = []
-        #F_Na_max_da = []
-        Q_red = []
         while self.seg <= self.n_seg:
             if self.interrupt:
                 break
             self.make_incr()
             if self.seg < self.n_seg:
                 self.sz_cp.add_x_tip_an(self.sz_cp.sz_ctr.x_tip_ak[:, 0])
-            current_F_max = np.max(self.F_beam)
-            if current_F_max > F_max:
-                F_max = current_F_max
-                F_max_i = np.argmax(self.F_beam)
-                F_La_max = self.sz_stress_profile.F_La[F_max_i,1]
-                Q_red = self.Q_red[F_max_i]
-                #F_La_max.append(self.sz_stress_profile.F_La[F_max_i,1])
-                F_Na_max = self.sz_stress_profile.F_Na[0,1]
-            #current_F_max_da = np.max(self.F_beam_da)
-            # if current_F_max_da > F_max_da:
-            #     F_max_da = current_F_max_da
-            #     F_max_i_ = np.argmax(self.F_beam_da)
-            #     F_La_max_da = self.sz_stress_profile.F_La[F_max_i_, 1]
-            #     # F_La_max.append(self.sz_stress_profile.F_La[F_max_i,1])
-            #     F_Na_max_da = self.sz_stress_profile.F_Na_da[0, 1]
-
-
             self.seg += 1
 
-        print('F_max = ', F_max)
-        print('F_max_i = ', F_max_i)
-        #print('F_max_i_', F_max_i_)
-        print('Q_red = ', Q_red)
-        print('F_La_max = ', F_La_max)
-        print('F_Na_max = ', F_Na_max)
-        return F_La_max, F_Na_max, F_max, Q_red #F_La_max_da, F_Na_max_da,
-
-
-    def analyze(self):
-        ''''The analyze function picks up initial crack location, reset the crack path and runs the simulation by
-        storing the values of each force contribution. The function uses a for loop to change the initial crack 
-        location and re-evaluates all the force components for the new location and continues further until all the 
-        defined initial crack locations have been analyzed (Fahad)'''''
-        crack_positions = np.linspace(0.1 * self.sz_bd.L, 0.9 * self.sz_bd.L, 10)
-        F_max_= []
-        F_La_ = []
-        F_La_da_ = []
-        F_Na_da_ = []
-        F_Na_ = []
-        Q_red_ = []
-        for crack_position in crack_positions:
-            self.reset()
-            self.sz_cp.trait_set(x_00=crack_position, n_m=15)
-            print('*******************************')
-            print('crack position = ', crack_position)
-            F_La_max, F_Na_max, F_max, Q_red = self.run() #F_La_max_da, F_Na_max_da,
-            #self.run()
-            F_La_.append(F_La_max)
-            F_Na_.append(F_Na_max)
-            #F_La_da_.append(F_La_max_da)
-            #F_Na_da_.append(F_Na_max_da)
-            F_max_.append(F_max)
-            Q_red_.append(Q_red)
-        return F_La_, F_Na_, F_max_, Q_red_, crack_positions #F_La_da_, F_Na_da_,  Q_red_
-
     def reset(self):
-        self.seg=0
+        self.seg = 0
         self.sz_cp.reset_crack()
         self.init()
         self.R_n = [0]
         self.F_beam = [0]
+        self.Q = [0]
+        self.Q_red = [0]
+        self.x_tip_1n = [0]
+        self.x_tip_0n = [0]
+        self.x_tip_1k = [0]
+        self.F_a = [0]
+        self.F_s = [0]
+        self.s_steel = [0]
+        self.shear_agg = [0]
+        self.slip = [0]
+        self.w = [0]
+        self.w_steel = [0]
+        self.F_Na = [0]
         self.v_n = [0]
 
     def subplots(self, fig):

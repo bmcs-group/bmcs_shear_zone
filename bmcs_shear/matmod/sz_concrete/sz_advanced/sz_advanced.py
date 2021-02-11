@@ -17,9 +17,16 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     c_1 = sp.Symbol('c_1', nonnegative=True)
     f_c = sp.Symbol('f_c', rnonnegative =True)
     L = sp.Symbol('L', nonnegative = True)
+    a, b = sp.symbols(r'a, b', nonnegative = True)
+    xi = sp.Symbol(r'\xi', nonnegative = True)
+    sigma_z = sp.Symbol(r'\sigma_z', nonnegative = True)
     # mu, chi = sp.symbols(r'\mu, \chi')
 
     G_f = 0.028 * f_c ** 0.18 * d_a ** 0.32
+
+    xi = sigma_z / f_c
+
+    G_f_baz = (1 + (a/(1+b/xi)) - (1 + a + b)/(1 + b) * xi**8)
 
     L_c = E_c * G_f / f_t ** 2
 
@@ -31,7 +38,7 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     #
     # f_co = 2 * f_t
 
-    w_tc = 5.14 * G_f / f_t
+    #w_tc = 5.14 * G_f / f_t
 
     # f_ce = f_c * (1 / (0.8))
 
@@ -74,7 +81,7 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
         (-0.62 * sp.sqrt(w) * (r) / (1 + r ** 2) ** 0.25 * tau_s, w > 0)
     )
 
-    symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c', 'L'] #'mu', 'chi'
+    symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c', 'L'] #'mu', 'chi' , 'a', 'b'
 
     symb_expressions = [('sig_w', ('w',)),
                         ('tau_s', ('w', 's',)),
@@ -96,6 +103,8 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     f_c = Float(30)
     L = Float(3000)
     L_fps = Float(50, MAT=True)
+    a = Float(1.038)
+    b = Float(0.245)
 
     ipw_view = View(
         Item('d_a', latex=r'd_a'),
@@ -104,8 +113,16 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         Item('c_1', latex=r'c_1'),
         Item('c_2', latex=r'c_2'),
         Item('f_c', latex=r'f_c'),
-        Item('L_fps', latex=r'L_{fps}')
+        Item('L_fps', latex=r'L_{fps}'),
+        Item('a', latex = r'a'),
+        Item('b', latex = r'b')
     )
+
+    # G_f_baz = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    # @tr.cached_property
+    # def _get_G_f_baz(self):
+    #     xi = self.sz_crack_tip_orientation.
+    #     return self.symb.G_f_baz
 
     L_c = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
 
@@ -125,7 +142,7 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
     def get_w_tc(self):
         '''''''Calculating point of softening curve resulting in 0 stress '''''''
-        return ( 5.14 * self.get_G_f() / self.f_t)
+        return ( 5.14 * self.G_f_baz / self.f_t)
 
     def get_sig_a(self, u_a): #w, s
         '''''''''Calculating stresses '''''''''

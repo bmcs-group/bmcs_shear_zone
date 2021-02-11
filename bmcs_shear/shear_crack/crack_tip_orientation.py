@@ -50,8 +50,8 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         tau_x_tip_1 = ct_stress.tau_x_tip_1k
         f_t = self.sz_cp.sz_bd.cmm.f_t
         sig_x_tip_0 = ct_stress.sig_x_tip_0
-        psi_0 = get_psi_0(tau_x_tip_1, sig_x_tip_0)
-        print('sig_x_tip_0', sig_x_tip_0, psi_0)
+        psi_0 = get_psi_0(tau_x_tip_1, sig_x_tip_0) #sig_x_tip_0
+        #print('sig_x_tip_0', sig_x_tip_0, psi_0)
         return psi_0
 
     def plot_crack_extension(self, ax):
