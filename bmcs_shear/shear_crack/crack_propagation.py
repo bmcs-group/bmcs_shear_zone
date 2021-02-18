@@ -42,6 +42,7 @@ class CrackPropagation(CrackExtension):
     F_a = tr.List([0])
     F_Na = tr.List([0])
     s_steel = tr.List([0])
+    M = tr.List([0])
     w = tr.List([0])
     w_steel = tr.List([0])
     slip = tr.List([0])
@@ -61,6 +62,7 @@ class CrackPropagation(CrackExtension):
         self.x_tip_1n.append(self.sz_ctr.x_tip_an[1])
         self.x_tip_0n.append(self.sz_ctr.x_tip_an[0])
         self.x_tip_1k.append(self.sz_ctr.x_tip_ak[1])
+        self.M.append(self.sz_stress_profile.M)
         self.s_steel.append(self.sz_stress_profile.u_Na[:,1])
         self.w_steel.append(self.sz_stress_profile.u_Na[:, 0])
         self.shear_agg.append(self.sz_stress_profile.S_Lb[:,1])
@@ -100,6 +102,7 @@ class CrackPropagation(CrackExtension):
         self.F_a = [0]
         self.F_Na = [0]
         self.F_s = [0]
+        self.M = [0]
         self.s_steel = [0]
         self.w_steel = [0]
         self.slip = [0]
@@ -130,6 +133,7 @@ class CrackPropagation(CrackExtension):
         self.x_tip_1k = [0]
         self.F_a = [0]
         self.F_s = [0]
+        self.M = [0]
         self.s_steel = [0]
         self.shear_agg = [0]
         self.slip = [0]

@@ -95,13 +95,13 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
     symb_class = ConcreteMaterialModelAdvExpr
 
-    d_a = Float(22)  ## dia of steel mm
+    d_a = Float(16)  ## dia of steel mm
     E_c = Float(28000)  ## tensile strength of Concrete in MPa
     f_t = Float(3)  ## Fracture Energy in N/m
     c_1 = Float(3)
     c_2 = Float(6.93)
-    f_c = Float(30)
-    L = Float(3000)
+    f_c = Float(33.3)
+    L = Float(3850)
     L_fps = Float(50, MAT=True)
     a = Float(1.038)
     b = Float(0.245)

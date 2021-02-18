@@ -170,7 +170,7 @@ class SZCrackTipShearStress(InteractiveModel):
 
     tau_x_tip_1k = tr.Property
 
-    def _get_tau_x_tip_1k(self):
+    def _get_tau_x_tip_1k(self):  #Shear stress distribution in uncracked region?
         H = self.sz_bd.H
         B = self.sz_bd.B
         Q_reduced = self.Q - self.sz_stress_profile.F_a[1]
@@ -178,7 +178,7 @@ class SZCrackTipShearStress(InteractiveModel):
 
     tau_z = tr.Property
 
-    def _get_tau_z(self):
+    def _get_tau_z(self): #shear stress at crack tip
         H = self.sz_bd.H
         B = self.sz_bd.B
         z_arr = np.linspace(0, H, 100)

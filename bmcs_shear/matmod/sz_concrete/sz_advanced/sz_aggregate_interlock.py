@@ -40,8 +40,8 @@ class AggregateInterlock(InteractiveModel, InjectSymbExpr):
     f_c = Float(37.9) ## (compressive strength of Concrete in MPa)
 
     ipw_view = View(
-        Item('d_g'),
-        Item('f_c')
+        Item('d_g', latex=r'd_g'),
+        Item('f_c', latex=r'f_c')
     )
 
     def get_tau_ag(self, w, s):
@@ -73,15 +73,15 @@ class AggregateInterlock(InteractiveModel, InjectSymbExpr):
         #     sigma_ag[i] = self.get_sigma_ag(w, s_range)
 
         for i, w in enumerate(w_range):
-            s_range = np.linspace(-6, 6, 100)
+            s_range = np.linspace(0, 1, 100)
             for j, s in enumerate(s_range):
                 tau_ag[j, i] = self.get_tau_ag(w, s)
                 sigma_ag[j, i] = self.get_sigma_ag(w, s)
         #V = self.get_sig_s_f(delta_range)
-        ax_w.plot(s_range, tau_ag[:,:])
-        ax_s.plot(s_range, sigma_ag[:,:])
-        ax_w.plot(s_range, tau_ag[:])
-        ax_s.plot(s_range, sigma_ag[:])
+        ax_w.plot(s_range, tau_ag[:,:], label = '$w$')
+        ax_s.plot(s_range, sigma_ag[:,:], label = '$w$')
+        #ax_w.plot(s_range, tau_ag[:])
+        #ax_s.plot(s_range, sigma_ag[:])
         ax_w.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
         ax_w.set_ylabel(r'$\tau_{\mathrm{ag}}\;\;\mathrm{[MPa]}$')
         ax_s.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
