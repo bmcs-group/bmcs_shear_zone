@@ -9,26 +9,42 @@ from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_dowel_action import DowelA
 
 
 class CrackBridgeModelAdvExpr(bu.SymbExpr):
-    w_1, w_2 = sp.symbols(r's_1, s_2', nonnegative=True)
-    w_3 = sp.symbols(r's_3', nonnegative=True)
+    # w_1, w_2 = sp.symbols(r'w_1, w_2', nonnegative=True)
+    # w_3 = sp.symbols(r'w_3', nonnegative=True)
     w, f_c = sp.symbols(r's, f_c', real=True)
-    alpha = sp.Symbol(r'\alpha', nonnegative=True)
+    # alpha = sp.Symbol(r'\alpha', nonnegative=True)
     B = sp.symbols(r'B', nonnegative=True)
     n, d_s = sp.symbols(r'n, d_s', nonnegative=True)
     s = sp.Symbol('s', nonnegative = True)
+    E_f = sp.Symbol(r'E_\mathrm{f}', nonnegative=True)
+    E_m, A_m = sp.symbols(r'E_\mathrm{m}, A_\mathrm{m}', nonnegative=True)
+    p, P = sp.symbols(r'p, P', nonnegative=True)
+    tau = sp.symbols(r'\bar{\tau}', nonnegative=True)
+    sig_y = sp.symbols('\sigma_y', positive=True)
+    A_f = sp.Symbol(r'A_f', nonnegative = True)
 
-    tau_b_max = 2.5 * sp.sqrt(f_c)
+    # tau_b_max = 2.5 * sp.sqrt(f_c)
+    #
+    # tau_bf = 0.4 * tau_b_max
+    #
+    # tau_b = sp.Piecewise(
+    #     (tau_b_max * ( w/ w_1) ** alpha, w <= w_1),
+    #     (tau_b_max, w <= w_2),
+    #     (tau_b_max - ((tau_b_max - tau_bf) * (w - w_2) / (w_3 - w_2)), w <= w_3),
+    #     (tau_bf, w > w_3)
+    # )
 
-    tau_bf = 0.4 * tau_b_max
+    Pw_pull = sp.sqrt(2 * w * tau * E_f * A_f * p)
 
-    tau_b = sp.Piecewise(
-        (tau_b_max * ( w/ w_1) ** alpha, w <= w_1),
-        (tau_b_max, w <= w_2),
-        (tau_b_max - ((tau_b_max - tau_bf) * (w - w_2) / (w_3 - w_2)), w <= w_3),
-        (tau_bf, w > w_3)
-    )
+    P_max = A_f * sig_y
 
-    d_tau_b = tau_b.diff(w)
+    w_argmax = sp.solve(P_max - Pw_pull, w)[0]
+
+    Pw_pull_y = sp.Piecewise(
+        (Pw_pull, w < w_argmax),
+        (P_max, w >= w_argmax))
+
+    # d_tau_b = tau_b.diff(w)
     #print(d_tau_b)
 
     b_n = B - n * d_s
@@ -43,11 +59,13 @@ class CrackBridgeModelAdvExpr(bu.SymbExpr):
         (V_da_1, s <= 0.05),
         (V_da_2, s > 0.05))  # delta > 0.05 True
 
-    symb_model_params = ['w_1', 'w_2', 'w_3', 'f_c', 'alpha', 'B', 'n', 'd_s']
 
-    symb_expressions = [('tau_b', ('w',)),
-                        ('d_tau_b', ('w',)),
-                        ('V_da', ('s',))]
+    symb_model_params = [ 'f_c', 'B', 'n', 'd_s', 'E_f', 'A_f', 'p', 'tau', 'sig_y'] #'w_1', 'w_2', 'w_3', 'alpha',
+                         # 'E_f', 'A_f', 'p', 'sig_y'] #, 'E_f'
+
+    symb_expressions = [('Pw_pull_y', ('w')),
+                        ('w_argmax', ()),
+                        ('V_da', ('s',))] #('tau_b', ('w',)), #('d_tau_b', ('w',)),
 
 @tr.provides(IMaterialModel)
 class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
@@ -60,30 +78,52 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     pullout = tr.Instance(PullOut, ())
     dowelaction = tr.Instance(DowelAction, ())
 
-    w_1 = Float(1)
-    w_2 = Float(2)
-    w_3 = Float(4)
+    # w_1 = Float(1)
+    # w_2 = Float(2)
+    # w_3 = Float(4)
     f_c = Float(33.3)  ## compressive strength of Concrete in MPa
-    alpha = Float(0.4)
+    # alpha = Float(0.4)
     B = Float(250)  ##mm (width of the beam)
     n = Float(2)  ##number of bars
     d_s = Float(28)  ##dia of steel mm
+    E_f = Float(210000)
+    A_f = tr.Property()
+
+    def _get_A_f(self):
+        return self.n * (self.d_s / 2) ** 2 * np.pi
+
+    p = tr.Property
+
+    def _get_p(self):
+        return (self.d_s) * np.pi
+
+    tau = Float(16)
+    sig_y = Float(713)
 
     ipw_view = View(
-        Item('w_1', latex=r'w_1'),
-        Item('w_2', latex=r'w_2'),
-        Item('w_3', latex=r'w_3'),
+        # Item('w_1', latex=r'w_1'),
+        # Item('w_2', latex=r'w_2'),
+        # Item('w_3', latex=r'w_3'),
         Item('f_c', latex=r'f_c'),
-        Item('alpha', latex=r'\alpha'),
+        #Item('alpha', latex=r'\alpha'),
         Item('B', latex=r'B'),
         Item('n', latex=r'n'),
-        Item('d_s', latex=r'd_s')
+        Item('d_s', latex=r'd_s'),
+        Item('E_f', latex=r'E_f'),
+        Item('tau', latex=r'\tau'),
+        Item('sig_y', latex=r'\sigma_y')
     )
 
     def get_sig_w_f(self, w):
-        '''Calculating bond stresses '''
-        tau_b = self.symb.get_tau_b(w)
-        return tau_b
+        # distinguish the crack width from the end slip of the pullout
+        # which delivers the crack bridging force
+        return self.symb.get_Pw_pull_y(w / 2)
+
+    # def get_sig_w_f(self, w):
+    #     '''Calculating bond stresses '''
+    #     #tau_b = self.symb.Pw_pull_y(w/2)
+    #     #Pw_pull = self.symb.get_Pw_pull(w)
+    #     return self.symb.get_Pw_pull_y(w/2)
 
     # V_d_max = tr.Property
     #
@@ -99,7 +139,8 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
 
     def get_F_a(self, u_a):
-        F_w = self.get_sig_w_f(u_a[...,0]) * self.n * (np.pi * self.d_s ** 2) / 4
+        F_w = self.get_sig_w_f(u_a[...,0]) #* self.n * (np.pi * self.d_s ** 2) / 4
+        #print(F_w)
         F_s = self.get_V_df(u_a[...,1])#np.zeros_like(F_w)
         return np.array([F_w,F_s], dtype=np.float_).T
 
@@ -109,14 +150,16 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     def update_plot(self,axes):
         '''Plotting function '''
         ax_w, ax_s = axes
-        w_ = np.linspace(0, 1, 100)
-        s_ = np.linspace(0, 0.1, 100)
+        w_argmax = self.symb.get_w_argmax()
+        w_range = np.linspace(0, 3 * w_argmax)
+        #w_ = np.linspace(0,1, 100)
+        s_ = np.linspace(0, 1, 100)
         #print(s_)
-        tau_b_ = self.get_sig_w_f(w_)
+        tau_b_ = self.get_sig_w_f(w_range)
         V_df_ = self.get_V_df(s_)
-        ax_w.plot(w_, tau_b_)
+        ax_w.plot(w_range, tau_b_)
         ax_s.plot(s_, V_df_)
         ax_w.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        ax_w.set_ylabel(r'$\tau_b\;\;\mathrm{[MPa]}$')
+        ax_w.set_ylabel(r'$\sigma_b\;\;\mathrm{[MPa]}$')
         ax_s.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
         ax_s.set_ylabel(r'$V_{df}\;\;\mathrm{[N]}$')

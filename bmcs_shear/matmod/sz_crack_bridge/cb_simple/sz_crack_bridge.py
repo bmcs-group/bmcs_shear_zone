@@ -35,7 +35,7 @@ class CrackBridgeSteel(InteractiveModel, InjectSymbExpr):
     d_s = Float(16)
     A_f = tr.Property()
     def _get_A_f(self):
-        return (self.d_s)/2**2 * np.pi
+        return (self.d_s / 2) ** 2 * np.pi
     p = tr.Property
     def _get_p(self):
         return (self.d_s) * np.pi
