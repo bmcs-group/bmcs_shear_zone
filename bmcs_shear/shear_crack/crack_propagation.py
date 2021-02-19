@@ -3,12 +3,17 @@ import numpy as np
 
 import bmcs_utils.api as bu
 from bmcs_shear.shear_crack.crack_extension import CrackExtension
-
+from bmcs_shear.shear_crack.crack_propagation_hist import CrackPropagationHist
 
 class CrackPropagation(CrackExtension):
     """Control a loop simulating the crack propagation
     """
     name = "Crack Propagation"
+
+    hist = tr.Instance(CrackPropagationHist)
+    '''Viewer to the inelastic state evolution'''
+    def _hist_default(self):
+        return CrackPropagationHist(slider_exp=self)
 
     t_n = bu.Float(0.0, auto_set=False, enter_set=True)
     '''Fundamental state time.

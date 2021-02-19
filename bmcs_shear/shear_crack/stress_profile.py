@@ -160,18 +160,15 @@ class SZStressProfile(InteractiveModel):
 
     z_N = tr.Property
     def _get_z_N(self):
-        # @todo [RC]: adapt to the finished CS-design later
-        return self.sz_bd.cross_section_layout.reinforcement.z_j
+        return self.sz_bd.cross_section_layout.z_j
 
     A_N = tr.Property
     def _get_A_N(self):
-        # @todo [RC]: adapt to the finished CS-design later
-        return self.sz_bd.cross_section_layout.reinforcement.A_j
+        return self.sz_bd.cross_section_layout.A_j
 
     E_N = tr.Property
     def _get_E_N(self):
-        # @todo [RC]: adapt to the finished CS-design later
-        return self.sz_bd.cross_section_layout.reinforcement.E_j
+        return self.sz_bd.cross_section_layout.E_j
 
     F_Na = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     '''Get the discrete force in the reinforcement z_N
@@ -231,11 +228,13 @@ class SZStressProfile(InteractiveModel):
         x_rot_0k = self.ds.sz_ctr.x_rot_ak[0,0]
         x_rot_1k = self.ds.sz_ctr.x_rot_ak[1,0]
         M_L = (x_La[:, 1] - x_rot_1k) * F_La[:, 0]
+        M_L_agg = (x_La[:, 0] - x_rot_0k) * F_La[:, 1]
         M = np.sum(M_L, axis=0)
+        M_agg = np.sum(M_L_agg, axis=0)
         M_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:,0])
         x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
         M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_Na[:,1])
-        return -M - M_z + M_da
+        return -(M + M_agg + M_z + M_da)
 
     # M_da = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     # '''Internal bending moment obtained by integrating the
@@ -355,7 +354,10 @@ class SZStressProfile(InteractiveModel):
         mpl_align_xaxis(ax_sig, ax_tau)
 
     def plot_N_a(self, ax_N):
-        pass
+        z_N = self.z_N
+        F_N0 = self.F_Na[:,0]
+        F_N = np.zeros_like(F_N0)
+        ax_N.plot(np.array([F_N, F_N0]), np.array(([z_N, z_N])), color='green')
 
     def subplots(self, fig):
         return fig.subplots(1 ,4)
@@ -366,4 +368,5 @@ class SZStressProfile(InteractiveModel):
         self.plot_u_Lb(ax_u_Lb)
         self.plot_S_Lb(ax_S_Lb)
         self.plot_S_La(ax_S_La)
+        self.plot_N_a(ax_S_La)
 

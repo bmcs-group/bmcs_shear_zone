@@ -113,8 +113,7 @@ class RCBeamDesign(BeamDesign):
 
     z_N = tr.Property
     def _get_z_N(self):
-        # @todo [RC]: adapt to the finished CS-design later
-        return self.cross_section_layout.reinforcement.z_j
+        return self.cross_section_layout.z_j
 
     def plot_sz_bd(self, ax):
         ax.set_xlim(0, self.L)
