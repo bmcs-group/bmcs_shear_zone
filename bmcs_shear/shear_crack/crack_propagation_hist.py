@@ -7,15 +7,12 @@ import numpy as np
 class CrackPropagationHist(bu.InteractiveModel):
     name = 'Crack propagation history'
 
-    crack_prop_model = tr.WeakRef(bu.InteractiveModel)
+    crack_prop_model = tr.WeakRef(bu.Model)
 
     t_slider = bu.Float(0)
     t_max = tr.DelegatesTo(crack_prop_model)
 
-    t_arr = tr.DelegatesTo('sz_crack_propagation')
-
     ipw_view = bu.View(
-        bu.Item('t_slider', latex=r't',
-                editor=bu.FloatRangeEditor(low=0, high_name='t_max', n_steps=50)),
+        time_editor=bu.HistoryEditor(var='t_slider', low=0, high_name='t_max', n_steps=50),
     )
 

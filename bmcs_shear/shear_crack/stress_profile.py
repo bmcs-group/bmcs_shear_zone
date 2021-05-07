@@ -35,8 +35,7 @@ from scipy.interpolate import interp1d
 
 
 class SZStressProfile(InteractiveModel):
-    '''
-    @todo: check the update upon the discretization attributes
+    '''Stress profile calculation in an intermediate state
     '''
     name = "Profiles"
 
@@ -44,25 +43,11 @@ class SZStressProfile(InteractiveModel):
     sz_cp = tr.DelegatesTo('ds')
     sz_bd = tr.DelegatesTo('sz_cp')
 
-    _ITR = tr.DelegatesTo('sz_cp')
-    _INC = tr.DelegatesTo('sz_cp')
-    _MAT = tr.DelegatesTo('sz_cp')
-    _GEO = tr.DelegatesTo('sz_cp')
-    _DSC = tr.DelegatesTo('sz_cp')
-    _ALL = tr.Event
-
-    @tr.on_trait_change('_ITR, _INC, _GEO, _MAT, _DSC')
-    def _reset_ALL(self):
-        self._ALL = True
+    tree = ['ds']
 
     ipw_view = View()
 
-    state_changed = tr.DelegatesTo('sz_cp')
-    # =========================================================================
-    # Displacement interpolation and transformation
-    # =========================================================================
-
-    u_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    u_La = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
     @tr.cached_property
     def _get_u_La(self):
@@ -72,7 +57,7 @@ class SZStressProfile(InteractiveModel):
         u_La = np.sum(u_Lia, axis=1) / 2
         return u_La
 
-    u_Ca = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    u_Ca = tr.Property(depends_on='state_changed')
     '''Displacement of the corner nodes '''
     @tr.cached_property
     def _get_u_Ca(self):
@@ -81,7 +66,7 @@ class SZStressProfile(InteractiveModel):
         u_Ca = x1_Ca - x_Ca
         return u_Ca
 
-    u_Lb = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    u_Lb = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
     @tr.cached_property
     def _get_u_Lb(self):
@@ -96,7 +81,7 @@ class SZStressProfile(InteractiveModel):
     # Stress transformation and integration
     # =========================================================================
 
-    S_Lb = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    S_Lb = tr.Property(depends_on='state_changed')
     '''Stress returned by the material model
     '''
     @tr.cached_property
@@ -110,7 +95,7 @@ class SZStressProfile(InteractiveModel):
         # Tau_w = cmm.get_tau_s(u_a[..., 1]) * B #get_tau_s get_tau_ag u_a[..., 0],
         # return np.einsum('b...->...b', np.array([Sig_w, Tau_w], dtype=np.float_))
 
-    S_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    S_La = tr.Property(depends_on='state_changed')
     '''Transposed stresses'''
     @tr.cached_property
     def _get_S_La(self):
@@ -122,7 +107,7 @@ class SZStressProfile(InteractiveModel):
     # Stress resultants
     # =========================================================================
 
-    F_La = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    F_La = tr.Property(depends_on='state_changed')
     '''Integrated segment forces'''
     @tr.cached_property
     def _get_F_La(self):
@@ -130,7 +115,7 @@ class SZStressProfile(InteractiveModel):
         F_La = np.einsum('La,L->La', S_La, self.ds.sz_cp.norm_n_vec_L)
         return F_La
 
-    get_w_N = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    get_w_N = tr.Property(depends_on='state_changed')
     '''Get an interpolator function returning crack opening displacement 
     for a specified vertical coordinate of a ligament.
     '''
@@ -139,7 +124,7 @@ class SZStressProfile(InteractiveModel):
         return interp1d(self.sz_cp.x_Lb[:, 1], self.u_La[:, 0],
                         fill_value='extrapolate')
 
-    get_s_N = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    get_s_N = tr.Property(depends_on='state_changed')
     '''Get an interpolator function returning slip displacement 
     component for a specified vertical coordinate of a ligament.
     '''
@@ -148,7 +133,7 @@ class SZStressProfile(InteractiveModel):
         return interp1d(self.sz_cp.x_Lb[:, 1], self.u_La[:, 1],
                         fill_value='extrapolate')
 
-    u_Na = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    u_Na = tr.Property(depends_on='state_changed')
     '''Get an interpolator function returning slip displacement 
     component for a specified vertical coordinate of a ligament.
     '''
@@ -170,7 +155,7 @@ class SZStressProfile(InteractiveModel):
     def _get_E_N(self):
         return self.sz_bd.cross_section_layout.E_j
 
-    F_Na = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    F_Na = tr.Property(depends_on='state_changed')
     '''Get the discrete force in the reinforcement z_N
     '''
     @tr.cached_property
@@ -202,7 +187,7 @@ class SZStressProfile(InteractiveModel):
     #     F_Na = np.einsum('...ab,...a->...a', T_Nab, F_Nb)
     #     return F_Na
 
-    F_a = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    F_a = tr.Property(depends_on='state_changed')
     '''Integrated normal and shear force
     '''
     @tr.cached_property
@@ -213,7 +198,7 @@ class SZStressProfile(InteractiveModel):
         sum_F_Na = np.sum(F_Na, axis=0)
         return sum_F_La + sum_F_Na #+ sum_F_ag
 
-    M = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    M = tr.Property(depends_on='state_changed')
     '''Internal bending moment obtained by integrating the
     normal stresses with the lever arm rooted at the height of the neutral
     axis.
@@ -255,7 +240,7 @@ class SZStressProfile(InteractiveModel):
     #     M_z_da = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na_da[:, 0])
     #     return -M - M_z_da
 
-    sig_x_tip_0k = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    sig_x_tip_0k = tr.Property(depends_on='state_changed')
     '''Normal stress component in global $x$ direction in the fracture .
     process segment.
     '''
@@ -267,7 +252,7 @@ class SZStressProfile(InteractiveModel):
     #         S_a = self.S_La[self.xd.n_m_fps, ...]
     #         return S_a[0] / self.sim.B
 
-    get_sig_x_tip_0k = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    get_sig_x_tip_0k = tr.Property(depends_on='state_changed')
     '''Get an interpolator function returning horizontal stress 
     component for a specified vertical coordinate of a ligament.
     '''
@@ -303,20 +288,18 @@ class SZStressProfile(InteractiveModel):
         ax.plot([h_min, h_max], [z_fps, z_fps],
                 color='black', linestyle='-.')
 
-    def plot_u_La(self, ax_w, vot=1):
+    def plot_u_La(self, ax_w, ax_s, vot=1):
         '''Plot the displacement along the crack (w and s) in global coordinates
         '''
-        ax_s = ax_w.twiny()
         self.plot_u_Lc(ax_w, self.u_La, 0, label=r'$u_x$ [mm]', color='blue')
         ax_w.set_xlabel(r'$u_x$ [mm]')
         self.plot_u_Lc(ax_s, self.u_La, 1, label=r'$u_z$ [mm]', color='green')
         ax_s.set_xlabel(r'$u_z$ [mm]')
         mpl_align_xaxis(ax_w, ax_s)
 
-    def plot_u_Lb(self, ax_w, vot=1):
+    def plot_u_Lb(self, ax_w, ax_s, vot=1):
         '''Plot the displacement (u_x, u_y) in local crack coordinates
         '''
-        ax_s = ax_w.twiny()
         # plot the critical displacement
         sz_ctr = self.sz_cp.sz_ctr
         x_tip_1k = sz_ctr.x_tip_ak[1,0]
@@ -328,10 +311,9 @@ class SZStressProfile(InteractiveModel):
         ax_s.set_xlabel(r'sliding $s$ [mm]')
         mpl_align_xaxis(ax_w, ax_s)
 
-    def plot_S_Lb(self, ax_sig, vot=1):
+    def plot_S_Lb(self, ax_sig, ax_tau, vot=1):
         '''Plot the stress components (sig, tau) in local crack coordinates
         '''
-        ax_tau = ax_sig.twiny()
         # plot the critical displacement
         bd = self.sz_cp.sz_bd
         cmm = bd.cmm
@@ -345,8 +327,7 @@ class SZStressProfile(InteractiveModel):
         ax_tau.set_xlabel(r'shear stress flow $\sigma_\mathrm{T}$ [N/mm]')
         mpl_align_xaxis(ax_sig, ax_tau)
 
-    def plot_S_La(self, ax_sig, vot=1):
-        ax_tau = ax_sig.twiny()
+    def plot_S_La(self, ax_sig, ax_tau, vot=1):
         self.plot_u_Lc(ax_sig, self.S_La, 0, label=r'$f_x$ [N/mm]', color='blue')
         ax_sig.set_xlabel(r'horizontal stress flow $f_x$ [N/mm]')
         self.plot_u_Lc(ax_tau, self.S_La, 1, label=r'$f_z$ [N/mm]', color='green')
@@ -360,13 +341,18 @@ class SZStressProfile(InteractiveModel):
         ax_N.plot(np.array([F_N, F_N0]), np.array(([z_N, z_N])), color='green')
 
     def subplots(self, fig):
-        return fig.subplots(1 ,4)
+        ax_u_0, ax_w_0, ax_S_0, ax_F_0 = fig.subplots(1 ,4)
+        ax_u_1 = ax_u_0.twiny()
+        ax_w_1 = ax_w_0.twiny()
+        ax_S_1 = ax_S_0.twiny()
+        ax_F_1 = ax_F_0.twiny()
+        return ax_u_0, ax_w_0, ax_S_0, ax_F_0, ax_u_1, ax_w_1, ax_S_1, ax_F_1
 
     def update_plot(self, axes):
-        ax_u_La, ax_u_Lb, ax_S_Lb, ax_S_La = axes
-        self.plot_u_La(ax_u_La)
-        self.plot_u_Lb(ax_u_Lb)
-        self.plot_S_Lb(ax_S_Lb)
-        self.plot_S_La(ax_S_La)
-        self.plot_N_a(ax_S_La)
+        ax_u_0, ax_w_0, ax_S_0, ax_F_0, ax_u_1, ax_w_1, ax_S_1, ax_F_1 = axes
+        self.plot_u_La(ax_u_0, ax_u_1)
+        self.plot_u_Lb(ax_w_0, ax_w_1)
+        self.plot_S_Lb(ax_S_0, ax_S_1)
+        self.plot_S_La(ax_F_0, ax_F_1)
+        self.plot_N_a(ax_S_0)
 

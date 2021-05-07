@@ -154,6 +154,8 @@ class SZCrackPath(InteractiveModel):
         Item('x_00', latex=r'x_{00}')
     )
 
+    tree = ['sz_bd', 'sz_ctr']
+
     sz_bd = tr.Instance(RCBeamDesign ,())
     '''Beam design object provides geometrical data and maerial data.
     '''
@@ -242,14 +244,14 @@ class SZCrackPath(InteractiveModel):
     def _reset_DSC(self):
         self._DSC = True
 
-    x_Ia = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    x_Ia = tr.Property(depends_on='state_changed')
     '''Nodes along the crack path including the fps segment'''
     @tr.cached_property
     def _get_x_Ia(self):
         x_fps_ak = self.sz_ctr.x_fps_ak
         return np.vstack([self.x_t_Ia, x_fps_ak.T])
 
-    I_Li = tr.Property(depends_on='_INC, _GEO, _MAT')
+    I_Li = tr.Property(depends_on='state_changed')
     '''Crack segments'''
     @tr.cached_property
     def _get_I_Li(self):
@@ -257,20 +259,20 @@ class SZCrackPath(InteractiveModel):
         I_Li = np.array([N_I[:-1], N_I[1:]], dtype=np.int_).T
         return I_Li
 
-    x_Ja = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    x_Ja = tr.Property(depends_on='state_changed')
     '''Uncracked vertical section'''
     @tr.cached_property
     def _get_x_Ja(self):
         x_J_1 = np.linspace(self.x_Ia[-1, 1], self.sz_bd.H, self.n_J)
         return np.c_[self.x_Ia[-1, 0] * np.ones_like(x_J_1), x_J_1]
 
-    xx_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    xx_Ka = tr.Property(depends_on='state_changed')
     '''Integrated section'''
     @tr.cached_property
     def _get_xx_Ka(self):
         return np.concatenate([self.x_Ia, self.x_Ja[1:]], axis=0)
 
-    x_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    x_Ka = tr.Property(depends_on='state_changed')
     '''Integration points'''
     @tr.cached_property
     def _get_x_Ka(self):
@@ -280,7 +282,7 @@ class SZCrackPath(InteractiveModel):
         x_Kma = self.xx_Ka[:-1, np.newaxis, :] + d_Kma
         return np.vstack([x_Kma[:, :-1, :].reshape(-1, 2), self.xx_Ka[[-1], :]])
 
-    K_Li = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    K_Li = tr.Property(depends_on='state_changed')
     '''Crack segments'''
     @tr.cached_property
     def _get_K_Li(self):
@@ -288,13 +290,13 @@ class SZCrackPath(InteractiveModel):
         K_Li = np.array([N_K[:-1], N_K[1:]], dtype=np.int_).T
         return K_Li
 
-    x_Lb = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    x_Lb = tr.Property(depends_on='state_changed')
     '''Midpoints'''
     @tr.cached_property
     def _get_x_Lb(self):
         return np.sum(self.x_Ka[self.K_Li], axis=1) / 2
 
-    beta = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    beta = tr.Property(depends_on='state_changed')
     '''Inclination of the last crack segment with respect to vertical axis'''
     @tr.cached_property
     def _get_beta(self):
@@ -306,7 +308,7 @@ class SZCrackPath(InteractiveModel):
             beta = np.arcsin(s_beta)
             return beta
 
-    norm_n_vec_L = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    norm_n_vec_L = tr.Property(depends_on='state_changed')
     '''Length of a discretization line segment. 
     '''
     @tr.cached_property
@@ -323,7 +325,7 @@ class SZCrackPath(InteractiveModel):
     def _get_T_Lab(self):
         return get_T_Lab(self.x_t_Ia)
 
-    T_Mab = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DCS')
+    T_Mab = tr.Property(depends_on='state_changed')
     '''Orthonormal bases of the integration segments, first vector is the line vector.
     '''
     @tr.cached_property

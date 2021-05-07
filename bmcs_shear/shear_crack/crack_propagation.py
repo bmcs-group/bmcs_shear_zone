@@ -13,7 +13,12 @@ class CrackPropagation(CrackExtension):
     hist = tr.Instance(CrackPropagationHist)
     '''Viewer to the inelastic state evolution'''
     def _hist_default(self):
-        return CrackPropagationHist(slider_exp=self)
+        return CrackPropagationHist(crack_prop_model=self)
+
+    tree = [
+        'crack_tip_orientation',
+        'hist'
+    ]
 
     t_n = bu.Float(0.0, auto_set=False, enter_set=True)
     '''Fundamental state time.
@@ -87,12 +92,6 @@ class CrackPropagation(CrackExtension):
 
     n_seg = bu.Int(5, TIME=True)
 
-    # simulated_crack = tr.Property(depends_on='+TIME, _GEO,_MAT')
-    #
-    # @tr.cached_property
-    # def _get_simulated_crack(self):
-    #     self.run()
-
     seg = bu.Int(0)
 
     interrupt = tr.Bool(False)
@@ -160,12 +159,12 @@ class CrackPropagation(CrackExtension):
         ax2.set_ylabel(r'Load $F$ [kN]')
 
     ipw_view = bu.View(
-        bu.Item('c', editor=bu.ProgressEditor(
+        bu.Item('n_seg', latex=r'n_\mathrm{seg}', minmax=(1, 100)),
+        time_editor = bu.ProgressEditor(
             run_method='run',
             reset_method='reset',
             interrupt_var='interrupt',
             time_var='seg',
             time_max='n_seg'
-        )),
-        bu.Item('n_seg', latex=r'n_\mathrm{seg}', minmax=(1, 100)),
+        )
     )

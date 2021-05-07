@@ -666,10 +666,10 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
     # ITER - changes in an iteration
     # INCR - changes in an increment
     # MAT - material parameter changed by a user
-    psi = Float(0.8, ITR=True)
-    x_rot_1k = Float(100,ITR=True)
-    x_tip_0n = Float(200, INC=True)
-    x_tip_1n = Float(50, INC=True)
+    psi = Float(0.8, ITR=True, MAT=True)
+    x_rot_1k = Float(100,ITR=True, MAT=True)
+    x_tip_0n = Float(200, INC=True, MAT=True)
+    x_tip_1n = Float(50, INC=True, MAT=True)
     L_fps = Float(20, MAT=True)
     ell = Float(5, MAT=True)
     w = Float(0.3, MAT=True)
@@ -700,7 +700,7 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
         Item('w', latex=r'w', minmax=(0, 20))
     )
 
-    all_points = tr.Property(depends_on='+ITR, +INC, +MAT')
+    all_points = tr.Property(depends_on='state_changed')
 
     @tr.cached_property
     def _get_all_points(self):
@@ -770,9 +770,6 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
     def update_plot(self, ax):
         ax.axis('equal')
         self.plot_crack_tip_rotation(ax)
-
-
-# In[49]:
 
 
 
