@@ -2,7 +2,6 @@ name: bmcs_env
 channels:
 - conda-forge
 dependencies:
-- appmode
 - jupyter_contrib_nbextensions
 - traits>=6.1.1
 - matplotlib-base
@@ -15,4 +14,5 @@ dependencies:
 - pip:
   - -e .
   - bmcs_utils
+  - bmcs_cross_section
   - bmcs_beam

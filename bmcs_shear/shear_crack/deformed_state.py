@@ -54,19 +54,15 @@ class SZDeformedState(InteractiveModel):
     sz_ctr = tr.DelegatesTo('sz_cp')
     sz_bd = tr.DelegatesTo('sz_cp')
 
-    _ITR = tr.DelegatesTo('sz_cp')
-    _INC = tr.DelegatesTo('sz_cp')
-    _MAT = tr.DelegatesTo('sz_cp')
-    _GEO = tr.DelegatesTo('sz_cp')
-    _DSC = tr.DelegatesTo('sz_cp')
+    tree = ['sz_cp']
 
-    x1_Ia = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    x1_Ia = tr.Property(depends_on='state_changed')
     '''Displaced segment nodes'''
     @tr.cached_property
     def _get_x1_Ia(self):
         return self.sz_ctr.get_x1_La(self.sz_cp.x_Ia)
 
-    x1_Ja = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    x1_Ja = tr.Property(depends_on='state_changed')
     '''Displaced segment nodes'''
     @tr.cached_property
     def _get_x1_Ja(self):
@@ -74,7 +70,7 @@ class SZDeformedState(InteractiveModel):
         x_rot_a = self.sz_ctr.x_rot_ak[: ,0]
         return self.sz_ctr.get_x1_La(self.sz_cp.x_Ja)
 
-    x1_Ka = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
+    x1_Ka = tr.Property(depends_on='state_changed')
     '''Displaced integration points'''
     @tr.cached_property
     def _get_x1_Ka(self):
@@ -82,7 +78,7 @@ class SZDeformedState(InteractiveModel):
         x_rot_a = self.sz_ctr.x_rot_ak[: ,0]
         return self.sz_ctr.get_x1_La(self.sz_cp.x_Ka)
 
-    x1_Ca = tr.Property(depends_on='_INC, _GEO, _MAT')
+    x1_Ca = tr.Property(depends_on='state_changed')
     '''Diplaced corner nodes'''
     @tr.cached_property
     def _get_x1_Ca(self):

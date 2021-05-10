@@ -109,9 +109,6 @@ get_tau_z_fps = sp.lambdify(
 )
 
 
-# In[86]:
-
-
 class SZCrackTipShearStress(InteractiveModel):
     name = 'Shear profile'
 
@@ -119,10 +116,7 @@ class SZCrackTipShearStress(InteractiveModel):
     sz_cp = tr.DelegatesTo('sz_stress_profile')
     sz_bd = tr.DelegatesTo('sz_cp', 'sz_bd')
 
-    _ALL = tr.DelegatesTo('sz_stress_profile')
-    _GEO = tr.DelegatesTo('sz_stress_profile')
-    _MAT = tr.DelegatesTo('sz_stress_profile')
-
+    tree = ['sz_stress_profile']
 
     sig_x_tip_0 = tr.Property
 

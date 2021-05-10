@@ -39,13 +39,9 @@ class SZCrackTipOrientation(bu.InteractiveModel):
     sz_cp = tr.DelegatesTo('crack_tip_shear_stress')
     sz_bd = tr.DelegatesTo('crack_tip_shear_stress')
 
-    _ALL = tr.DelegatesTo('crack_tip_shear_stress')
-    _GEO = tr.DelegatesTo('crack_tip_shear_stress')
-    _MAT = tr.DelegatesTo('crack_tip_shear_stress')
+    tree = ['crack_tip_shear_stress']
 
     def get_psi(self):
-        # TODO: check why the normal stress at tip is not
-        #       exactly equal to f_t
         ct_stress = self.crack_tip_shear_stress
         tau_x_tip_1 = ct_stress.tau_x_tip_1k
         f_t = self.sz_cp.sz_bd.cmm.f_t
@@ -74,3 +70,28 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         self.plot(ax)
 
     ipw_view = bu.View()
+
+class CrackStateAnimator(SZCrackTipOrientation):
+
+    psi_slider = bu.Float(0, MAT=True)
+    x_rot_1k_slider = bu.Float(0, MAT=True)
+
+    @tr.on_trait_change('psi_slider')
+    def reset_psi(self):
+        self.sz_cp.sz_ctr.psi = self.psi_slider
+
+    @tr.on_trait_change('x_rot_1k_slider')
+    def reset_x_rot_1k(self):
+        self.sz_cp.sz_ctr.x_rot_1k = self.x_rot_1k_slider
+
+    ipw_view = bu.View(
+        bu.Item('psi_slider'),
+        bu.Item('x_rot_1k_slider')
+    )
+
+    def subplots(self, fig):
+        return self.sz_stress_profile.subplots(fig)
+
+    def update_plot(self, ax):
+        self.sz_stress_profile.update_plot(ax)
+

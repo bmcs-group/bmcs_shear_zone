@@ -17,13 +17,8 @@ class CrackExtension(bu.InteractiveModel):
 
     TODO: Would it be possible to insert an instance as a group into a widget as well?
 
-    TODO: Design CrackPropagation model component
-
-    TODO: Combination of DelegatesTo and ModelComponent with a state_changed Event seems to work.
-
     TODO: Crack orientation - check the stress at crack normal to crack - should be f_t
 
-    TODO: updated of traits displayed in the view from within the code does not update the value in widget.
     """
     name = "Crack extension"
 
@@ -35,9 +30,9 @@ class CrackExtension(bu.InteractiveModel):
     sz_ctr = tr.DelegatesTo('sz_cp')
     sz_bd = tr.DelegatesTo('sz_cp')
 
-    _ALL = tr.DelegatesTo('crack_tip_orientation')
-    _GEO = tr.DelegatesTo('crack_tip_orientation')
-    _MAT = tr.DelegatesTo('crack_tip_orientation')
+    tree = [
+        'crack_tip_orientation'
+    ]
 
     psi = tr.DelegatesTo('sz_ctr')
     x_rot_1k = tr.DelegatesTo('sz_ctr')
@@ -60,9 +55,6 @@ class CrackExtension(bu.InteractiveModel):
     '''Algorithmic parameter maximum number of iterations
     '''
 
-    ipw_view = bu.View(
-    )
-
     def init(self):
         '''Initialize state.
         '''
@@ -70,7 +62,7 @@ class CrackExtension(bu.InteractiveModel):
         self.U_k = [self.psi, self.x_rot_1k]
         self.X_iter = self.U_k
 
-    X = tr.Property(depends_on='+TIME, _ALL')
+    X = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_X(self):
         self.init()
@@ -131,3 +123,5 @@ class CrackExtension(bu.InteractiveModel):
     def update_plot(self, ax):
         self.X
         self.plot_geo(ax)
+
+
