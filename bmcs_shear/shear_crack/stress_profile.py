@@ -236,11 +236,16 @@ class SZStressProfile(InteractiveModel):
         x_Lia = x_Ka[K_Li]
         x_La = np.sum(x_Lia, axis=1) / 2
         F_La = self.F_La
-        x_rot_1k = self.ds.sz_ctr.x_rot_1k
+        x_rot_0k = self.ds.sz_ctr.x_rot_ak[0,0]
+        x_rot_1k = self.ds.sz_ctr.x_rot_ak[1,0]
         M_L = (x_La[:, 1] - x_rot_1k) * F_La[:, 0]
+        M_L_agg = (x_La[:, 0] - x_rot_0k) * F_La[:, 1]
         M = np.sum(M_L, axis=0)
+        M_agg = np.sum(M_L_agg, axis=0)
         M_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:,0])
-        return -M - M_z
+        x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
+        M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_Na[:,1])
+        return -(M + M_agg + M_z + M_da)
 
     # M_da = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     # '''Internal bending moment obtained by integrating the

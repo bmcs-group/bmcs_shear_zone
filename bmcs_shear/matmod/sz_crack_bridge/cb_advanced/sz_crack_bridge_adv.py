@@ -11,7 +11,7 @@ from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_dowel_action import DowelA
 class CrackBridgeModelAdvExpr(bu.SymbExpr):
     # w_1, w_2 = sp.symbols(r'w_1, w_2', nonnegative=True)
     # w_3 = sp.symbols(r'w_3', nonnegative=True)
-    w, f_c = sp.symbols(r's, f_c', real=True)
+    w, f_c = sp.symbols(r'w, f_c', real=True)
     # alpha = sp.Symbol(r'\alpha', nonnegative=True)
     B = sp.symbols(r'B', nonnegative=True)
     n, d_s = sp.symbols(r'n, d_s', nonnegative=True)
@@ -139,7 +139,7 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
 
     def get_F_a(self, u_a):
-        F_w = self.get_sig_w_f(u_a[...,0]) #* self.n * (np.pi * self.d_s ** 2) / 4
+        F_w = self.get_sig_w_f(u_a[...,0])
         #print(F_w)
         F_s = self.get_V_df(u_a[...,1])#np.zeros_like(F_w)
         return np.array([F_w,F_s], dtype=np.float_).T
@@ -155,11 +155,11 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         #w_ = np.linspace(0,1, 100)
         s_ = np.linspace(0, 1, 100)
         #print(s_)
-        tau_b_ = self.get_sig_w_f(w_range)
-        V_df_ = self.get_V_df(s_)
+        tau_b_ = self.get_sig_w_f(w_range) / 1000
+        V_df_ = self.get_V_df(s_) / 1000
         ax_w.plot(w_range, tau_b_)
         ax_s.plot(s_, V_df_)
         ax_w.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        ax_w.set_ylabel(r'$\sigma_b\;\;\mathrm{[MPa]}$')
+        ax_w.set_ylabel(r'$F_s\;\;\mathrm{[kN]}$')
         ax_s.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
-        ax_s.set_ylabel(r'$V_{df}\;\;\mathrm{[N]}$')
+        ax_s.set_ylabel(r'$V_{da}\;\;\mathrm{[kN]}$')
