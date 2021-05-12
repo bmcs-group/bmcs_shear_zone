@@ -159,7 +159,7 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         V_df_ = self.get_V_df(s_) / 1000
         ax_w.plot(w_range, tau_b_)
         ax_s.plot(s_, V_df_)
-        ax_w.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        ax_w.set_ylabel(r'$F_s\;\;\mathrm{[kN]}$')
-        ax_s.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
-        ax_s.set_ylabel(r'$V_{da}\;\;\mathrm{[kN]}$')
+        ax_w.set_xlabel(r'$\mathrm{w}\;\;\mathrm{[mm]}$', fontsize = 14)
+        ax_w.set_ylabel(r'$\mathrm{F_s}\;\;\mathrm{[kN]}$', fontsize = 14)
+        ax_s.set_xlabel(r'$s\;\;\mathrm{[mm]}$', fontsize = 14)
+        ax_s.set_ylabel(r'$V_{da}\;\;\mathrm{[kN]}$', fontsize = 14)

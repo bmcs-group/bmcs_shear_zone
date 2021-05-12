@@ -32,6 +32,8 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
 
     w_cr = f_t / E_c * L_c
 
+    w_x = 5.14 * (G_f / f_t)
+
     # eps_cp = w_cr / L_c
     #
     # eps_p = w / L_c
@@ -41,26 +43,6 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     #w_tc = 5.14 * G_f / f_t
 
     # f_ce = f_c * (1 / (0.8))
-
-    f_w = f_t * sp.exp(-f_t * (w - w_cr) / G_f)
-
-    sig_w = sp.Piecewise(
-        (-f_c, E_c * w / L_c < -f_c),
-        (E_c * w / L_c, w <= w_cr),
-        (f_w, w > w_cr)
-    )
-
-    d_sig_w = sig_w.diff(w)
-
-
-
-    # sig_w = sp.Piecewise(
-    #     (- f_c, w < - w_cr),
-    #     (2 * f_t + (-f_c - 2 * f_t) * sp.sqrt(1 - ((w_cr - sp.Abs(w)) / (w_cr)) ** 2), w < 0),
-    #     (E_c * w / L_c, w < w_cr),
-    #     (f_t * (1 + ((c_1 * w) / (w_tc)) ** 3) * sp.exp((-c_2 * w) / (w_tc)) - (w / w_tc) * (1 + c_1 ** 3) * sp.exp(
-    #         -c_2), w > w_cr)
-    # )
 
     r = s / w
 
@@ -77,15 +59,42 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     )
 
     sigma_ag = sp.Piecewise(
-        (0, w <= 0),
-        (-0.62 * sp.sqrt(w) * (r) / (1 + r ** 2) ** 0.25 * tau_s, w > 0)
+        (0, w == w_cr),
+        (-0.62 * sp.sqrt(w) * (r) / (1 + r ** 2) ** 0.25 * tau_s, w > w_cr)
     )
+    #sp.Piecewise(
+        #(0, w <= 0),
+    #)
+
+    f_w = f_t * sp.exp(-f_t * (w - w_cr) / G_f)
+
+    sig_w = sp.Piecewise(
+        (-f_c, E_c * w / L_c < -f_c),
+        (E_c * w / L_c, w <= w_cr),
+        (f_w, w > w_cr)
+        #(f_w, sp.And(w > w_cr, w <= w_x)), #+ sigma_ag
+        #(sigma_ag, w > w_x)  #f_w == 0
+    )
+
+    d_sig_w = sig_w.diff(w)
+
+
+
+    # sig_w = sp.Piecewise(
+    #     (- f_c, w < - w_cr),
+    #     (2 * f_t + (-f_c - 2 * f_t) * sp.sqrt(1 - ((w_cr - sp.Abs(w)) / (w_cr)) ** 2), w < 0),
+    #     (E_c * w / L_c, w < w_cr),
+    #     (f_t * (1 + ((c_1 * w) / (w_tc)) ** 3) * sp.exp((-c_2 * w) / (w_tc)) - (w / w_tc) * (1 + c_1 ** 3) * sp.exp(
+    #         -c_2), w > w_cr)
+    # )
+
+    #sigma = sig_w + sigma_ag
 
     symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c', 'L'] #'mu', 'chi' , 'a', 'b'
 
-    symb_expressions = [('sig_w', ('w',)),
-                        ('tau_s', ('w', 's',)),
-                        ('sigma_ag', ('w','s',))] #u_a
+    symb_expressions = [('sig_w', ('w', 's',)), #, 's'
+                        ('tau_s', ('w', 's',))]
+                        #('sigma_ag', ('w','s',))] #u_a
 
 @tr.provides(IMaterialModel)
 class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
@@ -134,19 +143,20 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     w_cr = tr.Property
 
     def _get_w_cr(self):
-        return self.f_t / self.E_c * self._get_L_c()
+        return (self.f_t / self.E_c) * self._get_L_c()
+
 
     def get_G_f(self):
         '''''''Calculating fracture energy '''''''
         return (0.028 * self.f_c ** 0.18 * self.d_a ** 0.32)
 
-    def get_w_tc(self):
-        '''''''Calculating point of softening curve resulting in 0 stress '''''''
-        return ( 5.14 * self.G_f_baz / self.f_t)
+    #def get_w_tc(self):
+    #    '''''''Calculating point of softening curve resulting in 0 stress '''''''
+    #    return ( 5.14 * self.G_f() / self.f_t)
 
     def get_sig_a(self, u_a): #w, s
         '''''''''Calculating stresses '''''''''
-        sig_w = self.symb.get_sig_w(u_a[...,0])
+        sig_w = self.symb.get_sig_w(u_a[...,0], u_a[...,1])
         tau_s = self.symb.get_tau_s(u_a[...,0],u_a[...,1])
         #print(tau_s)
         #print(sig_w)
@@ -154,18 +164,18 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
     get_sig_w = tr.Property(depends_on='+MAT')
 
-    def get_sig_w(self,w):
-        return self.symb.get_sig_w(w)
+    def get_sig_w(self,w, s):
+        return self.symb.get_sig_w(w, s)
 
     get_tau_s = tr.Property(depends_on='+MAT')
 
     def get_tau_s(self, w, s):
         return self.symb.get_tau_s(w, s)
 
-    get_sigma_ag = tr.Property(depends_on='+MAT')
-
-    def get_sigma_ag(self, w, s):
-        return self.symb.get_sigma_ag(w,s)
+    # get_sigma_ag = tr.Property(depends_on='+MAT')
+    #
+    # def get_sigma_ag(self, w, s):
+    #     return self.symb.get_sigma_ag(w,s)
 
     w_min_factor = Float(1.2)
     w_max_factor = Float(3)
@@ -175,17 +185,19 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         w_max_expr = 3
         # w_max_expr = (sp.solve(self.f_w + self.f_w.diff(w) * w, w)
         #               [0]).subs(self.co_law_data)
-        w_max = 3               #np.float_(w_max_expr) * self.w_max_factor
+        w_max = 0.5               #np.float_(w_max_expr) * self.w_max_factor
         w_min = np.float_(w_min_expr) * self.w_min_factor
         w_data = np.linspace(w_min, w_max, 100)
-        sig_w = self.get_sig_w(w_data)
+        s_max = 3
+        s_data = np.linspace(-1.1 * s_max, 1.1 * s_max, 100)
+        sig_w = self.get_sig_w(w_data, s_data)
         #print(sig_w)
         ax.plot(w_data, sig_w, lw=2, color='red')
         ax.fill_between(w_data, sig_w,
                         color='red', alpha=0.2)
-        ax.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        ax.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$')
-        ax.set_title('crack opening law')
+        ax.set_xlabel(r'$w\;\;\mathrm{[mm]}$', fontsize=12)
+        ax.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$', fontsize=12)
+        ax.set_title('crack opening law', fontsize=12)
 
     # def plot3d_Sig_Eps(self, ax3d):
     #     tau_x, tau_y = self.Sig_arr.T[:2, ...]
@@ -201,10 +213,10 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         s_, w_ = np.meshgrid(s_data, w_data)
         tau_s = self.get_tau_s(w_, s_)
         ax3d.plot_surface(w_, s_, tau_s, cmap='viridis', edgecolor='none')
-        ax3d.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        ax3d.set_ylabel(r'$s\;\;\mathrm{[mm]}$')
-        ax3d.set_zlabel(r'$\tau\;\;\mathrm{[MPa]}$')
-        ax3d.set_title('aggregate interlock law')
+        ax3d.set_xlabel(r'$w\;\;\mathrm{[mm]}$', fontsize=12)
+        ax3d.set_ylabel(r'$s\;\;\mathrm{[mm]}$', fontsize=12)
+        ax3d.set_zlabel(r'$\tau\;\;\mathrm{[MPa]}$', fontsize=12)
+        ax3d.set_title('aggregate interlock law', fontsize=12)
 
     def subplots(self, fig):
         ax_2d = fig.add_subplot(1, 2, 2)

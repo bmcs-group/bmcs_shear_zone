@@ -75,6 +75,11 @@ class CrackStateAnimator(SZCrackTipOrientation):
 
     psi_slider = bu.Float(0, MAT=True)
     x_rot_1k_slider = bu.Float(0, MAT=True)
+    w_slider = bu.Float(0, MAT = True)
+
+    @tr.on_trait_change('w_slider')
+    def reset_w(self):
+        self.sz_cp.sz_ctr.w = self.w_slider
 
     @tr.on_trait_change('psi_slider')
     def reset_psi(self):
@@ -86,7 +91,8 @@ class CrackStateAnimator(SZCrackTipOrientation):
 
     ipw_view = bu.View(
         bu.Item('psi_slider'),
-        bu.Item('x_rot_1k_slider')
+        bu.Item('x_rot_1k_slider'),
+        bu.Item('w_slider')
     )
 
     def subplots(self, fig):

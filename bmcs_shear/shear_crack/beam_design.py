@@ -92,6 +92,12 @@ class RCBeamDesign(BeamDesign):
         Item('B', minmax=(1, 100), latex=r'B')
     )
 
+    tree = [
+        'cross_section_layout',
+        'cmm',
+        'smm'
+    ]
+
     C_Li = tr.Array(value=[[0, 1, 2, 3], [1, 2, 3, 0]], dtype=np.int_)
 
     x_Ca = tr.Property(depends_on='+GEO')

@@ -124,4 +124,3 @@ class CrackExtension(bu.InteractiveModel):
         self.X
         self.plot_geo(ax)
 
-
