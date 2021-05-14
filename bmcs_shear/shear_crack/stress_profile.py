@@ -342,6 +342,7 @@ class SZStressProfile(InteractiveModel):
 
     def subplots(self, fig):
         ax_u_0, ax_w_0, ax_S_0, ax_F_0 = fig.subplots(1 ,4)
+#        ((ax_u_0, ax_w_0), (ax_S_0, ax_F_0)) = fig.subplots(2 ,2)
         ax_u_1 = ax_u_0.twiny()
         ax_w_1 = ax_w_0.twiny()
         ax_S_1 = ax_S_0.twiny()

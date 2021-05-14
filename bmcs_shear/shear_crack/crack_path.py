@@ -348,6 +348,7 @@ class SZCrackPath(InteractiveModel):
         x_aiD = np.einsum('Dia->aiD', x_Da[D_Li])
         ax.plot(*x_aiD, color='black')
         ax.plot(*x_aI, lw=2, color='black')
+        ax.plot([x_Ia[-1,0], x_RU[0]], [x_Ia[-1,1], x_RU[1]], color='gray')
 
     def update_plot(self, ax):
         ax.set_ylim(ymin=0 ,ymax=self.sz_bd.H)

@@ -102,6 +102,7 @@ class SZDeformedState(InteractiveModel):
         ax.set_xlabel(r'Horizontal position $x$ [mm]')
         ax.set_ylabel(r'Vertical position $z$ [mm]')
         ax.plot(*x_aI, lw=2, color='black')
+        ax.plot([x_Ia[-1,0], x_LU[0]], [x_Ia[-1,1], x_LU[1]], color='gray')
 
     def plot_sz_fill(self, ax):
         x0_Ca = self.sz_bd.x_Ca
