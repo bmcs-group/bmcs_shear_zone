@@ -92,7 +92,7 @@ class CrackStateAnimator(SZCrackTipOrientation):
     ipw_view = bu.View(
         bu.Item('psi_slider'),
         bu.Item('x_rot_1k_slider'),
-        bu.Item('w_slider')
+        bu.Item('w_slider'),
     )
 
     def subplots(self, fig):

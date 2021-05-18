@@ -151,3 +151,6 @@ class SZDeformedState(InteractiveModel):
         self.plot_sz1(ax)
         self.plot_sz_fill(ax)
         self.plot_reinf1(ax)
+
+
+

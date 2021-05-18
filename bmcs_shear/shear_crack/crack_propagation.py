@@ -170,4 +170,3 @@ class CrackPropagation(CrackExtension):
     )
 
 
-

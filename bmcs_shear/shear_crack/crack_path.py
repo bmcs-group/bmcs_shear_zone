@@ -358,3 +358,6 @@ class SZCrackPath(InteractiveModel):
         self.sz_bd.plot_sz_bd(ax)
         self.plot_sz0(ax)
 #        self.plot_x_Ka(ax)
+
+
+
