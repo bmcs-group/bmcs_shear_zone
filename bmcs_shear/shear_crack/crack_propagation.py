@@ -5,6 +5,9 @@ import bmcs_utils.api as bu
 from bmcs_shear.shear_crack.crack_extension import CrackExtension
 from bmcs_shear.shear_crack.crack_propagation_hist import CrackPropagationHist
 
+
+from matplotlib import animation, rc
+
 class CrackPropagation(CrackExtension):
     """Control a loop simulating the crack propagation
     """
