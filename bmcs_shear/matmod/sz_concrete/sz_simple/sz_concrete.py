@@ -7,85 +7,90 @@ Created on Mar 2, 2020
 import numpy as np
 import sympy as sp
 import traits.api as tr
-from bmcs_utils.api import InteractiveModel, View, Item, Float
+from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, InjectSymbExpr
 from bmcs_shear.matmod.i_matmod import IMaterialModel
 from bmcs_cross_section.api import ConcreteMatMod
 
-eps, f_c, E_c, L_c = sp.symbols(
-    'epsilon, f_c, E_c, L_c'
-)
 
-gamma, E_s = sp.symbols(
-    'gamma, E_s'
-)
+class ConcreteMaterialModelSymbExpr(SymbExpr):
 
-w, f_t, G_f, L = sp.symbols(
-    'w, f_t, G_f, L'
-)
+    eps, f_c, E_c, L_c = sp.symbols(
+        'epsilon, f_c, E_c, L_c'
+    )
 
-s, tau_1, s_1, tau_2, s_2, tau_3, s_3 = sp.symbols(
-    r's, tau_1, s_1, tau_2, s_2, tau_3, s_3 '
-)
+    w, f_t, G_f = sp.symbols(
+        'w, f_t, G_f'
+    )
 
-s, tau_1, s_1, tau_2, s_2, tau_3, s_3, d_a = sp.symbols(
-    r's, tau_1, s_1, tau_2, s_2, tau_3, s_3, d_a '
-)
+    s, tau_1, s_1, tau_2, s_2, tau_3, s_3 = sp.symbols(
+        r's, tau_1, s_1, tau_2, s_2, tau_3, s_3 '
+    )
 
-lamda, w_1, w_2 = sp.symbols(r'\lambda, w_1, w_2')
+    s, tau_1, s_1, tau_2, s_2, tau_3, s_3, d_a = sp.symbols(
+        r's, tau_1, s_1, tau_2, s_2, tau_3, s_3, d_a '
+    )
 
-#=========================================================================
-# Unkcracked concrete
-#=========================================================================
+    lamda, w_1, w_2 = sp.symbols(r'\lambda, w_1, w_2')
 
-sig_eps = sp.Piecewise(
-    (f_c, E_c * eps < f_c),
-    (E_c * eps, E_c * eps <= f_t),
-    (f_t, E_c * eps > f_t)
-)
+    #=========================================================================
+    # Unkcracked concrete
+    #=========================================================================
 
-d_sig_eps = sig_eps.diff(eps)
+    sig_eps = sp.Piecewise(
+        (f_c, E_c * eps < f_c),
+        (E_c * eps, E_c * eps <= f_t),
+        (f_t, E_c * eps > f_t)
+    )
+
+    d_sig_eps = sig_eps.diff(eps)
 
 
-#=========================================================================
-# Crack opening law
-#=========================================================================
+    #=========================================================================
+    # Crack opening law
+    #=========================================================================
 
-w_t = f_t / E_c * L_c
+    w_t = f_t / E_c * L_c
 
-f_w = f_t * sp.exp(-f_t * (w - w_t) / G_f)
+    f_w = f_t * sp.exp(-f_t * (w - w_t) / G_f)
 
-sig_w = sp.Piecewise(
-    (-f_c, E_c * w / L_c < -f_c),
-    (E_c * w / L_c, w <= w_t),
-    (f_w, w > w_t)
-)
+    sig_w = sp.Piecewise(
+        (-f_c, E_c * w / L_c < -f_c),
+        (E_c * w / L_c, w <= w_t),
+        (f_w, w > w_t)
+    )
 
-d_sig_w = sig_w.diff(w)
+    d_sig_w = sig_w.diff(w)
 
-#=========================================================================
-# Bond-slip law
-#=========================================================================
+    #=========================================================================
+    # Bond-slip law
+    #=========================================================================
 
-tau_s = sp.Piecewise(
-    (tau_1 / s_1 * s, s < s_1),
-    (tau_1 + (tau_2 - tau_1) / (s_2 - s_1) * (s - s_1), s <= s_2),
-    (tau_2 + (tau_3 - tau_2) / (s_3 - s_2) * (s - s_2), s > s_2)
-)
-d_tau_s = tau_s.diff(s)
+    tau_s = sp.Piecewise(
+        (tau_1 / s_1 * s, s < s_1),
+        (tau_1 + (tau_2 - tau_1) / (s_2 - s_1) * (s - s_1), s <= s_2),
+        (tau_2 + (tau_3 - tau_2) / (s_3 - s_2) * (s - s_2), s > s_2)
+    )
+    d_tau_s = tau_s.diff(s)
 
-#=========================================================================
-# Bilinear Law for Tensile Behavior
-#=========================================================================
+    #=========================================================================
+    # Bilinear Law for Tensile Behavior
+    #=========================================================================
 
-alpha_f = lamda - d_a/8
+    alpha_f = lamda - d_a/8
 
-sigma_s = (f_t * (2 - f_t * (w_1 / G_f))) / alpha_f #w_1 = CTOD_c
+    sigma_s = (f_t * (2 - f_t * (w_1 / G_f))) / alpha_f #w_1 = CTOD_c
 
-sigma_w = sp.Piecewise(
-            (f_t - (f_t - sigma_s) * (w / w_1), w <= w_1 ),
-            (sigma_s * (w_2 - w) / (w_2 - w_1),  w <= w_2),
-)
-sigma_w
+    sigma_w = sp.Piecewise(
+                (f_t - (f_t - sigma_s) * (w / w_1), w <= w_1 ),
+                (sigma_s * (w_2 - w) / (w_2 - w_1),  w <= w_2),
+    )
+
+    symb_model_params = ['d_a', 'E_c', 'f_t', 'L_c', 'f_c', 'G_f',
+                         'tau_1', 'tau_2', 'tau_3', 's_1', 's_2', 's_3']
+
+    symb_expressions = [('sig_w', ('w',)),
+                        ('tau_s', ('w', 's',))]
+
 
 @tr.provides(IMaterialModel)
 class ConcreteMaterialModel(ConcreteMatMod):
@@ -115,14 +120,13 @@ class ConcreteMaterialModel(ConcreteMatMod):
 
     d_a = Float(22.0, MAT=True)
 
-    L_c = tr.Property
-
+    L_c = tr.Property(Float, depends_on='state_changed')
+    @tr.cached_property
     def _get_L_c(self):
         return self.E_c * self.G_f / self.f_t**2
 
-    # L = Float(100, param=True)
-    #
-    w_cr = tr.Property
+    w_cr = tr.Property(Float, depends_on='state_changed')
+    @tr.cached_property
     def _get_w_cr(self):
         return self.f_t / self.E_c * self.L_c
 
@@ -139,37 +143,13 @@ class ConcreteMaterialModel(ConcreteMatMod):
                     # L=self.L
                     )
 
-    get_sig_eps = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_get_sig_eps(self):
-        return sp.lambdify(eps, sig_eps.subs(self.co_law_data), 'numpy')
-
-    get_d_sig_eps = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_get_d_sig_eps(self):
-        return sp.lambdify(eps, d_sig_eps.subs(self.co_law_data), 'numpy')
-
     def get_sig_a(self, u_a):
         sig = self.get_sig_w(u_a[...,0])
         tau = self.get_tau_s(u_a[...,1])
         return np.einsum('b...->...b', np.array([sig, tau], dtype=np.float_))
 
-    #=========================================================================
-    # Sig w
-    #=========================================================================
-    get_sig_w = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_get_sig_w(self):
-        return sp.lambdify(w, sig_w.subs(self.co_law_data), 'numpy')
-
-    get_d_sig_w = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_get_d_sig_w(self):
-        return sp.lambdify(w, d_sig_w.subs(self.co_law_data), 'numpy')
+    def get_sig_w(self):
+        return self.symb.get_sig_w(w)
 
     #=========================================================================
     # Plotting
@@ -239,46 +219,28 @@ class ConcreteMaterialModel(ConcreteMatMod):
                    MAT=True)
 
     ipw_view = View(
-        Item('f_t',minmax=(1, 10), latex='f_\mathrm{t}',),
-        Item('f_c', minmax=(10,180), latex='f_\mathrm{c}',),
-        Item('E_c', minmax=(10000,60000), latex='E_\mathrm{c}',),
-        Item('G_f', minmax=(0.01, 1.0), latex='G_\mathrm{f}'),
-        Item('L_fps', minmax=(1, 200), latex='L_\mathrm{fps}',),
-        Item('tau_1', latex=r'\tau_1', minmax=(0.1, 10),),
-        Item('s_1',latex='s_1',minmax=(1e-8,3)),
-        Item('tau_2',latex=r'\tau_2', minmax=(0.1,10),),
-        Item('s_2',latex='s_2',minmax=(0.001, 5)),
-        Item('tau_3', latex=r'\tau_3',minmax = (0, 10),),
-        Item('s_3', latex=r's_3',minmax = (0.1, 10), ),
+        Item('f_t', latex='f_\mathrm{t}',),
+        Item('f_c', latex='f_\mathrm{c}',),
+        Item('E_c', latex='E_\mathrm{c}',),
+        Item('G_f', latex='G_\mathrm{f}'),
+        Item('L_fps', latex='L_\mathrm{fps}',),
+        Item('tau_1', latex=r'\tau_1'),
+        Item('s_1',latex='s_1'),
+        Item('tau_2',latex=r'\tau_2'),
+        Item('s_2',latex='s_2'),
+        Item('tau_3', latex=r'\tau_3'),
+        Item('s_3', latex=r's_3'),
+        Item('w_cr', latex=r'w_\mathrm{cr}', readonly=True ),
+        Item('L_c', latex=r'L_\mathrm{c}', readonly=True )
     )
-
-    bond_law_data = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_bond_law_data(self):
-        return dict(tau_1=self.tau_1, s_1=self.s_1,
-                    tau_2=self.tau_2, s_2=self.s_2,
-                    tau_3=self.tau_3, s_3=self.s_3)
-
-    get_tau_s_plus = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_get_tau_s_plus(self):
-        return sp.lambdify(s, tau_s.subs(self.bond_law_data), 'numpy')
-
-    get_d_tau_s_plus = tr.Property(depends_on='+MAT')
-
-    @tr.cached_property
-    def _get_get_d_tau_s_plus(self):
-        return sp.lambdify(s, d_tau_s.subs(self.bond_law_data), 'numpy')
 
     def get_tau_s(self, s):
         signs = np.sign(s)
-        return signs * self.get_tau_s_plus(signs * s)
+        return signs * self.symb.get_tau_s(signs * s)
 
     def get_d_tau_s(self, s):
         signs = np.sign(s)
-        return signs * self.get_d_tau_s_plus(signs * s)
+        return signs * self.symb.get_d_tau_s_plus(signs * s)
 
     def plot_tau_s(self, ax, vot=1.0):
         s_max = float(s_3.subs(self.bond_law_data))

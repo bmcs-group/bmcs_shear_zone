@@ -49,10 +49,15 @@ class CrackExtension(bu.InteractiveModel):
     - inclination angle of a new crack segment
     '''
 
-    xtol = tr.Float(1e-3, auto_set=False, enter_set=True)
+    xtol = bu.Float(1e-3)
     '''Algorithmic parameter - tolerance
     '''
-    maxfev = tr.Int(1000, auto_set=False, enter_set=True)
+
+    psi_tol = bu.Float(0.2)
+    '''Crack inclination criterion tolerance
+    '''
+
+    maxfev = tr.Int(1000)
     '''Algorithmic parameter maximum number of iterations
     '''
 
@@ -90,7 +95,7 @@ class CrackExtension(bu.InteractiveModel):
         psi_bar = self.crack_tip_orientation.get_psi()
         with bu.print_output:
             print('R', R_k, 'psi', self.psi, 'psi_bar', psi_bar)
-        if np.fabs(self.psi / psi_bar - 1) > np.pi/2 * 0.01:
+        if np.fabs(self.psi / psi_bar - 1) > self.psi_tol:
             raise StopIteration('non-matching crack direction')
         nR_k = np.linalg.norm(R_k)
         if res.success == False:
@@ -118,7 +123,6 @@ class CrackExtension(bu.InteractiveModel):
         psi_bar = self.crack_tip_orientation.get_psi()
         # work of unbalanced moment devided by lever arm to obtain the right order
         N_M = M*(self.psi - psi_bar) / (self.sz_bd.H / 2)
-        print(N_M, N)
         R = np.array([N_M, N], dtype=np.float_)
         return R
 

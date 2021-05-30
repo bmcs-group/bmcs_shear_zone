@@ -166,7 +166,9 @@ class CrackPropagation(CrackExtension):
         ax2.set_ylabel(r'Load $F$ [kN]')
 
     ipw_view = bu.View(
-        bu.Item('n_seg', latex=r'n_\mathrm{seg}', minmax=(1, 100)),
+        bu.Item('n_seg', latex=r'n_\mathrm{seg}'),
+        bu.Item('xtol', latex=r'x_\mathrm{tol}^\mathrm{err}'),
+        bu.Item('psi_tol', latex=r'\Delta \psi_\mathrm{tol}^\mathrm{err}'),
         time_editor = bu.ProgressEditor(
             run_method='run',
             reset_method='reset',

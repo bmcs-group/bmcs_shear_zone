@@ -17,7 +17,7 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     c_2 = sp.Symbol('c_2', nonnegative=True)
     c_1 = sp.Symbol('c_1', nonnegative=True)
     f_c = sp.Symbol('f_c', rnonnegative =True)
-    L = sp.Symbol('L', nonnegative = True)
+    # L = sp.Symbol('L', nonnegative = True)
     a, b = sp.symbols(r'a, b', nonnegative = True)
     xi = sp.Symbol(r'\xi', nonnegative = True)
     sigma_z = sp.Symbol(r'\sigma_z', nonnegative = True)
@@ -53,8 +53,6 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
 
     d_sig_w = sig_w.diff(w)
 
-
-
     # sig_w = sp.Piecewise(
     #     (- f_c, w < - w_cr),
     #     (2 * f_t + (-f_c - 2 * f_t) * sp.sqrt(1 - ((w_cr - sp.Abs(w)) / (w_cr)) ** 2), w < 0),
@@ -82,7 +80,7 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
         (-0.62 * sp.sqrt(w) * (r) / (1 + r ** 2) ** 0.25 * tau_s, w > 0)
     )
 
-    symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c', 'L'] #'mu', 'chi' , 'a', 'b'
+    symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c'] #'mu', 'chi' , 'a', 'b'
 
     symb_expressions = [('sig_w', ('w',)),
                         ('tau_s', ('w', 's',)),
@@ -96,16 +94,15 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
 
     symb_class = ConcreteMaterialModelAdvExpr
 
-    d_a = Float(16)  ## dia of steel mm
-    E_c = Float(28000)  ## tensile strength of Concrete in MPa
-    f_t = Float(3)  ## Fracture Energy in N/m
-    c_1 = Float(3)
-    c_2 = Float(6.93)
-    f_c = Float(33.3)
-    L = Float(3850)
+    d_a = Float(16, MAT=True)  ## dia of steel mm
+    E_c = Float(28000, MAT=True)  ## tensile strength of Concrete in MPa
+    f_t = Float(3, MAT=True)  ## Fracture Energy in N/m
+    c_1 = Float(3, MAT=True)
+    c_2 = Float(6.93, MAT=True)
+    f_c = Float(33.3, MAT=True)
     L_fps = Float(50, MAT=True)
-    a = Float(1.038)
-    b = Float(0.245)
+    a = Float(1.038, MAT=True)
+    b = Float(0.245, MAT=True)
 
     ipw_view = View(
         Item('d_a', latex=r'd_a'),
@@ -114,9 +111,12 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         Item('c_1', latex=r'c_1'),
         Item('c_2', latex=r'c_2'),
         Item('f_c', latex=r'f_c'),
-        Item('L_fps', latex=r'L_{fps}'),
+        Item('L_fps', latex=r'L_\mathrm{fps}'),
         Item('a', latex = r'a'),
-        Item('b', latex = r'b')
+        Item('b', latex = r'b'),
+        Item('w_cr', latex = r'w_\mathrm{cr}', readonly=True),
+        Item('L_c', latex = r'L_\mathrm{c}', readonly=True),
+        Item('G_f', latex=r'G_\mathrm{f}', readonly=True)
     )
 
     # G_f_baz = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
@@ -125,45 +125,40 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     #     xi = self.sz_crack_tip_orientation.
     #     return self.symb.G_f_baz
 
-    L_c = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
-
+    L_c = tr.Property(Float, depends_on='state_changed')
     @tr.cached_property
     def _get_L_c(self):
-        return self.E_c * self.get_G_f() / self.f_t ** 2
+        return self.E_c * self.G_f / self.f_t**2
 
-
-    w_cr = tr.Property
-
+    w_cr = tr.Property(Float, depends_on='state_changed')
+    @tr.cached_property
     def _get_w_cr(self):
         return self.f_t / self.E_c * self._get_L_c()
 
-    def get_G_f(self):
-        '''''''Calculating fracture energy '''''''
+    G_f = tr.Property(Float, depends_on='state_changed')
+    @tr.cached_property
+    def _get_G_f(self):
+        '''Calculating fracture energy
+        '''
         return (0.028 * self.f_c ** 0.18 * self.d_a ** 0.32)
 
     def get_w_tc(self):
-        '''''''Calculating point of softening curve resulting in 0 stress '''''''
+        '''Calculating point of softening curve resulting in 0 stress
+        '''
         return ( 5.14 * self.G_f_baz / self.f_t)
 
     def get_sig_a(self, u_a): #w, s
-        '''''''''Calculating stresses '''''''''
+        '''Calculating stresses
+        '''
         sig_w = self.symb.get_sig_w(u_a[...,0])
         tau_s = self.symb.get_tau_s(u_a[...,0],u_a[...,1])
-        #print(tau_s)
-        #print(sig_w)
         return np.einsum('b...->...b', np.array([sig_w, tau_s], dtype=np.float_)) #, tau_s
-
-    get_sig_w = tr.Property(depends_on='+MAT')
 
     def get_sig_w(self,w):
         return self.symb.get_sig_w(w)
 
-    get_tau_s = tr.Property(depends_on='+MAT')
-
     def get_tau_s(self, w, s):
         return self.symb.get_tau_s(w, s)
-
-    get_sigma_ag = tr.Property(depends_on='+MAT')
 
     def get_sigma_ag(self, w, s):
         return self.symb.get_sigma_ag(w,s)
@@ -172,26 +167,16 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     w_max_factor = Float(3)
     def plot_sig_w(self, ax, vot=1.0):
 
-        w_min_expr = -(self.f_c / self.E_c * self._get_L_c())
-        w_max_expr = 3
-        # w_max_expr = (sp.solve(self.f_w + self.f_w.diff(w) * w, w)
-        #               [0]).subs(self.co_law_data)
-        w_max = 3               #np.float_(w_max_expr) * self.w_max_factor
-        w_min = np.float_(w_min_expr) * self.w_min_factor
+        w_min = -(self.f_c / self.E_c * self._get_L_c()) * self.w_min_factor
+        w_max = self.w_cr * self.w_max_factor
         w_data = np.linspace(w_min, w_max, 100)
         sig_w = self.get_sig_w(w_data)
-        #print(sig_w)
         ax.plot(w_data, sig_w, lw=2, color='red')
         ax.fill_between(w_data, sig_w,
                         color='red', alpha=0.2)
         ax.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
         ax.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$')
         ax.set_title('crack opening law')
-
-    # def plot3d_Sig_Eps(self, ax3d):
-    #     tau_x, tau_y = self.Sig_arr.T[:2, ...]
-    #     tau = np.sqrt(tau_x ** 2 + tau_y ** 2)
-    #     ax3d.plot3D(self.s_x_t, self.s_y_t, tau, color='orange', lw=3)
 
     def plot3d_tau_s(self, ax3d, vot=1.0):
         w_min = -1
@@ -212,45 +197,9 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         ax_3d = fig.add_subplot(1, 2, 1, projection='3d')
         return ax_2d, ax_3d
 
-    #w_max = bu.Float(1)
-
     def update_plot(self, axes):
-        '''''''Plotting function '''''''
+        '''Plotting function
+        '''
         ax_2d, ax_3d = axes
         self.plot_sig_w(ax_2d)
         self.plot3d_tau_s(ax_3d)
-
-
-
-
-
-
-
-
-
-
-        # # self.plot_d_sig_w(ax1)
-        # # self.plot_tau_s(ax2)
-        # # self.plot_d_tau_s(ax2)
-        # ax_w, ax_s = axes
-        # w_ = np.linspace(-1, self.w_max, 100)
-        # s_ = np.linspace(-1,1, 100)
-        # s_2d, w_2d = np.meshgrid(s_,w_)
-        # # #w_ag = np.linspace(0, 1, 100)
-        # # #u_a_ = np.array([w_, s_])
-        # # #sig_a_ = self.get_sig_a(w_, s_)
-        # # sig_a_ = self.get_sig_a(w_, s_)
-        # # #print(sig_a_)
-        # # ax_w.plot(w_, sig_a_[0,:], color='red')
-        # # ax_w.fill_between(w_, sig_a_[0, :], color='red', alpha=0.2)
-        # # ax_w.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        # # ax_w.set_ylabel(r'$\sigma_w\;\;\mathrm{[MPa]}$')
-        # # #ax_s.plot(s_, sig_a_[1,:], color='red')
-        # # # ax_s = plt.axes(projection='3d')
-        # sig_a_1 = self.get_sig_a(w_2d, s_2d)
-        # sig_a_, tau_a_ = sig_a_1
-        # ax_s.plot_surface(w_2d, s_2d, tau_a_, cmap='viridis', edgecolor='none')
-        # # # # #ax_s.plot3D(w_, s_, sig_a_ag[1,:], 'red')
-        # ax_s.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        # ax_s.set_ylabel(r'$s\;\;\mathrm{[mm]}$')
-        # ax_s.set_zlabel(r'$\tau\;\;\mathrm{[MPa]}$')

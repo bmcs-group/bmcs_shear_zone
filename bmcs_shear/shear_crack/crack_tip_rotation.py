@@ -663,9 +663,6 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
 
     # Define the free parameters as traits with default, min and max values
     # Classification to handle update of dependent components
-    # ITER - changes in an iteration
-    # INCR - changes in an increment
-    # MAT - material parameter changed by a user
     psi = Float(0.8, ITR=True, MAT=True)
     x_rot_1k = Float(100,ITR=True, MAT=True)
     x_tip_0n = Float(200, INC=True, MAT=True)
@@ -673,22 +670,6 @@ class SZCrackTipRotation(InteractiveModel, InjectSymbExpr):
     L_fps = Float(20, MAT=True)
     ell = Float(5, MAT=True)
     w = Float(0.3, MAT=True)
-
-    # State change events classified
-    _ITR = tr.Event
-    @tr.on_trait_change('+ITR')
-    def _reset_ITR(self):
-        self._ITR = True
-
-    _INC = tr.Event
-    @tr.on_trait_change('+INC')
-    def _reset_INC(self):
-        self._INC = True
-
-    _MAT = tr.Event
-    @tr.on_trait_change('+MAT')
-    def _reset_MAT(self):
-        self._MAT = True
 
     ipw_view = View(
         Item('psi', latex=r'\psi', minmax=(0, np.pi / 2)),

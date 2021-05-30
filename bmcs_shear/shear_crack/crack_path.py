@@ -170,13 +170,13 @@ class SZCrackPath(InteractiveModel):
         return SZCrackTipRotation(x_tip_0n=self.x_00, x_tip_1n=0, psi=0,
                                   L_fps=cmm.L_fps, w=cmm.w_cr)
 
-    @tr.on_trait_change('sz_bd, sz_bd._GEO, sz_bd._MAT')
+    @tr.on_trait_change('sz_bd.state_changed')
     def _reset_sz_ctr(self):
         cmm = self.sz_bd.matrix_
         self.sz_ctr.trait_set(x_tip_0n=self.x_00, x_tip_1n=0,psi=0,
                               L_fps=cmm.L_fps, w=cmm.w_cr)
 
-    @tr.on_trait_change('_MAT, _GEO')
+    @tr.on_trait_change('sz_bd.state_changed, +GEO')
     def reset_crack(self):
         self.x_t_Ia = np.zeros((0 ,2), dtype=np.float_)
         self.add_x_tip_an(np.array([self.x_00, 0], dtype=np.float_))
