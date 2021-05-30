@@ -87,7 +87,7 @@ class SZStressProfile(InteractiveModel):
     @tr.cached_property
     def _get_S_Lb(self):
         u_Lb = self.u_Lb
-        cmm = self.ds.sz_bd.cmm  #adv cmm_adv
+        cmm = self.ds.sz_bd.matrix_  #adv cmm_adv
         B = self.ds.sz_bd.B
         sig_La = cmm.get_sig_a(u_Lb)
         return sig_La * B
@@ -145,15 +145,7 @@ class SZStressProfile(InteractiveModel):
 
     z_N = tr.Property
     def _get_z_N(self):
-        return self.sz_bd.cross_section_layout.z_j
-
-    A_N = tr.Property
-    def _get_A_N(self):
-        return self.sz_bd.cross_section_layout.A_j
-
-    E_N = tr.Property
-    def _get_E_N(self):
-        return self.sz_bd.cross_section_layout.E_j
+        return self.sz_bd.csl.z_j
 
     F_Na = tr.Property(depends_on='state_changed')
     '''Get the discrete force in the reinforcement z_N
@@ -161,8 +153,28 @@ class SZStressProfile(InteractiveModel):
     @tr.cached_property
     def _get_F_Na(self):
         u_Na = self.u_Na
-        F_Na = self.sz_bd.smm.get_F_a(u_Na)
+        if len(u_Na) == 0:
+            return np.zeros((0,2), dtype=np.float_)
+        F_Na = np.array([r.get_F_a(u_a) for r, u_a in zip(self.sz_bd.csl.items, u_Na)],
+                 dtype=np.float_)
+        #F_Na = self.sz_bd.smm.get_F_a(u_Na)
         return F_Na
+
+    W_a = tr.Property(depends_on='state_changed')
+    '''Get the work exerted by the discrete reinforcement
+    '''
+    @tr.cached_property
+    def _get_W_a(self):
+        u_Na = self.u_Na
+        F_Na = self.F_Na
+
+        u_La = self.F_La
+        F_La = self.F_La
+
+        return (
+            np.einsum('Na,Na->a', u_Na, F_Na) +
+            np.einsum('La,La->a', u_La, F_La)
+        )
 
     # F_Na_da = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
     # '''Get the discrete force in the reinforcement z_N
@@ -316,7 +328,7 @@ class SZStressProfile(InteractiveModel):
         '''
         # plot the critical displacement
         bd = self.sz_cp.sz_bd
-        cmm = bd.cmm
+        cmm = bd.matrix_
         sz_ctr = self.sz_cp.sz_ctr
         x_tip_1k = sz_ctr.x_tip_ak[1,0]
         S_t = cmm.f_t * bd.B

@@ -4,9 +4,10 @@ import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
 import sympy as sp
-from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_pull_out_fib import PullOutFib
-from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_dowel_action import DowelAction
-
+# [RC] - the following lines are not used - are they prepared for refinement?
+# from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_pull_out_fib import PullOutFib
+# from bmcs_shear.matmod.sz_crack_bridge.cb_advanced.sz_dowel_action import DowelAction
+from bmcs_cross_section.api import ReinfLayer
 
 class CrackBridgeModelAdvExpr(bu.SymbExpr):
     # w_1, w_2 = sp.symbols(r'w_1, w_2', nonnegative=True)
@@ -16,12 +17,11 @@ class CrackBridgeModelAdvExpr(bu.SymbExpr):
     B = sp.symbols(r'B', nonnegative=True)
     n, d_s = sp.symbols(r'n, d_s', nonnegative=True)
     s = sp.Symbol('s', nonnegative = True)
-    E_f = sp.Symbol(r'E_\mathrm{f}', nonnegative=True)
-    E_m, A_m = sp.symbols(r'E_\mathrm{m}, A_\mathrm{m}', nonnegative=True)
+    E = sp.Symbol(r'E', nonnegative=True)
     p, P = sp.symbols(r'p, P', nonnegative=True)
     tau = sp.symbols(r'\bar{\tau}', nonnegative=True)
     sig_y = sp.symbols('\sigma_y', positive=True)
-    A_f = sp.Symbol(r'A_f', nonnegative = True)
+    A = sp.Symbol(r'A', nonnegative = True)
 
     # tau_b_max = 2.5 * sp.sqrt(f_c)
     #
@@ -34,9 +34,9 @@ class CrackBridgeModelAdvExpr(bu.SymbExpr):
     #     (tau_bf, w > w_3)
     # )
 
-    Pw_pull = sp.sqrt(2 * w * tau * E_f * A_f * p)
+    Pw_pull = sp.sqrt(2 * w * tau * E * A * p)
 
-    P_max = A_f * sig_y
+    P_max = A * sig_y
 
     w_argmax = sp.solve(P_max - Pw_pull, w)[0]
 
@@ -60,40 +60,47 @@ class CrackBridgeModelAdvExpr(bu.SymbExpr):
         (V_da_2, s > 0.05))  # delta > 0.05 True
 
 
-    symb_model_params = [ 'f_c', 'B', 'n', 'd_s', 'E_f', 'A_f', 'p', 'tau', 'sig_y'] #'w_1', 'w_2', 'w_3', 'alpha',
-                         # 'E_f', 'A_f', 'p', 'sig_y'] #, 'E_f'
+    symb_model_params = [ 'f_c', 'B', 'n', 'd_s', 'E', 'A', 'p', 'tau', 'sig_y'] #'w_1', 'w_2', 'w_3', 'alpha',
+                         # 'E_f', 'A', 'p', 'sig_y'] #, 'E_f'
 
     symb_expressions = [('Pw_pull_y', ('w')),
                         ('w_argmax', ()),
                         ('V_da', ('s',))] #('tau_b', ('w',)), #('d_tau_b', ('w',)),
 
-@tr.provides(IMaterialModel)
-class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
+class TestReinfLayer(ReinfLayer):
+    pass
 
-    name = 'Crack Bridge Adv'
-    node_name = 'crack bridge model'
+@tr.provides(IMaterialModel)
+class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
+
+    name = 'crack bridge/dowel action'
+    tree = []
 
     symb_class = CrackBridgeModelAdvExpr
 
-    pullout = tr.Instance(PullOutFib, ())
-    dowelaction = tr.Instance(DowelAction, ())
+    # TODO - [RC] unused objects - cleanup!
+    # pullout = tr.Instance(PullOutFib, ())
+    # dowelaction = tr.Instance(DowelAction, ())
 
     # w_1 = Float(1)
     # w_2 = Float(2)
     # w_3 = Float(4)
     f_c = Float(33.3)  ## compressive strength of Concrete in MPa
     # alpha = Float(0.4)
-    B = Float(250)  ##mm (width of the beam)
+    B = tr.Property(Float)
+    def _get_B(self):
+        return self.cs_layout.cs_design.cross_section_shape_.B
+
     n = Float(2)  ##number of bars
     d_s = Float(28)  ##dia of steel mm
-    E_f = Float(210000)
-    A_f = tr.Property()
+    E = Float(210000)
+    A = tr.Property(Float)
 
-    def _get_A_f(self):
+    def _get_A(self):
         return self.n * (self.d_s / 2) ** 2 * np.pi
 
-    p = tr.Property
-
+    p = tr.Property(Float)
+    '''Perimeter'''
     def _get_p(self):
         return (self.d_s) * np.pi
 
@@ -106,12 +113,14 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         # Item('w_3', latex=r'w_3'),
         Item('f_c', latex=r'f_c'),
         #Item('alpha', latex=r'\alpha'),
-        Item('B', latex=r'B'),
         Item('n', latex=r'n'),
         Item('d_s', latex=r'd_s'),
-        Item('E_f', latex=r'E_f'),
+        Item('E', latex=r'E'),
         Item('tau', latex=r'\tau'),
-        Item('sig_y', latex=r'\sigma_y')
+        Item('sig_y', latex=r'\sigma_y'),
+        Item('B', latex=r'B', readonly=True),
+        Item('A', latex=r'A', readonly=True),
+        Item('p', latex=r'p', readonly=True),
     )
 
     def get_sig_w_f(self, w):

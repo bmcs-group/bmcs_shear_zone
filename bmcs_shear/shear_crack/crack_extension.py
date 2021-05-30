@@ -31,7 +31,8 @@ class CrackExtension(bu.InteractiveModel):
     sz_bd = tr.DelegatesTo('sz_cp')
 
     tree = [
-        'crack_tip_orientation'
+        'crack_tip_orientation',
+        'sz_bd'
     ]
 
     psi = tr.DelegatesTo('sz_ctr')
@@ -78,7 +79,7 @@ class CrackExtension(bu.InteractiveModel):
             self.X_iter = X
             R = self.get_R()
             return R
-        res = root(get_R_X, X0, method='lm',
+        res = root(get_R_X, X0, method='hybr',
                    options={'xtol': self.xtol,})
         self.X_iter[:] = res.x
         self.psi = self.X_iter[0]
@@ -86,6 +87,11 @@ class CrackExtension(bu.InteractiveModel):
 
         self.U_n[:] = self.U_k[:]
         R_k = self.get_R()
+        psi_bar = self.crack_tip_orientation.get_psi()
+        with bu.print_output:
+            print('R', R_k, 'psi', self.psi, 'psi_bar', psi_bar)
+        if np.fabs(self.psi / psi_bar - 1) > np.pi/2 * 0.01:
+            raise StopIteration('non-matching crack direction')
         nR_k = np.linalg.norm(R_k)
         if res.success == False:
             raise StopIteration('no solution found')
@@ -108,9 +114,12 @@ class CrackExtension(bu.InteractiveModel):
           process segment (FPS)
         '''
         N, _ = self.sz_stress_profile.F_a
+        M = self.sz_stress_profile.M
         psi_bar = self.crack_tip_orientation.get_psi()
-        R_M = (self.psi - psi_bar)
-        R = np.array([R_M, N], dtype=np.float_)
+        # work of unbalanced moment devided by lever arm to obtain the right order
+        N_M = M*(self.psi - psi_bar) / (self.sz_bd.H / 2)
+        print(N_M, N)
+        R = np.array([N_M, N], dtype=np.float_)
         return R
 
     def plot_geo(self, ax):
@@ -123,5 +132,3 @@ class CrackExtension(bu.InteractiveModel):
     def update_plot(self, ax):
         self.X
         self.plot_geo(ax)
-
-

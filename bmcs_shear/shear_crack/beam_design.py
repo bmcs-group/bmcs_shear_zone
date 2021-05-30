@@ -4,10 +4,10 @@ from bmcs_shear.matmod import CrackBridgeSteel, ConcreteMaterialModel, SteelMate
 from bmcs_shear.matmod.sz_concrete.sz_advanced.sz_advanced import ConcreteMaterialModelAdv
 from bmcs_shear.matmod.sz_crack_bridge.cb_advanced import CrackBridgeAdv
 #from bmcs_shear.matmod import DowelAction, AggregateInterlock
-from bmcs_cross_section.cs_design import CrossSectionDesign
+from bmcs_cross_section.cs_design import CrossSectionDesign, Rectangle
 import traits.api as tr
 from bmcs_utils.api import \
-    View, Item, Float
+    View, Item, Float, EitherType
 from bmcs_beam.beam_config.beam_design import BeamDesign
 #from bmcs_cross_section.cs_design.cs_design import CrossSectionDesign
 
@@ -63,33 +63,32 @@ np.einsum('iLa->aiL', x_iLa)
 class RCBeamDesign(BeamDesign):
     name = 'Beam design'
 
-    cmm = tr.Instance(ConcreteMaterialModelAdv, ()) # ConcreteMaterialModel
-    cmm_adv = tr.Instance(ConcreteMaterialModelAdv,())
-    smm = tr.Instance(CrackBridgeAdv, ()) #CrackBridgeSteel
-    smm_adv = tr.Instance(CrackBridgeAdv, ())
-    # da = tr.Instance(DowelAction, ())
-    # ag_in = tr.Instance(AggregateInterlock,())
+    # cmm = tr.Instance(ConcreteMaterialModelAdv, ()) # ConcreteMaterialModel
+    # cmm_adv = tr.Instance(ConcreteMaterialModelAdv,())
+    matrix = EitherType(options=[
+        ('simple', ConcreteMaterialModel),
+        ('advanced', ConcreteMaterialModelAdv)
+        ], MAT=True)
 
-    # Only for visualization to delimit the plotted area
-    # @todo [FS] - this should be obtained from the design classes.
-    H = Float(200, GEO=True)
-    L = Float(800, GEO=True)
-    B = Float(100, GEO=True)
+    cross_section_shape = EitherType(
+                          options=[('rectangle', Rectangle)],
+                          CS=True )
 
-    _GEO = tr.Event
-    @tr.on_trait_change('+GEO') #, cs_layout, cs_layout.+GEO')
-    def _reset_GEO(self):
-        self._GEO = True
+    B = tr.Property(Float)
+    def _get_B(self):
+        return self.cross_section_shape_.B
+    def _set_B(self,value):
+        self.cross_section_shape_.B = value
 
-    _MAT = tr.Event
-    @tr.on_trait_change('+MAT, cmm, cmm.+MAT, smm, smm.+MAT')
-    def _reset_MAT(self):
-        self._MAT = True
+    # # Only for visualization to delimit the plotted area
+    # # @todo [FS] - this should be obtained from the design classes.
+    # B = Float(100, GEO=True)
 
     ipw_view = View(
-        Item('H', minmax=(1, 400), latex=r'H'),
-        Item('L', minmax=(1, 1000), latex=r'L'),
-        Item('B', minmax=(1, 100), latex=r'B')
+        Item('matrix'),
+        Item('H', latex=r'H'),
+        Item('B', latex=r'B'),
+        Item('L', latex=r'L'),
     )
 
     C_Li = tr.Array(value=[[0, 1, 2, 3], [1, 2, 3, 0]], dtype=np.int_)

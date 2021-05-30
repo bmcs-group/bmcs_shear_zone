@@ -19,6 +19,7 @@ class CrackPropagation(CrackExtension):
         return CrackPropagationHist(crack_prop_model=self)
 
     tree = [
+        'sz_bd',
         'crack_tip_orientation',
         'hist'
     ]
@@ -122,7 +123,10 @@ class CrackPropagation(CrackExtension):
         while self.seg <= self.n_seg:
             if self.interrupt:
                 break
-            self.make_incr()
+            try:
+                self.make_incr()
+            except StopIteration:
+                break
             if self.seg < self.n_seg:
                 self.sz_cp.add_x_tip_an(self.sz_cp.sz_ctr.x_tip_ak[:, 0])
             self.seg += 1

@@ -9,7 +9,7 @@ import sympy as sp
 import traits.api as tr
 from bmcs_utils.api import InteractiveModel, View, Item, Float
 from bmcs_shear.matmod.i_matmod import IMaterialModel
-
+from bmcs_cross_section.api import ConcreteMatMod
 
 eps, f_c, E_c, L_c = sp.symbols(
     'epsilon, f_c, E_c, L_c'
@@ -87,28 +87,8 @@ sigma_w = sp.Piecewise(
 )
 sigma_w
 
-# #=========================================================================
-# # Aggregate Interlock
-# #=========================================================================
-#
-# tau_0 = 0.25 * f_c
-#
-# a_3 = 2.45 / tau_0
-#
-# a_4 = 2.44 * (1 - (4 / tau_0))
-#
-# r = s / w
-#
-# tau_ag = tau_0 * (1 - sp.sqrt((2 * w)/d_a)) * r * (a_3 + (a_4 * sp.Abs(r)**3)) / (1 + (a_4 *r**4))
-#
-# sigma_ag = -0.62 * sp.sqrt(w) * (r) / ((1 + r ** 2) ** 0.25) * tau_ag
-#
-# d_tau_ag = tau_ag.diff(s)
-#
-# d_sigma_ag = sigma_ag.diff(s)
-
 @tr.provides(IMaterialModel)
-class ConcreteMaterialModel(InteractiveModel):
+class ConcreteMaterialModel(ConcreteMatMod):
 
     name = 'Concrete behavior'
     node_name = 'material model'

@@ -5,48 +5,51 @@ import sympy as sp
 import traits.api as tr
 from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, InjectSymbExpr
 from bmcs_shear.matmod.i_matmod import IMaterialModel
+from bmcs_cross_section.api import ReinfLayer
 
 class CrackBridgeSteelSymb(SymbExpr):
-    E_f, A_f = sp.symbols(r'E_\mathrm{f}, A_\mathrm{f}', nonnegative = True )
-    E_m, A_m = sp.symbols(r'E_\mathrm{m}, A_\mathrm{m}', nonnegative = True )
+    E, A = sp.symbols(r'E, A', nonnegative = True )
     tau, p = sp.symbols(r'\bar{\tau}, p', nonnegative = True)
     P, w = sp.symbols('P, w')
     sig_y = sp.symbols('sig_y', positive=True)
 
-    Pw_pull = sp.sqrt(2*w*tau*E_f*A_f*p)
-    P_max = A_f * sig_y
+    Pw_pull = sp.sqrt(2*w*tau*E*A*p)
+    P_max = A * sig_y
     w_argmax = sp.solve(P_max - Pw_pull, w)[0]
 
     Pw_pull_y = sp.Piecewise((Pw_pull, w < w_argmax),
                              (P_max, w >= w_argmax))
 
-    symb_model_params = ['E_f', 'A_f', 'p', 'tau', 'sig_y']
+    symb_model_params = ['E', 'A', 'p', 'tau', 'sig_y']
 
     symb_expressions = [('Pw_pull_y', ('w')),
                         ('w_argmax', ())]
 
 @tr.provides(IMaterialModel)
-class CrackBridgeSteel(InteractiveModel, InjectSymbExpr):
+class CrackBridgeSteel(ReinfLayer, InjectSymbExpr):
     name = 'Steel Bridge'
+    tree = []
 
     symb_class = CrackBridgeSteelSymb
 
-    E_f = Float(210000)
+    E = Float(210000)
     d_s = Float(16)
-    A_f = tr.Property()
-    def _get_A_f(self):
-        return (self.d_s / 2) ** 2 * np.pi
-    p = tr.Property
-    def _get_p(self):
-        return (self.d_s) * np.pi
     tau = Float(16)
     sig_y = Float(500)
+    A = tr.Property(Float)
+    def _get_A(self):
+        return (self.d_s / 2) ** 2 * np.pi
+    p = tr.Property(Float)
+    def _get_p(self):
+        return (self.d_s) * np.pi
 
     ipw_view = View(
-        Item('E_f', latex=r'E_f'),
+        Item('E', latex=r'E'),
         Item('d_s', latex=r'd_s'),
         Item('tau', latex=r'\tau'),
-        Item('sig_y', latex=r'\sigma_y')
+        Item('sig_y', latex=r'\sigma_y'),
+        Item('A', latex=r'A', readonly=True),
+        Item('p', latex=r'p', readonly=True)
     )
 
     def get_F_a(self, u_a):

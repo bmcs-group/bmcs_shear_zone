@@ -6,6 +6,7 @@ import traits.api as tr
 import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
+from bmcs_cross_section.api import ConcreteMatMod
 
 class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     # continue here
@@ -88,7 +89,7 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
                         ('sigma_ag', ('w','s',))] #u_a
 
 @tr.provides(IMaterialModel)
-class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
+class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
 
     name = 'Concrete behavior'
     node_name = 'material model'

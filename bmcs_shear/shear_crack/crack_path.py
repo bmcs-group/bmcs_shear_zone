@@ -166,13 +166,13 @@ class SZCrackPath(InteractiveModel):
     '''
     def _sz_ctr_default(self):
         # Initializa the crack tip at the bottom of a beam with beta=0
-        cmm = self.sz_bd.cmm
+        cmm = self.sz_bd.matrix_
         return SZCrackTipRotation(x_tip_0n=self.x_00, x_tip_1n=0, psi=0,
                                   L_fps=cmm.L_fps, w=cmm.w_cr)
 
     @tr.on_trait_change('sz_bd, sz_bd._GEO, sz_bd._MAT')
     def _reset_sz_ctr(self):
-        cmm = self.sz_bd.cmm
+        cmm = self.sz_bd.matrix_
         self.sz_ctr.trait_set(x_tip_0n=self.x_00, x_tip_1n=0,psi=0,
                               L_fps=cmm.L_fps, w=cmm.w_cr)
 
