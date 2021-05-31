@@ -58,6 +58,11 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
 
     )
 
+    tau_s_wal = sp.Piecewise(
+        (0, w <= 0),
+        ((- f_c / 30) + (1.8 * w**(-0.8) + (0.234 * w**(-0.707) - 0.2) * f_c ) * s, w > 0)
+    )
+
     sigma_ag = sp.Piecewise(
         (0, w == w_cr),
         (-0.62 * sp.sqrt(w) * (r) / (1 + r ** 2) ** 0.25 * tau_s, w > w_cr)
@@ -93,7 +98,8 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c', 'L'] #'mu', 'chi' , 'a', 'b'
 
     symb_expressions = [('sig_w', ('w', 's',)), #, 's'
-                        ('tau_s', ('w', 's',))]
+                        ('tau_s', ('w', 's',)),
+                        ('tau_s_wal', ('w', 's',))]
                         #('sigma_ag', ('w','s',))] #u_a
 
 @tr.provides(IMaterialModel)
@@ -205,11 +211,11 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     #     ax3d.plot3D(self.s_x_t, self.s_y_t, tau, color='orange', lw=3)
 
     def plot3d_tau_s(self, ax3d, vot=1.0):
-        w_min = -1
+        w_min = 0 #-1
         w_max = 3
         w_data = np.linspace(w_min, w_max, 100)
         s_max = 3
-        s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100)
+        s_data = np.linspace(0*s_max, 1.1*s_max, 100) #-1.1
         s_, w_ = np.meshgrid(s_data, w_data)
         tau_s = self.get_tau_s(w_, s_)
         ax3d.plot_surface(w_, s_, tau_s, cmap='viridis', edgecolor='none')

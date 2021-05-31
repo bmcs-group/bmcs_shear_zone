@@ -292,9 +292,9 @@ class SZStressProfile(InteractiveModel):
         '''Plot the displacement along the crack (w and s) in global coordinates
         '''
         self.plot_u_Lc(ax_w, self.u_La, 0, label=r'$u_x$ [mm]', color='blue')
-        ax_w.set_xlabel(r'$u_x$ [mm]', fontsize=14)
+        ax_w.set_xlabel(r'$u_x$ [mm]', fontsize=10)
         self.plot_u_Lc(ax_s, self.u_La, 1, label=r'$u_z$ [mm]', color='green')
-        ax_s.set_xlabel(r'$u_z$ [mm]', fontsize=14)
+        ax_s.set_xlabel(r'$u_z$ [mm]', fontsize=10)
         mpl_align_xaxis(ax_w, ax_s)
 
     def plot_u_Lb(self, ax_w, ax_s, vot=1):
@@ -306,9 +306,9 @@ class SZStressProfile(InteractiveModel):
         w = sz_ctr.w
         ax_w.plot([0, w],[x_tip_1k, x_tip_1k], '-o', lw=2, color='red')
         self.plot_u_Lc(ax_w, self.u_Lb, 0, label=r'$w$ [mm]', color='blue')
-        ax_w.set_xlabel(r'opening $w$ [mm]', fontsize=14)
+        ax_w.set_xlabel(r'opening $w$ [mm]', fontsize=10)
         self.plot_u_Lc(ax_s, self.u_Lb, 1, label=r'$s$ [mm]', color='green')
-        ax_s.set_xlabel(r'sliding $s$ [mm]', fontsize=14)
+        ax_s.set_xlabel(r'sliding $s$ [mm]', fontsize=10)
         mpl_align_xaxis(ax_w, ax_s)
 
     def plot_S_Lb(self, ax_sig, ax_tau, vot=1):
@@ -322,16 +322,16 @@ class SZStressProfile(InteractiveModel):
         S_t = cmm.f_t * bd.B
         ax_sig.plot([0, S_t],[x_tip_1k, x_tip_1k], '-o', lw=2, color='red')
         self.plot_u_Lc(ax_sig, self.S_Lb, 0, label=r'$\sigma_\mathrm{N}$ [N/mm]', color='blue')
-        ax_sig.set_xlabel(r'normal stress $\sigma_\mathrm{N}$ [N/mm]', fontsize=14)
+        ax_sig.set_xlabel(r'normal stress $\sigma_\mathrm{N}$ [N/mm]', fontsize=10)
         self.plot_u_Lc(ax_tau, self.S_Lb, 1, label=r'$\sigma_\mathrm{T}$ [N/mm]', color='green')
-        ax_tau.set_xlabel(r'shear stress $\sigma_\mathrm{T}$ [N/mm]', fontsize=14)
+        ax_tau.set_xlabel(r'shear stress $\sigma_\mathrm{T}$ [N/mm]', fontsize=10)
         mpl_align_xaxis(ax_sig, ax_tau)
 
     def plot_S_La(self, ax_sig, ax_tau, vot=1):
         self.plot_u_Lc(ax_sig, self.S_La, 0, label=r'$f_x$ [N/mm]', color='blue')
-        ax_sig.set_xlabel(r'horizontal stress $f_x$ [N/mm]', fontsize=14)
+        ax_sig.set_xlabel(r'horizontal stress $f_x$ [N/mm]', fontsize=10)
         self.plot_u_Lc(ax_tau, self.S_La, 1, label=r'$f_z$ [N/mm]', color='green')
-        ax_tau.set_xlabel(r'vertical stress $f_z$ [N/mm]', fontsize=14)
+        ax_tau.set_xlabel(r'vertical stress $f_z$ [N/mm]', fontsize=10)
         mpl_align_xaxis(ax_sig, ax_tau)
 
     def plot_N_a(self, ax_N):

@@ -141,7 +141,7 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     def get_F_a(self, u_a):
         F_w = self.get_sig_w_f(u_a[...,0])
         #print(F_w)
-        F_s = self.get_V_df(u_a[...,1])#np.zeros_like(F_w)
+        F_s = self.get_V_df(u_a[...,1])  #np.zeros_like(F_w)
         return np.array([F_w,F_s], dtype=np.float_).T
 
     def subplots(self,fig):
