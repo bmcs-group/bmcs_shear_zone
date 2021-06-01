@@ -64,9 +64,9 @@ class RCBeamDesign(BeamDesign):
     name = 'Beam design'
 
     cmm = tr.Instance(ConcreteMaterialModelAdv, ()) # ConcreteMaterialModel
-    cmm_adv = tr.Instance(ConcreteMaterialModelAdv,())
+    #cmm_adv = tr.Instance(ConcreteMaterialModelAdv,())
     smm = tr.Instance(CrackBridgeAdv, ()) #CrackBridgeSteel
-    smm_adv = tr.Instance(CrackBridgeAdv, ())
+    #smm_adv = tr.Instance(CrackBridgeAdv, ())
     # da = tr.Instance(DowelAction, ())
     # ag_in = tr.Instance(AggregateInterlock,())
 
