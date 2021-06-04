@@ -108,7 +108,7 @@ class SZStressProfile(InteractiveModel):
     # =========================================================================
 
     F_La = tr.Property(depends_on='state_changed')
-    '''Integrated segment forces'''
+    '''Integrated segment forces.'''
     @tr.cached_property
     def _get_F_La(self):
         S_La = self.S_La
