@@ -110,16 +110,17 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
     symb_class = ConcreteMaterialModelAdvExpr
 
-    d_a = Float(16)  ## dia of steel mm
-    E_c = Float(28000)  ## tensile strength of Concrete in MPa
-    f_t = Float(3)  ## Fracture Energy in N/m
-    c_1 = Float(3)
-    c_2 = Float(6.93)
-    f_c = Float(33.3)
-    L = Float(3850)
+    d_a = Float(16, MAT=True)  ## dia of steel mm
+    E_c = Float(28000, MAT=True)  ## tensile strength of Concrete in MPa
+    f_t = Float(3, MAT=True)  ## Fracture Energy in N/m
+    c_1 = Float(3, MAT=True)
+    c_2 = Float(6.93, MAT=True)
+    f_c = Float(33.3, MAT=True)
+    L = Float(3850, MAT=True)
     L_fps = Float(50, MAT=True)
-    a = Float(1.038)
-    b = Float(0.245)
+    a = Float(1.038, MAT=True)
+    b = Float(0.245, MAT=True)
+    tau_factor = Float(1, MAT=True)
 
     ipw_view = View(
         Item('d_a', latex=r'd_a'),
@@ -130,7 +131,8 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         Item('f_c', latex=r'f_c'),
         Item('L_fps', latex=r'L_{fps}'),
         Item('a', latex = r'a'),
-        Item('b', latex = r'b')
+        Item('b', latex = r'b'),
+        Item('tau_factor', latex=r'\gamma_{\tau}')
     )
 
     # G_f_baz = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
@@ -153,30 +155,32 @@ class ConcreteMaterialModelAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
 
     def get_G_f(self):
-        '''''''Calculating fracture energy '''''''
+        '''Calculating fracture energy '''
         return (0.028 * self.f_c ** 0.18 * self.d_a ** 0.32)
 
     #def get_w_tc(self):
     #    '''''''Calculating point of softening curve resulting in 0 stress '''''''
     #    return ( 5.14 * self.G_f() / self.f_t)
 
-    def get_sig_a(self, u_a): #w, s
-        '''''''''Calculating stresses '''''''''
-        sig_w = self.symb.get_sig_w(u_a[...,0], u_a[...,1])
-        tau_s = self.symb.get_tau_s(u_a[...,0],u_a[...,1])
-        #print(tau_s)
-        #print(sig_w)
-        return np.einsum('b...->...b', np.array([sig_w, tau_s], dtype=np.float_)) #, tau_s
-
     get_sig_w = tr.Property(depends_on='+MAT')
 
-    def get_sig_w(self,w, s):
+    def get_sig_w(self, w, s):
         return self.symb.get_sig_w(w, s)
 
     get_tau_s = tr.Property(depends_on='+MAT')
 
     def get_tau_s(self, w, s):
-        return self.symb.get_tau_s(w, s)
+        return self.symb.get_tau_s(w, s) * self.tau_factor
+
+    def get_sig_a(self, u_a): #w, s
+        '''Calculating stresses '''
+        sig_w = self.get_sig_w(u_a[...,0], u_a[...,1])
+        tau_s = self.get_tau_s(u_a[...,0],u_a[...,1])
+        #print(tau_s)
+        #print(sig_w)
+        return np.einsum('b...->...b', np.array([sig_w, tau_s], dtype=np.float_)) #, tau_s
+
+
 
     # get_sigma_ag = tr.Property(depends_on='+MAT')
     #

@@ -221,24 +221,33 @@ class SZStressProfile(InteractiveModel):
         M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_Na[:,1])
         return -(M + M_agg + M_z + M_da)
 
-    # M_da = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
-    # '''Internal bending moment obtained by integrating the
-    # normal stresses with the lever arm rooted at the height of the neutral
-    # axis.
-    # '''
-    #
+    M_ca = tr.Property(depends_on='state_changed')
+    '''Clamping moment obtained by integrating the
+    normal stresses with the lever arm rooted at the height of the crack
+    tip.
+    '''
+
     # @tr.cached_property
-    # def _get_M_da(self):
+    # def _get_M_ca(self):
     #     x_Ka = self.ds.sz_cp.x_Ka
     #     K_Li = self.ds.sz_cp.K_Li
     #     x_Lia = x_Ka[K_Li]
     #     x_La = np.sum(x_Lia, axis=1) / 2
     #     F_La = self.F_La
-    #     x_rot_1k = self.ds.sz_ctr.x_rot_1k
-    #     M_L = (x_La[:, 1] - x_rot_1k) * F_La[:, 0]
-    #     M = np.sum(M_L, axis=0)
-    #     M_z_da = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na_da[:, 0])
-    #     return -M - M_z_da
+    #     x_rot_0k = self.ds.sz_ctr.x_rot_ak[0, 0]
+    #     x_fps_1k = self.ds.sz_ctr.x_fps_ak[1, 0]
+    #     x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
+    #     M_agg = ((x_La[:, 0] - x_rot_0k) + 0.1 * self.sz_bd.L) * F_La[:, 1]
+    #     M_ca_agg = np.sum(M_agg, axis=0)
+    #     M_ca_z = np.einsum('i,i', (self.z_N - x_fps_1k), self.F_Na[:, 0])
+    #     M_ca_da = np.einsum('i,i', ((x_00 - x_rot_0k) + 0.1 * self.sz_bd.L), self.F_Na[:, 1])
+    #     M_ca_L = (x_La[:, 1] - x_fps_1k) * F_La[:, 0]
+    #     M_ca_L_ = np.sum(M_ca_L, axis=0)
+    #     return -(M_ca_L_+ M_ca_agg + M_ca_z + M_ca_da)
+
+
+
+
 
     sig_x_tip_0k = tr.Property(depends_on='state_changed')
     '''Normal stress component in global $x$ direction in the fracture .

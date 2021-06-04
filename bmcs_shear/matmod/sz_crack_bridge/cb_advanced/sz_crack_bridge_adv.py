@@ -81,24 +81,26 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
     # w_1 = Float(1)
     # w_2 = Float(2)
     # w_3 = Float(4)
-    f_c = Float(33.3)  ## compressive strength of Concrete in MPa
+    f_c = Float(33.3, MAT=True)  ## compressive strength of Concrete in MPa
     # alpha = Float(0.4)
-    B = Float(250)  ##mm (width of the beam)
-    n = Float(2)  ##number of bars
-    d_s = Float(28)  ##dia of steel mm
-    E_f = Float(210000)
-    A_f = tr.Property()
-
+    B = Float(250, MAT=True)  ##mm (width of the beam)
+    n = Float(2, MAT=True)  ##number of bars
+    d_s = Float(28, MAT=True)  ##dia of steel mm
+    E_f = Float(210000, MAT=True)
+    dowel_factor = Float(1, MAT=True)
+    bridge_factor = Float(1, MAT=True)
+    A_f = tr.Property(Float, depends_on ='state_changed')
+    @tr.cached_property
     def _get_A_f(self):
         return self.n * (self.d_s / 2) ** 2 * np.pi
 
-    p = tr.Property
-
+    p = tr.Property(Float, depends_on ='state_changed')
+    @tr.cached_property
     def _get_p(self):
         return (self.d_s) * np.pi
 
-    tau = Float(16)
-    sig_y = Float(713)
+    tau = Float(16, MAT=True)
+    sig_y = Float(713, MAT=True)
 
     ipw_view = View(
         # Item('w_1', latex=r'w_1'),
@@ -111,13 +113,15 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
         Item('d_s', latex=r'd_s'),
         Item('E_f', latex=r'E_f'),
         Item('tau', latex=r'\tau'),
-        Item('sig_y', latex=r'\sigma_y')
+        Item('sig_y', latex=r'\sigma_y'),
+        Item('dowel_factor', latex = r'\gamma_{dowel}'),
+        Item('bridge_factor', latex =r'\gamma_{bridge}')
     )
 
     def get_sig_w_f(self, w):
         # distinguish the crack width from the end slip of the pullout
         # which delivers the crack bridging force
-        return self.symb.get_Pw_pull_y(w / 2)
+        return self.symb.get_Pw_pull_y(w / 2) * self.bridge_factor
 
     # def get_sig_w_f(self, w):
     #     '''Calculating bond stresses '''
@@ -133,7 +137,7 @@ class CrackBridgeAdv(bu.InteractiveModel, bu.InjectSymbExpr):
 
     def get_V_df(self, s):
         '''Calculating dowel action force '''
-        V_df = self.symb.get_V_da(s)
+        V_df = self.symb.get_V_da(s) * self.dowel_factor
         #print(V_df)
         return V_df
 
