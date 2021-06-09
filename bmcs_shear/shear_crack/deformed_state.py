@@ -98,9 +98,9 @@ class SZDeformedState(InteractiveModel):
         D_Li = np.array([[0, 1], [1, 2], [2, 3], ], dtype=np.int_)
         x_aiD = np.einsum('Dia->aiD', x_Da[D_Li])
         ax.plot(*x_aiD, color='black')
-        ax.set_title(r'Simulated crack path')
-        ax.set_xlabel(r'Horizontal position $x$ [mm]')
-        ax.set_ylabel(r'Vertical position $z$ [mm]')
+        ax.set_title(r'Simulated crack path', fontsize=14)
+        ax.set_xlabel(r'Horizontal position $x$ [mm]', fontsize=14)
+        ax.set_ylabel(r'Vertical position $z$ [mm]', fontsize=14)
         ax.plot(*x_aI, lw=2, color='black')
         ax.plot([x_Ia[-1,0], x_LU[0]], [x_Ia[-1,1], x_LU[1]], color='gray')
 
@@ -151,3 +151,6 @@ class SZDeformedState(InteractiveModel):
         self.plot_sz1(ax)
         self.plot_sz_fill(ax)
         self.plot_reinf1(ax)
+
+
+

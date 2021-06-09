@@ -1,6 +1,6 @@
 
 from bmcs_shear.matmod.i_matmod import IMaterialModel
-from bmcs_utils.api import View, Item, Float, FloatRangeEditor
+from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, InjectSymbExpr
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
@@ -33,6 +33,8 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
 
     w_cr = f_t / E_c * L_c
 
+    w_x = 5.14 * (G_f / f_t)
+
     # eps_cp = w_cr / L_c
     #
     # eps_p = w / L_c
@@ -42,24 +44,6 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     #w_tc = 5.14 * G_f / f_t
 
     # f_ce = f_c * (1 / (0.8))
-
-    f_w = f_t * sp.exp(-f_t * (w - w_cr) / G_f)
-
-    sig_w = sp.Piecewise(
-        (-f_c, E_c * w / L_c < -f_c),
-        (E_c * w / L_c, w <= w_cr),
-        (f_w, w > w_cr)
-    )
-
-    d_sig_w = sig_w.diff(w)
-
-    # sig_w = sp.Piecewise(
-    #     (- f_c, w < - w_cr),
-    #     (2 * f_t + (-f_c - 2 * f_t) * sp.sqrt(1 - ((w_cr - sp.Abs(w)) / (w_cr)) ** 2), w < 0),
-    #     (E_c * w / L_c, w < w_cr),
-    #     (f_t * (1 + ((c_1 * w) / (w_tc)) ** 3) * sp.exp((-c_2 * w) / (w_tc)) - (w / w_tc) * (1 + c_1 ** 3) * sp.exp(
-    #         -c_2), w > w_cr)
-    # )
 
     r = s / w
 
@@ -75,16 +59,47 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
 
     )
 
-    sigma_ag = sp.Piecewise(
+    tau_s_wal = sp.Piecewise(
         (0, w <= 0),
-        (-0.62 * sp.sqrt(w) * (r) / (1 + r ** 2) ** 0.25 * tau_s, w > 0)
+        ((- f_c / 30) + (1.8 * w**(-0.8) + (0.234 * w**(-0.707) - 0.2) * f_c ) * s, w > 0)
     )
+
+    sigma_ag = sp.Piecewise(
+        (0, w == w_cr),
+        (-0.62 * sp.sqrt(w) * (r) / (1 + r ** 2) ** 0.25 * tau_s, w > w_cr)
+    )
+    #sp.Piecewise(
+        #(0, w <= 0),
+    #)
+
+    f_w = f_t * sp.exp(-f_t * (w - w_cr) / G_f)
+
+    sig_w = sp.Piecewise(
+        (-f_c, E_c * w / L_c < -f_c),
+        (E_c * w / L_c, w <= w_cr),
+        (f_w, w > w_cr)
+        #(f_w, sp.And(w > w_cr, w <= w_x)), #+ sigma_ag
+        #(sigma_ag, w > w_x)  #f_w == 0
+    )
+
+    d_sig_w = sig_w.diff(w)
+
+    # sig_w = sp.Piecewise(
+    #     (- f_c, w < - w_cr),
+    #     (2 * f_t + (-f_c - 2 * f_t) * sp.sqrt(1 - ((w_cr - sp.Abs(w)) / (w_cr)) ** 2), w < 0),
+    #     (E_c * w / L_c, w < w_cr),
+    #     (f_t * (1 + ((c_1 * w) / (w_tc)) ** 3) * sp.exp((-c_2 * w) / (w_tc)) - (w / w_tc) * (1 + c_1 ** 3) * sp.exp(
+    #         -c_2), w > w_cr)
+    # )
+
+    #sigma = sig_w + sigma_ag
 
     symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c'] #'mu', 'chi' , 'a', 'b'
 
-    symb_expressions = [('sig_w', ('w',)),
+    symb_expressions = [('sig_w', ('w', 's',)), #, 's'
                         ('tau_s', ('w', 's',)),
-                        ('sigma_ag', ('w','s',))] #u_a
+                        ('tau_s_wal', ('w', 's',))]
+                        #('sigma_ag', ('w','s',))] #u_a
 
 @tr.provides(IMaterialModel)
 class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
@@ -100,10 +115,11 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     c_1 = Float(3, MAT=True)
     c_2 = Float(6.93, MAT=True)
     f_c = Float(33.3, MAT=True)
+    L = Float(3850, MAT=True)
     L_fps = Float(50, MAT=True)
     a = Float(1.038, MAT=True)
     b = Float(0.245, MAT=True)
-    gamma_ag = Float(1, MAT=True)
+    tau_factor = Float(1, MAT=True)
 
     ipw_view = View(
         Item('d_a', latex=r'd_a'),
@@ -112,8 +128,10 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         Item('c_1', latex=r'c_1'),
         Item('c_2', latex=r'c_2'),
         Item('f_c', latex=r'f_c'),
-        Item('L_fps', latex=r'L_\mathrm{fps}'),
+        Item('L_fps', latex=r'L_{fps}'),
         Item('a', latex = r'a'),
+        Item('b', latex = r'b'),
+        Item('tau_factor', latex=r'\gamma_{\tau}')
         Item('b', latex = r'b'),
         Item('gamma_ag', latex = r'\gamma_\mathrm{ag}', editor=FloatRangeEditor(low=0,high=1)),
         Item('w_cr', latex = r'w_\mathrm{cr}', readonly=True),
@@ -135,7 +153,8 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     w_cr = tr.Property(Float, depends_on='state_changed')
     @tr.cached_property
     def _get_w_cr(self):
-        return self.f_t / self.E_c * self._get_L_c()
+        return (self.f_t / self.E_c) * self._get_L_c()
+
 
     G_f = tr.Property(Float, depends_on='state_changed')
     @tr.cached_property
@@ -176,23 +195,23 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         ax.plot(w_data, sig_w, lw=2, color='red')
         ax.fill_between(w_data, sig_w,
                         color='red', alpha=0.2)
-        ax.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        ax.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$')
-        ax.set_title('crack opening law')
+        ax.set_xlabel(r'$w\;\;\mathrm{[mm]}$', fontsize=12)
+        ax.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$', fontsize=12)
+        ax.set_title('crack opening law', fontsize=12)
 
     def plot3d_tau_s(self, ax3d, vot=1.0):
-        w_min = -1
+        w_min = 0 #-1
         w_max = 3
         w_data = np.linspace(w_min, w_max, 100)
         s_max = 3
-        s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100)
+        s_data = np.linspace(0*s_max, 1.1*s_max, 100) #-1.1
         s_, w_ = np.meshgrid(s_data, w_data)
         tau_s = self.get_tau_s(w_, s_)
         ax3d.plot_surface(w_, s_, tau_s, cmap='viridis', edgecolor='none')
-        ax3d.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        ax3d.set_ylabel(r'$s\;\;\mathrm{[mm]}$')
-        ax3d.set_zlabel(r'$\tau\;\;\mathrm{[MPa]}$')
-        ax3d.set_title('aggregate interlock law')
+        ax3d.set_xlabel(r'$w\;\;\mathrm{[mm]}$', fontsize=12)
+        ax3d.set_ylabel(r'$s\;\;\mathrm{[mm]}$', fontsize=12)
+        ax3d.set_zlabel(r'$\tau\;\;\mathrm{[MPa]}$', fontsize=12)
+        ax3d.set_title('aggregate interlock law', fontsize=12)
 
     def subplots(self, fig):
         ax_2d = fig.add_subplot(1, 2, 2)

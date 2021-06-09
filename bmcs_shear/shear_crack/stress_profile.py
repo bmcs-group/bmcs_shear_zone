@@ -108,7 +108,7 @@ class SZStressProfile(InteractiveModel):
     # =========================================================================
 
     F_La = tr.Property(depends_on='state_changed')
-    '''Integrated segment forces'''
+    '''Integrated segment forces.'''
     @tr.cached_property
     def _get_F_La(self):
         S_La = self.S_La
@@ -233,24 +233,33 @@ class SZStressProfile(InteractiveModel):
         M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_Na[:,1])
         return -(M + M_agg + M_z + M_da)
 
-    # M_da = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
-    # '''Internal bending moment obtained by integrating the
-    # normal stresses with the lever arm rooted at the height of the neutral
-    # axis.
-    # '''
-    #
+    M_ca = tr.Property(depends_on='state_changed')
+    '''Clamping moment obtained by integrating the
+    normal stresses with the lever arm rooted at the height of the crack
+    tip.
+    '''
+
     # @tr.cached_property
-    # def _get_M_da(self):
+    # def _get_M_ca(self):
     #     x_Ka = self.ds.sz_cp.x_Ka
     #     K_Li = self.ds.sz_cp.K_Li
     #     x_Lia = x_Ka[K_Li]
     #     x_La = np.sum(x_Lia, axis=1) / 2
     #     F_La = self.F_La
-    #     x_rot_1k = self.ds.sz_ctr.x_rot_1k
-    #     M_L = (x_La[:, 1] - x_rot_1k) * F_La[:, 0]
-    #     M = np.sum(M_L, axis=0)
-    #     M_z_da = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na_da[:, 0])
-    #     return -M - M_z_da
+    #     x_rot_0k = self.ds.sz_ctr.x_rot_ak[0, 0]
+    #     x_fps_1k = self.ds.sz_ctr.x_fps_ak[1, 0]
+    #     x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
+    #     M_agg = ((x_La[:, 0] - x_rot_0k) + 0.1 * self.sz_bd.L) * F_La[:, 1]
+    #     M_ca_agg = np.sum(M_agg, axis=0)
+    #     M_ca_z = np.einsum('i,i', (self.z_N - x_fps_1k), self.F_Na[:, 0])
+    #     M_ca_da = np.einsum('i,i', ((x_00 - x_rot_0k) + 0.1 * self.sz_bd.L), self.F_Na[:, 1])
+    #     M_ca_L = (x_La[:, 1] - x_fps_1k) * F_La[:, 0]
+    #     M_ca_L_ = np.sum(M_ca_L, axis=0)
+    #     return -(M_ca_L_+ M_ca_agg + M_ca_z + M_ca_da)
+
+
+
+
 
     sig_x_tip_0k = tr.Property(depends_on='state_changed')
     '''Normal stress component in global $x$ direction in the fracture .
@@ -304,9 +313,9 @@ class SZStressProfile(InteractiveModel):
         '''Plot the displacement along the crack (w and s) in global coordinates
         '''
         self.plot_u_Lc(ax_w, self.u_La, 0, label=r'$u_x$ [mm]', color='blue')
-        ax_w.set_xlabel(r'$u_x$ [mm]')
+        ax_w.set_xlabel(r'$u_x$ [mm]', fontsize=10)
         self.plot_u_Lc(ax_s, self.u_La, 1, label=r'$u_z$ [mm]', color='green')
-        ax_s.set_xlabel(r'$u_z$ [mm]')
+        ax_s.set_xlabel(r'$u_z$ [mm]', fontsize=10)
         mpl_align_xaxis(ax_w, ax_s)
 
     def plot_u_Lb(self, ax_w, ax_s, vot=1):
@@ -318,9 +327,9 @@ class SZStressProfile(InteractiveModel):
         w = sz_ctr.w
         ax_w.plot([0, w],[x_tip_1k, x_tip_1k], '-o', lw=2, color='red')
         self.plot_u_Lc(ax_w, self.u_Lb, 0, label=r'$w$ [mm]', color='blue')
-        ax_w.set_xlabel(r'opening $w$ [mm]')
+        ax_w.set_xlabel(r'opening $w$ [mm]', fontsize=10)
         self.plot_u_Lc(ax_s, self.u_Lb, 1, label=r'$s$ [mm]', color='green')
-        ax_s.set_xlabel(r'sliding $s$ [mm]')
+        ax_s.set_xlabel(r'sliding $s$ [mm]', fontsize=10)
         mpl_align_xaxis(ax_w, ax_s)
 
     def plot_S_Lb(self, ax_sig, ax_tau, vot=1):
@@ -334,16 +343,16 @@ class SZStressProfile(InteractiveModel):
         S_t = cmm.f_t * bd.B
         ax_sig.plot([0, S_t],[x_tip_1k, x_tip_1k], '-o', lw=2, color='red')
         self.plot_u_Lc(ax_sig, self.S_Lb, 0, label=r'$\sigma_\mathrm{N}$ [N/mm]', color='blue')
-        ax_sig.set_xlabel(r'normal stress flow $\sigma_\mathrm{N}$ [N/mm]')
+        ax_sig.set_xlabel(r'normal stress $\sigma_\mathrm{N}$ [N/mm]', fontsize=10)
         self.plot_u_Lc(ax_tau, self.S_Lb, 1, label=r'$\sigma_\mathrm{T}$ [N/mm]', color='green')
-        ax_tau.set_xlabel(r'shear stress flow $\sigma_\mathrm{T}$ [N/mm]')
+        ax_tau.set_xlabel(r'shear stress $\sigma_\mathrm{T}$ [N/mm]', fontsize=10)
         mpl_align_xaxis(ax_sig, ax_tau)
 
     def plot_S_La(self, ax_sig, ax_tau, vot=1):
         self.plot_u_Lc(ax_sig, self.S_La, 0, label=r'$f_x$ [N/mm]', color='blue')
-        ax_sig.set_xlabel(r'horizontal stress flow $f_x$ [N/mm]')
+        ax_sig.set_xlabel(r'horizontal stress $f_x$ [N/mm]', fontsize=10)
         self.plot_u_Lc(ax_tau, self.S_La, 1, label=r'$f_z$ [N/mm]', color='green')
-        ax_tau.set_xlabel(r'vertical stress flow $f_z$ [N/mm]')
+        ax_tau.set_xlabel(r'vertical stress $f_z$ [N/mm]', fontsize=10)
         mpl_align_xaxis(ax_sig, ax_tau)
 
     def plot_N_a(self, ax_N):

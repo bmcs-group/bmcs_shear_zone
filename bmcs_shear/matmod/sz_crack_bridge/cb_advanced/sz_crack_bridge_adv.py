@@ -1,5 +1,5 @@
 from bmcs_shear.matmod.i_matmod import IMaterialModel
-from bmcs_utils.api import View, Item, Float, FloatRangeEditor
+from bmcs_utils.api import View, Item, Float
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
@@ -67,9 +67,6 @@ class CrackBridgeModelAdvExpr(bu.SymbExpr):
                         ('w_argmax', ()),
                         ('V_da', ('s',))] #('tau_b', ('w',)), #('d_tau_b', ('w',)),
 
-class TestReinfLayer(ReinfLayer):
-    pass
-
 @tr.provides(IMaterialModel)
 class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
 
@@ -98,10 +95,21 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
     A = tr.Property(Float, depends_on='state_changed')
     @tr.cached_property
     def _get_A(self):
+    B = Float(250, MAT=True)  ##mm (width of the beam)
+    n = Float(2, MAT=True)  ##number of bars
+    d_s = Float(28, MAT=True)  ##dia of steel mm
+    E_f = Float(210000, MAT=True)
+    dowel_factor = Float(1, MAT=True)
+    bridge_factor = Float(1, MAT=True)
+    A_f = tr.Property(Float, depends_on ='state_changed')
+    @tr.cached_property
+    def _get_A_f(self):
         return self.n * (self.d_s / 2) ** 2 * np.pi
 
     p = tr.Property(Float, depends_on='state_changed')
     '''Perimeter'''
+    @tr.cached_property
+    p = tr.Property(Float, depends_on ='state_changed')
     @tr.cached_property
     def _get_p(self):
         return (self.d_s) * np.pi
@@ -109,6 +117,8 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
     tau = Float(16, MAT=True)
     sig_y = Float(713, MAT=True)
     gamma_V = Float(1, MAT=True)
+    tau = Float(16, MAT=True)
+    sig_y = Float(713, MAT=True)
 
     ipw_view = View(
         # Item('w_1', latex=r'w_1'),
@@ -125,12 +135,15 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
         Item('B', latex=r'B', readonly=True),
         Item('A', latex=r'A', readonly=True),
         Item('p', latex=r'p', readonly=True),
+        Item('sig_y', latex=r'\sigma_y'),
+        Item('dowel_factor', latex = r'\gamma_{dowel}'),
+        Item('bridge_factor', latex =r'\gamma_{bridge}')
     )
 
     def get_sig_w_f(self, w):
         # distinguish the crack width from the end slip of the pullout
         # which delivers the crack bridging force
-        return self.symb.get_Pw_pull_y(w / 2)
+        return self.symb.get_Pw_pull_y(w / 2) * self.bridge_factor
 
     # def get_sig_w_f(self, w):
     #     '''Calculating bond stresses '''
@@ -147,6 +160,8 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
     def get_V_df(self, s):
         '''Calculating dowel action force '''
         V_df = self.symb.get_V_da(s) * self.gamma_V
+        V_df = self.symb.get_V_da(s) * self.dowel_factor
+        #print(V_df)
         return V_df
 
 
@@ -170,7 +185,7 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
         V_df_ = self.get_V_df(s_) / 1000
         ax_w.plot(w_range, tau_b_)
         ax_s.plot(s_, V_df_)
-        ax_w.set_xlabel(r'$w\;\;\mathrm{[mm]}$')
-        ax_w.set_ylabel(r'$F_s\;\;\mathrm{[kN]}$')
-        ax_s.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
-        ax_s.set_ylabel(r'$V_{da}\;\;\mathrm{[kN]}$')
+        ax_w.set_xlabel(r'$\mathrm{w}\;\;\mathrm{[mm]}$', fontsize = 14)
+        ax_w.set_ylabel(r'$\mathrm{F_s}\;\;\mathrm{[kN]}$', fontsize = 14)
+        ax_s.set_xlabel(r'$s\;\;\mathrm{[mm]}$', fontsize = 14)
+        ax_s.set_ylabel(r'$V_{da}\;\;\mathrm{[kN]}$', fontsize = 14)

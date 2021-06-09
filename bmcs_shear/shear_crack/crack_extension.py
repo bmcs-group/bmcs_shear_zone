@@ -136,3 +136,4 @@ class CrackExtension(bu.InteractiveModel):
     def update_plot(self, ax):
         self.X
         self.plot_geo(ax)
+
