@@ -1,6 +1,6 @@
 
 from bmcs_shear.matmod.i_matmod import IMaterialModel
-from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, InjectSymbExpr
+from bmcs_utils.api import View, Item, Float, FloatRangeEditor
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
@@ -17,11 +17,9 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     c_2 = sp.Symbol('c_2', nonnegative=True)
     c_1 = sp.Symbol('c_1', nonnegative=True)
     f_c = sp.Symbol('f_c', rnonnegative =True)
-    # L = sp.Symbol('L', nonnegative = True)
     a, b = sp.symbols(r'a, b', nonnegative = True)
     xi = sp.Symbol(r'\xi', nonnegative = True)
     sigma_z = sp.Symbol(r'\sigma_z', nonnegative = True)
-    # mu, chi = sp.symbols(r'\mu, \chi')
 
     G_f = 0.028 * f_c ** 0.18 * d_a ** 0.32
 
@@ -96,10 +94,9 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
 
     symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c'] #'mu', 'chi' , 'a', 'b'
 
-    symb_expressions = [('sig_w', ('w', 's',)), #, 's'
+    symb_expressions = [('sig_w', ('w', 's',)),
                         ('tau_s', ('w', 's',)),
                         ('tau_s_wal', ('w', 's',))]
-                        #('sigma_ag', ('w','s',))] #u_a
 
 @tr.provides(IMaterialModel)
 class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
@@ -119,21 +116,20 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     L_fps = Float(50, MAT=True)
     a = Float(1.038, MAT=True)
     b = Float(0.245, MAT=True)
-    tau_factor = Float(1, MAT=True)
+    interlock_factor = Float(1, MAT=True)
 
     ipw_view = View(
         Item('d_a', latex=r'd_a'),
         Item('E_c', latex=r'E_c'),
         Item('f_t', latex=r'f_t'),
+        Item('f_c', latex=r'f_c'),
         Item('c_1', latex=r'c_1'),
         Item('c_2', latex=r'c_2'),
-        Item('f_c', latex=r'f_c'),
         Item('L_fps', latex=r'L_{fps}'),
         Item('a', latex = r'a'),
         Item('b', latex = r'b'),
-        Item('tau_factor', latex=r'\gamma_{\tau}')
-        Item('b', latex = r'b'),
-        Item('gamma_ag', latex = r'\gamma_\mathrm{ag}', editor=FloatRangeEditor(low=0,high=1)),
+        Item('tau_factor', latex=r'\gamma_{\tau}'),
+        Item('interlock_factor', latex = r'\gamma_\mathrm{ag}', editor=FloatRangeEditor(low=0,high=1)),
         Item('w_cr', latex = r'w_\mathrm{cr}', readonly=True),
         Item('L_c', latex = r'L_\mathrm{c}', readonly=True),
         Item('G_f', latex=r'G_\mathrm{f}', readonly=True)
@@ -171,18 +167,15 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     def get_sig_a(self, u_a): #w, s
         '''Calculating stresses
         '''
-        sig_w = self.symb.get_sig_w(u_a[...,0])
-        tau_s = self.symb.get_tau_s(u_a[...,0],u_a[...,1])
+        sig_w = self.get_sig_w(u_a[...,0],u_a[...,1])
+        tau_s = self.get_tau_s(u_a[...,0],u_a[...,1])
         return np.einsum('b...->...b', np.array([sig_w, tau_s], dtype=np.float_)) #, tau_s
 
-    def get_sig_w(self,w):
-        return self.symb.get_sig_w(w)
+    def get_sig_w(self,w, s):
+        return self.symb.get_sig_w(w, s)
 
     def get_tau_s(self, w, s):
-        return self.symb.get_tau_s(w, s) * self.gamma_ag
-
-    # def get_sigma_ag(self, w, s):
-    #     return self.symb.get_sigma_ag(w,s)
+        return self.symb.get_tau_s(w, s) * self.interlock_factor
 
     w_min_factor = Float(1.2)
     w_max_factor = Float(3)
