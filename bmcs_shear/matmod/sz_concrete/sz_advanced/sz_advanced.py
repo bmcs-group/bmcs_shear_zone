@@ -1,6 +1,6 @@
 
 from bmcs_shear.matmod.i_matmod import IMaterialModel
-from bmcs_utils.api import InteractiveModel, View, Item, Float, SymbExpr, InjectSymbExpr
+from bmcs_utils.api import View, Item, Float, FloatRangeEditor
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
@@ -103,6 +103,7 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     L_fps = Float(50, MAT=True)
     a = Float(1.038, MAT=True)
     b = Float(0.245, MAT=True)
+    gamma_ag = Float(1, MAT=True)
 
     ipw_view = View(
         Item('d_a', latex=r'd_a'),
@@ -114,6 +115,7 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         Item('L_fps', latex=r'L_\mathrm{fps}'),
         Item('a', latex = r'a'),
         Item('b', latex = r'b'),
+        Item('gamma_ag', latex = r'\gamma_\mathrm{ag}', editor=FloatRangeEditor(low=0,high=1)),
         Item('w_cr', latex = r'w_\mathrm{cr}', readonly=True),
         Item('L_c', latex = r'L_\mathrm{c}', readonly=True),
         Item('G_f', latex=r'G_\mathrm{f}', readonly=True)
@@ -158,10 +160,10 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         return self.symb.get_sig_w(w)
 
     def get_tau_s(self, w, s):
-        return self.symb.get_tau_s(w, s)
+        return self.symb.get_tau_s(w, s) * self.gamma_ag
 
-    def get_sigma_ag(self, w, s):
-        return self.symb.get_sigma_ag(w,s)
+    # def get_sigma_ag(self, w, s):
+    #     return self.symb.get_sigma_ag(w,s)
 
     w_min_factor = Float(1.2)
     w_max_factor = Float(3)

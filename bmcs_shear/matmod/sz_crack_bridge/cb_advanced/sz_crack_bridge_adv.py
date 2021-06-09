@@ -1,5 +1,5 @@
 from bmcs_shear.matmod.i_matmod import IMaterialModel
-from bmcs_utils.api import View, Item, Float
+from bmcs_utils.api import View, Item, Float, FloatRangeEditor
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
@@ -85,27 +85,30 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
     # w_1 = Float(1)
     # w_2 = Float(2)
     # w_3 = Float(4)
-    f_c = Float(33.3)  ## compressive strength of Concrete in MPa
+    f_c = Float(33.3, MAT=True)  ## compressive strength of Concrete in MPa
     # alpha = Float(0.4)
-    B = tr.Property(Float)
+    B = tr.Property(Float, depends_on='state_changed')
+    @tr.cached_property
     def _get_B(self):
         return self.cs_layout.cs_design.cross_section_shape_.B
 
-    n = Float(2)  ##number of bars
-    d_s = Float(28)  ##dia of steel mm
-    E = Float(210000)
-    A = tr.Property(Float)
-
+    n = Float(1, MAT=True)  ##number of bars
+    d_s = Float(28, MAT=True)  ##dia of steel mm
+    E = Float(210000, MAT=True)
+    A = tr.Property(Float, depends_on='state_changed')
+    @tr.cached_property
     def _get_A(self):
         return self.n * (self.d_s / 2) ** 2 * np.pi
 
-    p = tr.Property(Float)
+    p = tr.Property(Float, depends_on='state_changed')
     '''Perimeter'''
+    @tr.cached_property
     def _get_p(self):
         return (self.d_s) * np.pi
 
-    tau = Float(16)
-    sig_y = Float(713)
+    tau = Float(16, MAT=True)
+    sig_y = Float(713, MAT=True)
+    gamma_V = Float(1, MAT=True)
 
     ipw_view = View(
         # Item('w_1', latex=r'w_1'),
@@ -118,6 +121,7 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
         Item('E', latex=r'E'),
         Item('tau', latex=r'\tau'),
         Item('sig_y', latex=r'\sigma_y'),
+        Item('gamma_V', latex=r'\gamma_V', editor=FloatRangeEditor(low=0,high=1)),
         Item('B', latex=r'B', readonly=True),
         Item('A', latex=r'A', readonly=True),
         Item('p', latex=r'p', readonly=True),
@@ -142,15 +146,13 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
 
     def get_V_df(self, s):
         '''Calculating dowel action force '''
-        V_df = self.symb.get_V_da(s)
-        #print(V_df)
+        V_df = self.symb.get_V_da(s) * self.gamma_V
         return V_df
 
 
     def get_F_a(self, u_a):
         F_w = self.get_sig_w_f(u_a[...,0])
-        #print(F_w)
-        F_s = self.get_V_df(u_a[...,1])#np.zeros_like(F_w)
+        F_s = self.get_V_df(u_a[...,1])
         return np.array([F_w,F_s], dtype=np.float_).T
 
     def subplots(self,fig):
