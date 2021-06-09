@@ -118,9 +118,9 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
         w_argmax = self.symb.get_w_argmax()
         w_range = np.linspace(0, 3 * w_argmax)
         s_ = np.linspace(0, 1, 100)
-        tau_b_ = self.get_sig_w_f(w_range) / 1000
+        P_w = self.get_Pw_pull(w_range) / 1000
         V_df_ = self.get_V_df(s_) / 1000
-        ax_w.plot(w_range, tau_b_)
+        ax_w.plot(w_range, P_w)
         ax_s.plot(s_, V_df_)
         ax_w.set_xlabel(r'$\mathrm{w}\;\;\mathrm{[mm]}$', fontsize = 14)
         ax_w.set_ylabel(r'$\mathrm{F_s}\;\;\mathrm{[kN]}$', fontsize = 14)

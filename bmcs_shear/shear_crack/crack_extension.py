@@ -53,7 +53,7 @@ class CrackExtension(bu.InteractiveModel):
     '''Algorithmic parameter - tolerance
     '''
 
-    psi_tol = bu.Float(0.2)
+    psi_tol = bu.Float(0.02)
     '''Crack inclination criterion tolerance
     '''
 
@@ -93,12 +93,11 @@ class CrackExtension(bu.InteractiveModel):
         self.U_n[:] = self.U_k[:]
         R_k = self.get_R()
         psi_bar = self.crack_tip_orientation.get_psi()
-        with bu.print_output:
-            print('R', R_k, 'psi', self.psi, 'psi_bar', psi_bar)
-        if np.fabs(self.psi / psi_bar - 1) > self.psi_tol:
+        if np.fabs(self.psi - psi_bar) > np.pi/2 * self.psi_tol:
+            print('non-matching crack direction')
             raise StopIteration('non-matching crack direction')
-        nR_k = np.linalg.norm(R_k)
         if res.success == False:
+            print('no convergence')
             raise StopIteration('no solution found')
         return res.x
 

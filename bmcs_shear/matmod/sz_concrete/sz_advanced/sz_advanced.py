@@ -112,7 +112,6 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     c_1 = Float(3, MAT=True)
     c_2 = Float(6.93, MAT=True)
     f_c = Float(33.3, MAT=True)
-    L = Float(3850, MAT=True)
     L_fps = Float(50, MAT=True)
     a = Float(1.038, MAT=True)
     b = Float(0.245, MAT=True)
@@ -128,7 +127,6 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         Item('L_fps', latex=r'L_{fps}'),
         Item('a', latex = r'a'),
         Item('b', latex = r'b'),
-        Item('tau_factor', latex=r'\gamma_{\tau}'),
         Item('interlock_factor', latex = r'\gamma_\mathrm{ag}', editor=FloatRangeEditor(low=0,high=1)),
         Item('w_cr', latex = r'w_\mathrm{cr}', readonly=True),
         Item('L_c', latex = r'L_\mathrm{c}', readonly=True),
@@ -183,21 +181,21 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
 
         w_min = -(self.f_c / self.E_c * self._get_L_c()) * self.w_min_factor
         w_max = self.w_cr * self.w_max_factor
-        w_data = np.linspace(w_min, w_max, 100)
-        sig_w = self.get_sig_w(w_data)
-        ax.plot(w_data, sig_w, lw=2, color='red')
-        ax.fill_between(w_data, sig_w,
+        w_range = np.linspace(w_min, w_max, 100)
+        sig_w = self.get_sig_w(w_range,0)
+        ax.plot(w_range, sig_w, lw=2, color='red')
+        ax.fill_between(w_range, sig_w,
                         color='red', alpha=0.2)
         ax.set_xlabel(r'$w\;\;\mathrm{[mm]}$', fontsize=12)
         ax.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$', fontsize=12)
         ax.set_title('crack opening law', fontsize=12)
 
     def plot3d_tau_s(self, ax3d, vot=1.0):
-        w_min = 0 #-1
+        w_min = 1e-9 #-1
         w_max = 3
         w_data = np.linspace(w_min, w_max, 100)
         s_max = 3
-        s_data = np.linspace(0*s_max, 1.1*s_max, 100) #-1.1
+        s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100) #-1.1
         s_, w_ = np.meshgrid(s_data, w_data)
         tau_s = self.get_tau_s(w_, s_)
         ax3d.plot_surface(w_, s_, tau_s, cmap='viridis', edgecolor='none')
