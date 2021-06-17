@@ -55,6 +55,7 @@ class SZStressProfile(InteractiveModel):
         u_Ka = self.ds.x1_Ka - self.sz_cp.x_Ka
         u_Lia = u_Ka[K_Li]
         u_La = np.sum(u_Lia, axis=1) / 2
+        #print('u_La =', u_La)
         return u_La
 
     u_Ca = tr.Property(depends_on='state_changed')
@@ -64,6 +65,7 @@ class SZStressProfile(InteractiveModel):
         x_Ca = self.sz_bd.x_Ca
         x1_Ca = self.ds.x1_Ca
         u_Ca = x1_Ca - x_Ca
+        #print('u_Ca =', u_Ca)
         return u_Ca
 
     u_Lb = tr.Property(depends_on='state_changed')
@@ -75,6 +77,7 @@ class SZStressProfile(InteractiveModel):
         u_Lb = np.einsum(
             'La,Lab->Lb', u_La, T_Mab
         )
+        #print('u_Lb =', u_Lb)
         return u_Lb
 
     # =========================================================================
@@ -239,23 +242,28 @@ class SZStressProfile(InteractiveModel):
     tip.
     '''
 
-    # @tr.cached_property
-    # def _get_M_ca(self):
-    #     x_Ka = self.ds.sz_cp.x_Ka
-    #     K_Li = self.ds.sz_cp.K_Li
-    #     x_Lia = x_Ka[K_Li]
-    #     x_La = np.sum(x_Lia, axis=1) / 2
-    #     F_La = self.F_La
-    #     x_rot_0k = self.ds.sz_ctr.x_rot_ak[0, 0]
-    #     x_fps_1k = self.ds.sz_ctr.x_fps_ak[1, 0]
-    #     x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
-    #     M_agg = ((x_La[:, 0] - x_rot_0k) + 0.1 * self.sz_bd.L) * F_La[:, 1]
-    #     M_ca_agg = np.sum(M_agg, axis=0)
-    #     M_ca_z = np.einsum('i,i', (self.z_N - x_fps_1k), self.F_Na[:, 0])
-    #     M_ca_da = np.einsum('i,i', ((x_00 - x_rot_0k) + 0.1 * self.sz_bd.L), self.F_Na[:, 1])
-    #     M_ca_L = (x_La[:, 1] - x_fps_1k) * F_La[:, 0]
-    #     M_ca_L_ = np.sum(M_ca_L, axis=0)
-    #     return -(M_ca_L_+ M_ca_agg + M_ca_z + M_ca_da)
+    @tr.cached_property
+    def _get_M_ca(self):
+        x_Ka = self.ds.sz_cp.x_Ka
+        K_Li = self.ds.sz_cp.K_Li
+        x_Lia = x_Ka[K_Li]
+        x_La = np.sum(x_Lia, axis=1) / 2
+        F_La = self.F_La
+        x_rot_0k = self.ds.sz_ctr.x_rot_ak[0, 0]
+        x_rot_1k = self.ds.sz_ctr.x_rot_ak[1, 0]
+        x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
+        M_agg_1 = (((x_La[:, 1] + 0.1 * self.sz_bd.L) - x_rot_0k)  + (x_rot_0k - self.sz_bd.L/2)) * F_La[:, 1]
+        M_ca_agg_1 = np.sum(M_agg_1, axis=0)
+        M_agg_2 = (self.sz_bd.L/2 - x_La[:,1]) * F_La[:, 1]
+        M_ca_agg_2 = np.sum(M_agg_2, axis=0)
+        M_ca_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:, 0])
+        M_ca_da_1 = np.einsum('i,i', (((x_00 + 0.1 * self.sz_bd.L) - x_rot_0k) + (x_rot_0k - 0.1 * self.sz_bd.L/2)), self.F_Na[:, 1])
+        M_ca_da_2 = np.einsum('i,i', (0.1 * self.sz_bd.L / 2 - x_00), self.F_Na[:, 1])
+        M_ca_L_1 = (x_rot_1k - x_La[:, 1]) * F_La[:, 0]
+        M_ca_L_1_ = np.sum(M_ca_L_1, axis=0)
+        M_ca_L_2 = - (x_rot_1k - x_La[:, 1]) * F_La[:, 0]
+        M_ca_L_2_ = np.sum(M_ca_L_2, axis=0)
+        return -(M_ca_L_1_ + M_ca_L_2_ + M_ca_agg_1 + M_ca_agg_2 + M_ca_z + M_ca_da_1 + M_ca_da_2)
 
 
 

@@ -157,7 +157,7 @@ class SZCrackPath(InteractiveModel):
     tree = ['sz_bd', 'sz_ctr']
 
     sz_bd = tr.Instance(RCBeamDesign ,())
-    '''Beam design object provides geometrical data and maerial data.
+    '''Beam design object provides geometrical data and material data.
     '''
 
     sz_ctr = tr.Instance(SZCrackTipRotation)
@@ -165,7 +165,7 @@ class SZCrackPath(InteractiveModel):
        representing the crck tip kinematics.
     '''
     def _sz_ctr_default(self):
-        # Initializa the crack tip at the bottom of a beam with beta=0
+        # Initialize the crack tip at the bottom of a beam with beta=0
         cmm = self.sz_bd.matrix_
         return SZCrackTipRotation(x_tip_0n=self.x_00, x_tip_1n=0, psi=0,
                                   L_fps=cmm.L_fps, w=cmm.w_cr)

@@ -75,9 +75,9 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     sig_w = sp.Piecewise(
         (-f_c, E_c * w / L_c < -f_c),
         (E_c * w / L_c, w <= w_cr),
-        (f_w, w > w_cr)
-        #(f_w, sp.And(w > w_cr, w <= w_x)), #+ sigma_ag
-        #(sigma_ag, w > w_x)  #f_w == 0
+        #(f_w, w > w_cr)
+        (f_w, sp.And(w > w_cr, w <= w_x)), #+ sigma_ag
+        (sigma_ag, w > w_x)  #f_w == 0
     )
 
     d_sig_w = sig_w.diff(w)
@@ -176,19 +176,37 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         return self.symb.get_tau_s(w, s) * self.interlock_factor
 
     w_min_factor = Float(1.2)
-    w_max_factor = Float(3)
-    def plot_sig_w(self, ax, vot=1.0):
+    w_max_factor = Float(15)
+    def plot3d_sig_w(self, ax3d, vot=1.0):
 
         w_min = -(self.f_c / self.E_c * self._get_L_c()) * self.w_min_factor
         w_max = self.w_cr * self.w_max_factor
         w_range = np.linspace(w_min, w_max, 100)
-        sig_w = self.get_sig_w(w_range,0)
-        ax.plot(w_range, sig_w, lw=2, color='red')
-        ax.fill_between(w_range, sig_w,
-                        color='red', alpha=0.2)
-        ax.set_xlabel(r'$w\;\;\mathrm{[mm]}$', fontsize=12)
-        ax.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$', fontsize=12)
-        ax.set_title('crack opening law', fontsize=12)
+        s_max = 3
+        s_data = np.linspace(-1.1 * s_max, 1.1 * s_max, 100)
+        s_, w_ = np.meshgrid(s_data, w_range)
+
+        sig_w = self.get_sig_w(w_,s_)
+
+        ax3d.plot_surface(w_, s_, sig_w, cmap='viridis', edgecolor='none')
+        ax3d.set_xlabel(r'$w\;\;\mathrm{[mm]}$', fontsize=12)
+        ax3d.set_ylabel(r'$s\;\;\mathrm{[mm]}$', fontsize=12)
+        ax3d.set_zlabel(r'$\sigma_w\;\;\mathrm{[MPa]}$', fontsize=12)
+        ax3d.set_title('crack opening law', fontsize=12)
+
+    # def plot_sig_w(self, ax, vot=1.0):
+    #         w_min = -(self.f_c / self.E_c * self._get_L_c()) * self.w_min_factor
+    #         w_max = self.w_cr * self.w_max_factor
+    #         w_range = np.linspace(w_min, w_max, 100)
+    #         s_max = 3
+    #         s_data = np.linspace(-1.1 * s_max, 1.1 * s_max, 100)
+    #         sig_w = self.get_sig_w(w_range, s_data)
+    #         ax.plot(w_range, sig_w, lw=2, color='red')
+    #         ax.fill_between(w_range, sig_w,
+    #                         color='red', alpha=0.2)
+    #         ax.set_xlabel(r'$w\;\;\mathrm{[mm]}$', fontsize=12)
+    #         ax.set_ylabel(r'$\sigma\;\;\mathrm{[MPa]}$', fontsize=12)
+    #         ax.set_title('crack opening law', fontsize=12)
 
     def plot3d_tau_s(self, ax3d, vot=1.0):
         w_min = 1e-9 #-1
@@ -205,13 +223,14 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         ax3d.set_title('aggregate interlock law', fontsize=12)
 
     def subplots(self, fig):
-        ax_2d = fig.add_subplot(1, 2, 2)
-        ax_3d = fig.add_subplot(1, 2, 1, projection='3d')
-        return ax_2d, ax_3d
+        #ax_2d = fig.add_subplot(1, 2, 2)
+        ax_3d_1 = fig.add_subplot(1, 2, 2, projection='3d')
+        ax_3d_2 = fig.add_subplot(1, 2, 1, projection='3d')
+        return ax_3d_1, ax_3d_2
 
     def update_plot(self, axes):
         '''Plotting function
         '''
-        ax_2d, ax_3d = axes
-        self.plot_sig_w(ax_2d)
-        self.plot3d_tau_s(ax_3d)
+        ax_3d_1, ax_3d_2 = axes
+        self.plot3d_sig_w(ax_3d_1)
+        self.plot3d_tau_s(ax_3d_2)

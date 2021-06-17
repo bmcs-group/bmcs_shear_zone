@@ -140,16 +140,16 @@ class SZCrackTipShearStress(InteractiveModel):
         Q = M / (L - x_tip_0k)[0]
         return Q
 
-    # sig_z1 = tr.Property
-    # '''Crack parallel stress from cantilever action'''
-    #
-    # def _get_sig_z1(self):
-    #     M_ca = self.sz_stress_profile.M_ca
-    #     B = self.sz_bd.B
-    #     s_cr = 0.1  * self.sz_bd.L
-    #     S = (B * s_cr ** 2) / 6
-    #     sigma_z1 = M_ca / S
-    #     return sigma_z1
+    sig_z1 = tr.Property
+    '''Crack parallel stress from cantilever action'''
+
+    def _get_sig_z1(self):
+        M_ca = self.sz_stress_profile.M_ca
+        B = self.sz_bd.B
+        s_cr = 0.1  * self.sz_bd.L
+        S = (B * s_cr ** 2) / 6
+        sigma_z1 = M_ca / S
+        return sigma_z1
 
     Q_reduced = tr.Property
 

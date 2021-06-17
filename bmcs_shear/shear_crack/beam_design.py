@@ -74,6 +74,13 @@ class RCBeamDesign(BeamDesign):
                           options=[('rectangle', Rectangle)],
                           CS=True )
 
+    tree = [
+        'matrix',
+        'cross_section_shape',
+        'csl'
+    ]
+
+
     B = tr.Property(Float)
     def _get_B(self):
         return self.cross_section_shape_.B
