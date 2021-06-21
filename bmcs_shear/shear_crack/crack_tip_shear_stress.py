@@ -134,7 +134,10 @@ class SZCrackTipShearStress(Model):
         return sigma_c
 
     Q = tr.Property
-
+    """Assuming the parabolic profile of the shear stress within the uncracked
+    zone, calculate the value of shear stress corresponding to the height of the 
+    crack tip
+    """
     def _get_Q(self):
         M = self.sz_stress_profile.M
         L = self.sz_bd.L
@@ -146,15 +149,18 @@ class SZCrackTipShearStress(Model):
     '''Crack parallel stress from cantilever action'''
 
     def _get_sig_z1(self):
-        M_ca = self.sz_stress_profile.M_ca
+        M_cantilever = self.M_cantilever
         B = self.sz_bd.B
+
         s_cr = 0.1  * self.sz_bd.L
         S = (B * s_cr ** 2) / 6
-        sigma_z1 = M_ca / S
+        sigma_z1 = M_cantilever / S
         return sigma_z1
 
     Q_reduced = tr.Property
-
+    """Amount of shear force calculated from the global moment equilibrium
+    reduced by the shear stress transfer due to interlock and dowel action.
+    """
     def _get_Q_reduced(self):
         Q_reduced = self.Q - self.sz_stress_profile.F_a[1]
         return Q_reduced
@@ -202,10 +208,33 @@ class SZCrackTipShearStress(Model):
         x_Lia = x_Ka[K_Li]
         x_La = np.sum(x_Lia, axis=1) / 2
         F_La = sp.F_La
-        x_tip_0k = sp.ds.sz_ctr.x_tip_ak[0, 0]
-        x_tip_1k = sp.ds.sz_ctr.x_tip_ak[1, 0]
-        x_rot_0k = 1
-        x_rot_1k = 1
+
+        # crack paths of two neighboring cracks to calculate the cantilever action
+        x_tip_a = sp.ds.sz_ctr.x_tip_ak[:,0]
+        x_mid_a = x_tip_a
+        x_mid_a[0] -= self.L_cs / 2
+        x_right_La = x_La[...]
+        x_left_La = x_La[...]
+        x_left_La[...,0] -= self.L_cs
+
+        M_left_da = np.einsum('L,L', -F_La[:,1], x_mid_a[np.newaxis,0] - x_left_La[:,0])
+        M_right_da = np.einsum('L,L', F_La[:,1], x_right_La[:,0] - x_mid_a[np.newaxis,0])
+
+        x_rot_0k = self.sz_cp.sz_ctr.x_rot_0k
+        delta_z_N = x_rot_0k - sp.z_N
+
+        F_N_delta = self.Q * self.L_cs / delta_z_N
+        M_delta = np.einsum('N,N', -F_N_delta, x_mid_a[np.newaxis,1] - delta_z_N )
+
+        x_right_Na = sp.x_Na
+        x_left_Na = x_right_Na[...]
+        x_right_Na -= self.L_cs
+        M_left_1 = np.einsum('...,...', -F_La[:, 1], x_mid_a[np.newaxis,0] - x_left_La[:, 0])
+        M_right_1 = np.einsum('...,...', F_La[:, 1], x_right_La[:, 0], x_mid_a[np.newaxis,0])
+
+        M_0 = 1
+
+
         x_00 = np.ones_like(sp.z_N) * sp.sz_cp.x_00
 
         # Segment no.1

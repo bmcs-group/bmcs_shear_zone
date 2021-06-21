@@ -235,6 +235,8 @@ class SZStressProfile(InteractiveModel):
         M = np.sum(M_L, axis=0)
         M_agg = np.sum(M_L_agg, axis=0)
         M_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:,0])
+        # assuming that the horizontal position of the crack bridge
+        # is almost equal to the initial position of the crack x_00
         x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
         M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_Na[:,1])
         return -(M + M_agg + M_z + M_da)
