@@ -44,14 +44,7 @@ class SZStressProfile(InteractiveModel):
     sz_cp = tr.DelegatesTo('ds')
     sz_bd = tr.DelegatesTo('sz_cp')
 
-    d = Float(556, MAT=True)  ##dia of steel mm
 
-    L_cs = tr.Property
-
-    def _get_L_cs(self):
-        L_cs = 0.7 * self.d
-        #print(L_cs)
-        return L_cs
 
     tree = ['ds']
 
@@ -245,64 +238,6 @@ class SZStressProfile(InteractiveModel):
         x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
         M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_Na[:,1])
         return -(M + M_agg + M_z + M_da)
-
-    M_ca = tr.Property(depends_on='state_changed')
-    '''Clamping moment'''
-
-    @tr.cached_property
-    def _get_M_ca(self):
-        x_Ka = self.ds.sz_cp.x_Ka
-        K_Li = self.ds.sz_cp.K_Li
-        x_Lia = x_Ka[K_Li]
-        x_La = np.sum(x_Lia, axis=1) / 2
-        F_La = self.F_La
-        x_rot_0k = self.ds.sz_ctr.x_rot_ak[0, 0]
-        x_rot_1k = self.ds.sz_ctr.x_rot_ak[1, 0]
-        x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
-
-        #Segment no.1
-        x_00_ = x_00 + self.L_cs
-        x_rot_0k_ = x_rot_0k + self.L_cs
-        alpha_1 = x_00_ - x_rot_0k_
-        x_da_1 = alpha_1 + self.L_cs / 2 * np.ones_like(alpha_1)
-        x_La_1= x_La[:,0] + self.L_cs
-        beta_1 = x_La_1 - x_rot_0k_
-        x_agg_1 = beta_1 + self.L_cs/2 * np.ones_like(beta_1)
-        z_La_1 = x_La[:,1]
-        z_rot_1 = x_rot_1k
-        z_fpz_1 = z_rot_1 - z_La_1
-        V_da_1 = self.F_Na[:, 1]
-        V_agg_1 = F_La[:, 1]
-        F_fpz_1=  F_La[:, 0]
-        M_da_1 = np.einsum('i,i', x_da_1, V_da_1)
-        M_agg_1 = x_agg_1 * V_agg_1
-        M_agg_1_sum =  np.sum(M_agg_1, axis = 0)
-        M_fpz_1 = z_fpz_1 * F_fpz_1
-        M_fpz_1_sum = np.sum(M_fpz_1, axis=0)
-
-        # Segment no.2
-        alpha_2 = x_00 - x_rot_0k
-        x_da_2 = self.L_cs/2 - alpha_2
-        beta_2 = x_La[:,0] - x_rot_0k
-        x_agg_2 = self.L_cs/2 - beta_2
-        z_rot_2 = x_rot_1k
-        z_La_2 = x_La[:, 1]
-        z_fpz_2 = z_rot_2 - z_La_2
-        z_F_s = z_rot_2 - self.z_N
-        V_da_2 = self.F_Na[:, 1]
-        V_agg_2 = F_La[:, 1]
-        F_fpz_2 = F_La[:, 0]
-        M_da_2 = np.einsum('i,i', x_da_2, V_da_2)
-        M_agg_2 = x_agg_2 * V_agg_2
-        M_agg_2_sum = np.sum(M_agg_2, axis=0)
-        M_fpz_2 = - z_fpz_2 * F_fpz_2
-        M_fpz_2_sum = np.sum(M_fpz_2, axis=0)
-
-        #print(M_da_2 + M_agg_2_sum - M_fpz_2_sum + M_da_1 + M_agg_1_sum + M_fpz_1_sum)
-        return M_da_2 + M_agg_2_sum - M_fpz_2_sum + M_da_1 + M_agg_1_sum + M_fpz_1_sum
-
-
-
 
     sig_x_tip_0k = tr.Property(depends_on='state_changed')
     '''Normal stress component in global $x$ direction in the fracture .

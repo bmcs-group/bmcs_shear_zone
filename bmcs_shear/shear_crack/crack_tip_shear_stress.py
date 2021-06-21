@@ -3,7 +3,7 @@
 import traits.api as tr
 import numpy as np
 import sympy as sp
-from bmcs_utils.api import InteractiveModel, View, Item
+from bmcs_utils.api import Model, View, Item, Float
 from bmcs_shear.shear_crack.stress_profile import \
     SZStressProfile
 
@@ -109,7 +109,7 @@ get_tau_z_fps = sp.lambdify(
 )
 
 
-class SZCrackTipShearStress(InteractiveModel):
+class SZCrackTipShearStress(Model):
     name = 'Shear profile'
 
     sz_stress_profile = tr.Instance(SZStressProfile, ())
@@ -117,6 +117,8 @@ class SZCrackTipShearStress(InteractiveModel):
     sz_bd = tr.DelegatesTo('sz_cp', 'sz_bd')
 
     tree = ['sz_stress_profile']
+
+    L_cs = Float(556, MAT=True)  ##dia of steel mm
 
     sig_x_tip_0 = tr.Property
 
@@ -188,6 +190,65 @@ class SZCrackTipShearStress(InteractiveModel):
         B = self.sz_bd.B
         z_arr = np.linspace(0, H, 100)
         return get_tau_z(z_arr, self.x_tip_1k, self.Q, H, B)
+
+    M_cantilever = tr.Property(depends_on='state_changed')
+    '''Clamping moment'''
+
+    @tr.cached_property
+    def _get_M_cantilver(self):
+        sp = self.sz_stress_profile
+        x_Ka = sp.ds.sz_cp.x_Ka
+        K_Li = sp.ds.sz_cp.K_Li
+        x_Lia = x_Ka[K_Li]
+        x_La = np.sum(x_Lia, axis=1) / 2
+        F_La = sp.F_La
+        x_tip_0k = sp.ds.sz_ctr.x_tip_ak[0, 0]
+        x_tip_1k = sp.ds.sz_ctr.x_tip_ak[1, 0]
+        x_rot_0k = 1
+        x_rot_1k = 1
+        x_00 = np.ones_like(sp.z_N) * sp.sz_cp.x_00
+
+        # Segment no.1
+        x_00_ = x_00 + self.L_cs
+        x_rot_0k_ = x_rot_0k + self.L_cs
+        alpha_1 = x_00_ - x_rot_0k_
+        x_da_1 = alpha_1 + self.L_cs / 2 * np.ones_like(alpha_1)
+        x_La_1 = x_La[:, 0] + self.L_cs
+        beta_1 = x_La_1 - x_rot_0k_
+        x_agg_1 = beta_1 + self.L_cs / 2 * np.ones_like(beta_1)
+        z_La_1 = x_La[:, 1]
+        z_rot_1 = x_rot_1k
+        z_fpz_1 = z_rot_1 - z_La_1
+        V_da_1 = sp.F_Na[:, 1]
+        V_agg_1 = F_La[:, 1]
+        F_fpz_1 = F_La[:, 0]
+        M_da_1 = np.einsum('i,i', x_da_1, V_da_1)
+        M_agg_1 = x_agg_1 * V_agg_1
+        M_agg_1_sum = np.sum(M_agg_1, axis=0)
+        M_fpz_1 = z_fpz_1 * F_fpz_1
+        M_fpz_1_sum = np.sum(M_fpz_1, axis=0)
+
+        # Segment no.2
+        alpha_2 = x_00 - x_rot_0k
+        x_da_2 = self.L_cs / 2 - alpha_2
+        beta_2 = x_La[:, 0] - x_rot_0k
+        x_agg_2 = self.L_cs / 2 - beta_2
+        z_rot_2 = x_rot_1k
+        z_La_2 = x_La[:, 1]
+        z_fpz_2 = z_rot_2 - z_La_2
+        delta_f_s = sp.M / sp.sz_cp.x_00
+        z_F_s = z_rot_2 - sp.z_N
+        V_da_2 = sp.F_Na[:, 1]
+        V_agg_2 = F_La[:, 1]
+        F_fpz_2 = F_La[:, 0]
+        M_da_2 = np.einsum('i,i', x_da_2, V_da_2)
+        M_agg_2 = x_agg_2 * V_agg_2
+        M_agg_2_sum = np.sum(M_agg_2, axis=0)
+        M_fpz_2 = - z_fpz_2 * F_fpz_2
+        M_fpz_2_sum = np.sum(M_fpz_2, axis=0)
+        M_fs = z_F_s * delta_f_s
+        # print(M_da_2 + M_agg_2_sum - M_fpz_2_sum + M_da_1 + M_agg_1_sum + M_fpz_1_sum)
+        return M_da_2 + M_agg_2_sum - M_fpz_2_sum + M_da_1 + M_agg_1_sum + M_fpz_1_sum - M_fs
 
     ipw_view = View(
         #        Item('Q', latex='Q', minmax=(0,100000)),
