@@ -6,6 +6,7 @@ from bmcs_utils.api import InteractiveModel, View, Item, mpl_align_xaxis
 from bmcs_shear.shear_crack.deformed_state import \
     SZDeformedState
 from scipy.interpolate import interp1d
+from bmcs_utils.api import View, Item, Float, FloatRangeEditor
 # # Stress profiles
 
 # ## Stress resultants
@@ -42,6 +43,15 @@ class SZStressProfile(InteractiveModel):
     ds = tr.Instance(SZDeformedState, ())
     sz_cp = tr.DelegatesTo('ds')
     sz_bd = tr.DelegatesTo('sz_cp')
+
+    d = Float(556, MAT=True)  ##dia of steel mm
+
+    L_cs = tr.Property
+
+    def _get_L_cs(self):
+        L_cs = 0.7 * self.d
+        #print(L_cs)
+        return L_cs
 
     tree = ['ds']
 
@@ -237,10 +247,7 @@ class SZStressProfile(InteractiveModel):
         return -(M + M_agg + M_z + M_da)
 
     M_ca = tr.Property(depends_on='state_changed')
-    '''Clamping moment obtained by integrating the
-    normal stresses with the lever arm rooted at the height of the crack
-    tip.
-    '''
+    '''Clamping moment'''
 
     @tr.cached_property
     def _get_M_ca(self):
@@ -252,19 +259,47 @@ class SZStressProfile(InteractiveModel):
         x_rot_0k = self.ds.sz_ctr.x_rot_ak[0, 0]
         x_rot_1k = self.ds.sz_ctr.x_rot_ak[1, 0]
         x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
-        M_agg_1 = (((x_La[:, 1] + 0.1 * self.sz_bd.L) - x_rot_0k)  + (x_rot_0k - self.sz_bd.L/2)) * F_La[:, 1]
-        M_ca_agg_1 = np.sum(M_agg_1, axis=0)
-        M_agg_2 = (self.sz_bd.L/2 - x_La[:,1]) * F_La[:, 1]
-        M_ca_agg_2 = np.sum(M_agg_2, axis=0)
-        M_ca_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:, 0])
-        M_ca_da_1 = np.einsum('i,i', (((x_00 + 0.1 * self.sz_bd.L) - x_rot_0k) + (x_rot_0k - 0.1 * self.sz_bd.L/2)), self.F_Na[:, 1])
-        M_ca_da_2 = np.einsum('i,i', (0.1 * self.sz_bd.L / 2 - x_00), self.F_Na[:, 1])
-        M_ca_L_1 = (x_rot_1k - x_La[:, 1]) * F_La[:, 0]
-        M_ca_L_1_ = np.sum(M_ca_L_1, axis=0)
-        M_ca_L_2 = - (x_rot_1k - x_La[:, 1]) * F_La[:, 0]
-        M_ca_L_2_ = np.sum(M_ca_L_2, axis=0)
-        return -(M_ca_L_1_ + M_ca_L_2_ + M_ca_agg_1 + M_ca_agg_2 + M_ca_z + M_ca_da_1 + M_ca_da_2)
 
+        #Segment no.1
+        x_00_ = x_00 + self.L_cs
+        x_rot_0k_ = x_rot_0k + self.L_cs
+        alpha_1 = x_00_ - x_rot_0k_
+        x_da_1 = alpha_1 + self.L_cs / 2 * np.ones_like(alpha_1)
+        x_La_1= x_La[:,0] + self.L_cs
+        beta_1 = x_La_1 - x_rot_0k_
+        x_agg_1 = beta_1 + self.L_cs/2 * np.ones_like(beta_1)
+        z_La_1 = x_La[:,1]
+        z_rot_1 = x_rot_1k
+        z_fpz_1 = z_rot_1 - z_La_1
+        V_da_1 = self.F_Na[:, 1]
+        V_agg_1 = F_La[:, 1]
+        F_fpz_1=  F_La[:, 0]
+        M_da_1 = np.einsum('i,i', x_da_1, V_da_1)
+        M_agg_1 = x_agg_1 * V_agg_1
+        M_agg_1_sum =  np.sum(M_agg_1, axis = 0)
+        M_fpz_1 = z_fpz_1 * F_fpz_1
+        M_fpz_1_sum = np.sum(M_fpz_1, axis=0)
+
+        # Segment no.2
+        alpha_2 = x_00 - x_rot_0k
+        x_da_2 = self.L_cs/2 - alpha_2
+        beta_2 = x_La[:,0] - x_rot_0k
+        x_agg_2 = self.L_cs/2 - beta_2
+        z_rot_2 = x_rot_1k
+        z_La_2 = x_La[:, 1]
+        z_fpz_2 = z_rot_2 - z_La_2
+        z_F_s = z_rot_2 - self.z_N
+        V_da_2 = self.F_Na[:, 1]
+        V_agg_2 = F_La[:, 1]
+        F_fpz_2 = F_La[:, 0]
+        M_da_2 = np.einsum('i,i', x_da_2, V_da_2)
+        M_agg_2 = x_agg_2 * V_agg_2
+        M_agg_2_sum = np.sum(M_agg_2, axis=0)
+        M_fpz_2 = - z_fpz_2 * F_fpz_2
+        M_fpz_2_sum = np.sum(M_fpz_2, axis=0)
+
+        #print(M_da_2 + M_agg_2_sum - M_fpz_2_sum + M_da_1 + M_agg_1_sum + M_fpz_1_sum)
+        return M_da_2 + M_agg_2_sum - M_fpz_2_sum + M_da_1 + M_agg_1_sum + M_fpz_1_sum
 
 
 
