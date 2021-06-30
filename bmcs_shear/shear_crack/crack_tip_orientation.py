@@ -20,10 +20,11 @@ P_xf = P_xz.subs(subs_sigma_z)
 
 psi_f = sp.atan(sp.simplify(-P_xf[0, 0] / P_xf[1, 0]))
 psi_0 = sp.atan(sp.simplify(-P_x0[0, 0] / P_x0[1, 0]))
+psi_z = sp.atan(sp.simplify(-P_xz[0, 0] / P_xz[1, 0]))
 
 get_psi_f = sp.lambdify((tau_fps, sigma_x, f_ct), psi_f)
 get_psi_0 = sp.lambdify((tau_fps, sigma_x), psi_0)
-
+get_psi_z = sp.lambdify((tau_fps, sigma_x, sigma_z), psi_z)
 
 class SZCrackTipOrientation(bu.InteractiveModel):
     """Given the global and local stress state around the crack
@@ -47,8 +48,8 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         f_t = self.sz_cp.sz_bd.matrix_.f_t
         sig_x_tip_0 = ct_stress.sig_x_tip_0
         sig_z1 = ct_stress.sig_z1
-        tau = sig_z1 + tau_x_tip_1
-        psi_0 = get_psi_0(tau, sig_x_tip_0)#sig_x_tip_0
+        psi_0 = get_psi_z(tau_x_tip_1, sig_x_tip_0, sig_z1)#sig_x_tip_0
+        #psi_0 = get_psi_0(tau_x_tip_1, sig_x_tip_0)
         #print(psi_0)
         #print('sig_x_tip_0', sig_x_tip_0, psi_0)
         return psi_0

@@ -159,6 +159,7 @@ class SZCrackTipShearStress(Model):
         L_cs = self.L_cs
         S = (B * L_cs ** 2) / 6
         sigma_z1 = M_cantilever / S
+        #print(sigma_z1)
         return sigma_z1
 
     Q_reduced = tr.Property
@@ -201,6 +202,16 @@ class SZCrackTipShearStress(Model):
         z_arr = np.linspace(0, H, 100)
         return get_tau_z(z_arr, self.x_tip_1k, self.Q, H, B)
 
+    F_N_delta = tr.Property(depends_on='state_changed')
+    '''Force at steel'''
+
+    @tr.cached_property
+    def _get_F_N_delta(self):
+        sp = self.sz_stress_profile
+        x_tip_1k = sp.sz_cp.sz_ctr.x_tip_ak[1, 0]
+        H = self.sz_bd.H
+        F_N_delta = self.Q * self.L_cs / H
+        return F_N_delta
 
     M_cantilever = tr.Property(depends_on='state_changed')
     '''Clamping moment'''
@@ -219,21 +230,48 @@ class SZCrackTipShearStress(Model):
         x_tip_a = sp.ds.sz_ctr.x_tip_ak[0,0] #[:,0]
         x_mid_a = x_tip_a
         x_mid_a -= self.L_cs / 2
+        #print(x_mid_a)
         x_00 = np.ones_like(sp.z_N) * sp.sz_cp.x_00
-        M_right_da = np.einsum('L,L', F_Na[:, 1], (x_00 - x_mid_a))
+        M_right_da = np.einsum('L,L', F_Na[:, 1], x_00 - x_mid_a)
         x_00_L = x_00 - self.L_cs
-        M_left_da = np.einsum('L,L', -F_Na[:, 1], (x_mid_a - x_00_L))
+        M_left_da = np.einsum('L,L', - F_Na[:, 1], x_mid_a - x_00_L)
+        #print(M_left_da + M_right_da)
+        #print(np.abs(x_mid_a - x_00_L))
         x_right_La = x_La[...]
         M_right_agg = np.einsum('L,L', F_La[:, 1], (x_right_La[:, 0] - x_mid_a))
         x_left_La = x_La[...]
         x_left_La[..., 0] -= self.L_cs
-        M_left_agg = np.einsum('L,L', -F_La[:, 1], (x_mid_a - x_left_La[:, 0])) # [np.newaxis, 0]
+        M_left_agg = np.einsum('L,L', - F_La[:, 1], (x_mid_a - x_left_La[:, 0]))
+        #print(x_mid_a)
+        #print(x_mid_a - x_left_La[:, 0])
         x_tip_1k = sp.sz_cp.sz_ctr.x_tip_ak[1,0]
+        H = self.sz_bd.H
         delta_z_N = x_tip_1k - sp.z_N
-        F_N_delta = self.Q * self.L_cs / delta_z_N
-        M_delta_F = - F_N_delta * delta_z_N
+        F_N_delta = self.Q * self.L_cs / H
+        #print(F_N_delta)
+        M_delta_F = (- F_N_delta) * delta_z_N
+        #print(M_delta_F)
+        #print(-(M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0])
+        return (- M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0] #-
 
-        return -(M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0]
+        # if np.any(x_mid_a - x_left_La[:, 0]) < 0:
+        #     x_update_ = np.abs(x_mid_a - x_left_La[:, 0])
+        #     M_left_agg = np.einsum('L,L', -F_La[:, 1], (x_mid_a - x_left_La[:, 0]))
+        # elif np.any(x_mid_a - x_left_La[:, 0]) > 0:
+        #     M_left_agg = np.einsum('L,L', -F_La[:, 1], (x_mid_a - x_left_La[:, 0])) # [np.newaxis, 0]
+        # print(x_mid_a - x_00_L)
+        # x_update = x_mid_a - x_00_L
+        # x_update_abs = np.abs(x_mid_a - x_00_L)
+        # if np.sum(x_update) < 0:
+        #    M_left_da = np.einsum('L,L',  F_Na[:, 1], x_update)
+        # else:
+        #    M_left_da = np.einsum('L,L', - F_Na[:, 1], x_update)
+
+        # if x_mid_a - x_00_L < 0:
+        #     x_update = np.abs(x_mid_a - x_00_L)
+        #     M_left_da = np.einsum('L,L',  F_Na[:, 1], x_update)
+        # elif x_mid_a - x_00_L > 0:
+        #     M_left_da = np.einsum('L,L', - F_Na[:, 1], np.abs(x_mid_a - x_00_L))
 
         # = np.einsum('N,N', -F_N_delta, x_mid_a[np.newaxis,1] - delta_z_N )
 
