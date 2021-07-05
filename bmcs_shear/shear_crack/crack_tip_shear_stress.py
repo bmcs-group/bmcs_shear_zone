@@ -118,7 +118,11 @@ class SZCrackTipShearStress(Model):
 
     tree = ['sz_stress_profile']
 
-    L_cs = Float(556, MAT=True)  ##dia of steel mm
+    L_cs = Float(200, MAT=True)  ##distance between cracks [mm]
+
+    ipw_view = View(
+        Item('L_cs', latex=r'L_{cs}'),
+    )
 
     sig_x_tip_0 = tr.Property
 
@@ -152,9 +156,10 @@ class SZCrackTipShearStress(Model):
         M_cantilever = self.M_cantilever
         B = self.sz_bd.B
 
-        s_cr = 0.1  * self.sz_bd.L
-        S = (B * s_cr ** 2) / 6
+        L_cs = self.L_cs
+        S = (B * L_cs ** 2) / 6
         sigma_z1 = M_cantilever / S
+        #print(sigma_z1)
         return sigma_z1
 
     Q_reduced = tr.Property
@@ -197,86 +202,90 @@ class SZCrackTipShearStress(Model):
         z_arr = np.linspace(0, H, 100)
         return get_tau_z(z_arr, self.x_tip_1k, self.Q, H, B)
 
+    F_N_delta = tr.Property(depends_on='state_changed')
+    '''Force at steel'''
+
+    @tr.cached_property
+    def _get_F_N_delta(self):
+        sp = self.sz_stress_profile
+        x_tip_1k = sp.sz_cp.sz_ctr.x_tip_ak[1, 0]
+        H = self.sz_bd.H
+        F_N_delta = self.Q * self.L_cs / H
+        return F_N_delta
+
     M_cantilever = tr.Property(depends_on='state_changed')
     '''Clamping moment'''
 
     @tr.cached_property
-    def _get_M_cantilver(self):
+    def _get_M_cantilever(self):
         sp = self.sz_stress_profile
         x_Ka = sp.ds.sz_cp.x_Ka
         K_Li = sp.ds.sz_cp.K_Li
         x_Lia = x_Ka[K_Li]
         x_La = np.sum(x_Lia, axis=1) / 2
         F_La = sp.F_La
+        F_Na = sp.F_Na
 
         # crack paths of two neighboring cracks to calculate the cantilever action
-        x_tip_a = sp.ds.sz_ctr.x_tip_ak[:,0]
+        x_tip_a = sp.ds.sz_ctr.x_tip_ak[0,0] #[:,0]
         x_mid_a = x_tip_a
-        x_mid_a[0] -= self.L_cs / 2
-        x_right_La = x_La[...]
-        x_left_La = x_La[...]
-        x_left_La[...,0] -= self.L_cs
-
-        M_left_da = np.einsum('L,L', -F_La[:,1], x_mid_a[np.newaxis,0] - x_left_La[:,0])
-        M_right_da = np.einsum('L,L', F_La[:,1], x_right_La[:,0] - x_mid_a[np.newaxis,0])
-
-        x_rot_0k = self.sz_cp.sz_ctr.x_rot_0k
-        delta_z_N = x_rot_0k - sp.z_N
-
-        F_N_delta = self.Q * self.L_cs / delta_z_N
-        M_delta = np.einsum('N,N', -F_N_delta, x_mid_a[np.newaxis,1] - delta_z_N )
-
-        x_right_Na = sp.x_Na
-        x_left_Na = x_right_Na[...]
-        x_right_Na -= self.L_cs
-        M_left_1 = np.einsum('...,...', -F_La[:, 1], x_mid_a[np.newaxis,0] - x_left_La[:, 0])
-        M_right_1 = np.einsum('...,...', F_La[:, 1], x_right_La[:, 0], x_mid_a[np.newaxis,0])
-
-        M_0 = 1
-
+        x_mid_a -= self.L_cs / 2
+        #print(x_mid_a)
         x_00 = np.ones_like(sp.z_N) * sp.sz_cp.x_00
+        M_right_da = np.einsum('L,L', F_Na[:, 1], x_00 - x_mid_a)
+        x_00_L = x_00 - self.L_cs
+        M_left_da = np.einsum('L,L', - F_Na[:, 1], x_mid_a - x_00_L)
+        #print(M_left_da + M_right_da)
+        #print(np.abs(x_mid_a - x_00_L))
+        x_right_La = x_La[...]
+        M_right_agg = np.einsum('L,L', F_La[:, 1], (x_right_La[:, 0] - x_mid_a))
+        x_left_La = x_La[...]
+        x_left_La[..., 0] -= self.L_cs
+        M_left_agg = np.einsum('L,L', - F_La[:, 1], (x_mid_a - x_left_La[:, 0]))
+        #print(x_mid_a)
+        #print(x_mid_a - x_left_La[:, 0])
+        x_tip_1k = sp.sz_cp.sz_ctr.x_tip_ak[1,0]
+        H = self.sz_bd.H
+        delta_z_N = x_tip_1k - sp.z_N
+        F_N_delta = self.Q * self.L_cs / H
+        #print(F_N_delta)
+        M_delta_F = (- F_N_delta) * delta_z_N
+        #print(M_delta_F)
+        #print(-(M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0])
+        return (- M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0] #-
 
-        # Segment no.1
-        x_00_ = x_00 + self.L_cs
-        x_rot_0k_ = x_rot_0k + self.L_cs
-        alpha_1 = x_00_ - x_rot_0k_
-        x_da_1 = alpha_1 + self.L_cs / 2 * np.ones_like(alpha_1)
-        x_La_1 = x_La[:, 0] + self.L_cs
-        beta_1 = x_La_1 - x_rot_0k_
-        x_agg_1 = beta_1 + self.L_cs / 2 * np.ones_like(beta_1)
-        z_La_1 = x_La[:, 1]
-        z_rot_1 = x_rot_1k
-        z_fpz_1 = z_rot_1 - z_La_1
-        V_da_1 = sp.F_Na[:, 1]
-        V_agg_1 = F_La[:, 1]
-        F_fpz_1 = F_La[:, 0]
-        M_da_1 = np.einsum('i,i', x_da_1, V_da_1)
-        M_agg_1 = x_agg_1 * V_agg_1
-        M_agg_1_sum = np.sum(M_agg_1, axis=0)
-        M_fpz_1 = z_fpz_1 * F_fpz_1
-        M_fpz_1_sum = np.sum(M_fpz_1, axis=0)
+        # if np.any(x_mid_a - x_left_La[:, 0]) < 0:
+        #     x_update_ = np.abs(x_mid_a - x_left_La[:, 0])
+        #     M_left_agg = np.einsum('L,L', -F_La[:, 1], (x_mid_a - x_left_La[:, 0]))
+        # elif np.any(x_mid_a - x_left_La[:, 0]) > 0:
+        #     M_left_agg = np.einsum('L,L', -F_La[:, 1], (x_mid_a - x_left_La[:, 0])) # [np.newaxis, 0]
+        # print(x_mid_a - x_00_L)
+        # x_update = x_mid_a - x_00_L
+        # x_update_abs = np.abs(x_mid_a - x_00_L)
+        # if np.sum(x_update) < 0:
+        #    M_left_da = np.einsum('L,L',  F_Na[:, 1], x_update)
+        # else:
+        #    M_left_da = np.einsum('L,L', - F_Na[:, 1], x_update)
 
-        # Segment no.2
-        alpha_2 = x_00 - x_rot_0k
-        x_da_2 = self.L_cs / 2 - alpha_2
-        beta_2 = x_La[:, 0] - x_rot_0k
-        x_agg_2 = self.L_cs / 2 - beta_2
-        z_rot_2 = x_rot_1k
-        z_La_2 = x_La[:, 1]
-        z_fpz_2 = z_rot_2 - z_La_2
-        delta_f_s = sp.M / sp.sz_cp.x_00
-        z_F_s = z_rot_2 - sp.z_N
-        V_da_2 = sp.F_Na[:, 1]
-        V_agg_2 = F_La[:, 1]
-        F_fpz_2 = F_La[:, 0]
-        M_da_2 = np.einsum('i,i', x_da_2, V_da_2)
-        M_agg_2 = x_agg_2 * V_agg_2
-        M_agg_2_sum = np.sum(M_agg_2, axis=0)
-        M_fpz_2 = - z_fpz_2 * F_fpz_2
-        M_fpz_2_sum = np.sum(M_fpz_2, axis=0)
-        M_fs = z_F_s * delta_f_s
-        # print(M_da_2 + M_agg_2_sum - M_fpz_2_sum + M_da_1 + M_agg_1_sum + M_fpz_1_sum)
-        return M_da_2 + M_agg_2_sum - M_fpz_2_sum + M_da_1 + M_agg_1_sum + M_fpz_1_sum - M_fs
+        # if x_mid_a - x_00_L < 0:
+        #     x_update = np.abs(x_mid_a - x_00_L)
+        #     M_left_da = np.einsum('L,L',  F_Na[:, 1], x_update)
+        # elif x_mid_a - x_00_L > 0:
+        #     M_left_da = np.einsum('L,L', - F_Na[:, 1], np.abs(x_mid_a - x_00_L))
+
+        # = np.einsum('N,N', -F_N_delta, x_mid_a[np.newaxis,1] - delta_z_N )
+
+        # x_right_Na = sp.x_Na
+        # x_left_Na = x_right_Na[...]
+        # x_right_Na -= self.L_cs
+        # M_left_1 = np.einsum('...,...', -F_La[:, 1], x_mid_a[np.newaxis,0] - x_left_La[:, 0])
+        # M_right_1 = np.einsum('...,...', F_La[:, 1], x_right_La[:, 0], x_mid_a[np.newaxis,0])
+
+        #M_0 = 1
+
+
+        # x_00 = np.ones_like(sp.z_N) * sp.sz_cp.x_00
+        #
 
     ipw_view = View(
         #        Item('Q', latex='Q', minmax=(0,100000)),

@@ -182,29 +182,6 @@ class SZStressProfile(InteractiveModel):
             np.einsum('La,La->a', u_La, F_La)
         )
 
-    # F_Na_da = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
-    # '''Get the discrete force in the reinforcement z_N
-    # '''
-    #
-    # @tr.cached_property
-    # def _get_F_Na_da(self):
-    #     u_Na = self.u_Na
-    #     # F_N0 = self.A_N * self.E_N * w_N # self.sz_bd.get_sig_w_f(w_N)
-    #     F_Na_da = self.sz_bd.smm_adv.get_F_a(u_Na)
-    #     #        F_N0 = self.sz_bd.smm.get_sig_w_f(w_N)
-    #     #        F_N1 = self.sz_bd.smm.get_sig_s_f(s_N) #smm
-    #     #        F_N1 = np.zeros_like(F_N0)
-    #     return F_Na_da
-    #     # to transform into the global coordinates identify the
-    #     # segment of the ligament L corresponding to the position
-    #     # of the reinforcement N
-    #     z_L = self.sz_bd.x_La[1]
-    #     z_N = self.sz_bd.z_N
-    #     L_N = np.argmax(z_L[np.newaxis, :] >= z_N[:, np.newaxis], axis=1)
-    #     T_Nab = self.sz_cp.T_Lab[L_N,...]
-    #     F_Na = np.einsum('...ab,...a->...a', T_Nab, F_Nb)
-    #     return F_Na
-
     F_a = tr.Property(depends_on='state_changed')
     '''Integrated normal and shear force
     '''

@@ -63,6 +63,10 @@ class CrackPropagation(CrackExtension):
     shear_agg = tr.List([0])
     v_n = tr.List([0])
     CMOD_n = tr.List([0])
+    sig_x_tip_0 = tr.List([0])
+    sig_z1 = tr.List([0])
+    tau_x_tip_1k = tr.List([0])
+    F_N_delta = tr.List([0])
 
     def record_timestep(self):
         R_k = self.get_R()
@@ -85,6 +89,10 @@ class CrackPropagation(CrackExtension):
         self.F_s.append(self.sz_stress_profile.F_Na[:,0])
         self.F_Na.append(self.sz_stress_profile.F_Na[:,1])
         self.v_n.append(v_k)
+        self.sig_x_tip_0.append(self.crack_tip_shear_stress.sig_x_tip_0)
+        self.sig_z1.append(self.crack_tip_shear_stress.sig_z1)
+        self.tau_x_tip_1k.append(self.crack_tip_shear_stress.tau_x_tip_1k)
+        self.F_N_delta.append(self.crack_tip_shear_stress.F_N_delta)
 
     def make_incr(self):
         '''Update the control, primary and state variabrles..
@@ -120,6 +128,12 @@ class CrackPropagation(CrackExtension):
         self.x_tip_0n = [0]
         self.x_tip_1k = [0]
         self.v_n = [0]
+        self.sig_x_tip_0 = [0]
+        self.sig_z1 = [0]
+        self.tau_x_tip_1k = [0]
+        self.F_N_delta = [0]
+
+
         while self.seg <= self.n_seg:
             if self.interrupt:
                 break
@@ -153,6 +167,10 @@ class CrackPropagation(CrackExtension):
         self.w_steel = [0]
         self.F_Na = [0]
         self.v_n = [0]
+        self.sig_x_tip_0 = [0]
+        self.sig_z1 = [0]
+        self.tau_x_tip_1k = [0]
+        self.F_N_delta = [0]
 
     def subplots(self, fig):
         return fig.subplots(1, 2)
