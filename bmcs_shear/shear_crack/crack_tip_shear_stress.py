@@ -234,7 +234,6 @@ class SZCrackTipShearStress(Model):
 
         M_0 = 1
 
-
         x_00 = np.ones_like(sp.z_N) * sp.sz_cp.x_00
 
         # Segment no.1
