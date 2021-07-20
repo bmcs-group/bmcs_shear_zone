@@ -36,6 +36,7 @@ class CrackExtension(bu.InteractiveModel):
     ]
 
     psi = tr.DelegatesTo('sz_ctr')
+    w_cr = tr.DelegatesTo('sz_ctr','w')
     x_rot_1k = tr.DelegatesTo('sz_ctr')
 
     U_n = tr.Array(np.float_,
@@ -88,6 +89,8 @@ class CrackExtension(bu.InteractiveModel):
                    options={'xtol': self.xtol,})
         self.X_iter[:] = res.x
         self.psi = self.X_iter[0]
+        # update w_cr based on the \sigma_2 value
+        # set the w_cr = 1 / E_c * sig_2 * L_c
         self.x_rot_1k = self.X_iter[1]
 
         self.U_n[:] = self.U_k[:]
