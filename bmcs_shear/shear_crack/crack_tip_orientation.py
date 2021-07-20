@@ -2,7 +2,8 @@ import sympy as sp
 import numpy as np
 import bmcs_utils.api as bu
 from bmcs_shear.shear_crack.crack_tip_shear_stress import SZCrackTipShearStress
-from bmcs_shear.shear_crack.stress_profile import SZStressProfile
+from bmcs_shear.shear_crack.crack_tip_shear_stress_global import SZCrackTipShearStressGlobal
+from bmcs_shear.shear_crack.crack_tip_shear_stress_local import SZCrackTipShearStressLocal
 import traits.api as tr
 
 tau_fps, sigma_x, sigma_z = sp.symbols(r'\tau_\mathrm{fps}, sigma_x, sigma_z')
@@ -40,7 +41,12 @@ class SZCrackTipOrientation(bu.InteractiveModel):
     """
     name = "Orientation"
 
-    crack_tip_shear_stress = tr.Instance(SZCrackTipShearStress, ())
+    # crack_tip_shear_stress = bu.EitherType(options=[
+    #     ('global', SZCrackTipShearStressGlobal),
+    #     ('local', SZCrackTipShearStressLocal),
+    # ])
+
+    crack_tip_shear_stress = bu.Instance(SZCrackTipShearStressGlobal, ())
     sz_stress_profile = tr.DelegatesTo('crack_tip_shear_stress')
     sz_cp = tr.DelegatesTo('crack_tip_shear_stress')
     sz_bd = tr.DelegatesTo('crack_tip_shear_stress')
