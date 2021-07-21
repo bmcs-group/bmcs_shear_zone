@@ -47,8 +47,8 @@ class CrackPropagation(CrackExtension):
     R_n = tr.List
     M_n = tr.List([0])
     F_beam = tr.List([0])
-    Q = tr.List([0])
-    Q_red = tr.List([0])
+    #Q = tr.List([0])
+    #Q_red = tr.List([0])
     F_s = tr.List([0])
     x_tip_1n = tr.List([0])
     x_tip_0n = tr.List([0])
@@ -63,10 +63,10 @@ class CrackPropagation(CrackExtension):
     shear_agg = tr.List([0])
     v_n = tr.List([0])
     CMOD_n = tr.List([0])
-    sig_x_tip_0 = tr.List([0])
-    sig_z1 = tr.List([0])
-    tau_x_tip_1k = tr.List([0])
-    F_N_delta = tr.List([0])
+    #sig_x_tip_0 = tr.List([0])
+    #sig_z1 = tr.List([0])
+    #tau_x_tip_1k = tr.List([0])
+    #F_N_delta = tr.List([0])
 
     def record_timestep(self):
         R_k = self.get_R()
@@ -74,8 +74,8 @@ class CrackPropagation(CrackExtension):
         x_tip_1k = self.sz_cp.sz_ctr.x_tip_ak[:, 0]
         self.R_n.append(R_k)
         self.F_beam.append(self.crack_tip_shear_stress.F_beam)
-        self.Q.append(self.crack_tip_shear_stress.Q)
-        self.Q_red.append(self.crack_tip_shear_stress.Q_reduced)
+        #self.Q.append(self.crack_tip_shear_stress.Q)
+        #self.Q_red.append(self.crack_tip_shear_stress.Q_reduced)
         self.F_a.append(self.sz_stress_profile.F_a[:])
         self.x_tip_1n.append(self.sz_ctr.x_tip_an[1])
         self.x_tip_0n.append(self.sz_ctr.x_tip_an[0])
@@ -89,10 +89,10 @@ class CrackPropagation(CrackExtension):
         self.F_s.append(self.sz_stress_profile.F_Na[:,0])
         self.F_Na.append(self.sz_stress_profile.F_Na[:,1])
         self.v_n.append(v_k)
-        self.sig_x_tip_0.append(self.crack_tip_shear_stress.sig_x_tip_0)
-        self.sig_z1.append(self.crack_tip_shear_stress.sig_z1)
-        self.tau_x_tip_1k.append(self.crack_tip_shear_stress.tau_x_tip_1k)
-        self.F_N_delta.append(self.crack_tip_shear_stress.F_N_delta)
+        #self.sig_x_tip_0.append(self.crack_tip_shear_stress.sig_x_tip_0)
+        #self.sig_z1.append(self.crack_tip_shear_stress.sig_z1)
+        #self.tau_x_tip_1k.append(self.crack_tip_shear_stress.tau_x_tip_1k)
+        #self.F_N_delta.append(self.crack_tip_shear_stress.F_N_delta)
 
     def make_incr(self):
         '''Update the control, primary and state variabrles..
@@ -113,8 +113,8 @@ class CrackPropagation(CrackExtension):
         self.sz_cp.reset_crack()
         self.R_n = [0]
         self.F_beam = [0]
-        self.Q = [0]
-        self.Q_red = [0]
+        #self.Q = [0]
+        #self.Q_red = [0]
         self.F_a = [0]
         self.F_Na = [0]
         self.F_s = [0]
@@ -128,10 +128,10 @@ class CrackPropagation(CrackExtension):
         self.x_tip_0n = [0]
         self.x_tip_1k = [0]
         self.v_n = [0]
-        self.sig_x_tip_0 = [0]
-        self.sig_z1 = [0]
-        self.tau_x_tip_1k = [0]
-        self.F_N_delta = [0]
+        #self.sig_x_tip_0 = [0]
+        #self.sig_z1 = [0]
+        #self.tau_x_tip_1k = [0]
+        #self.F_N_delta = [0]
 
 
         while self.seg <= self.n_seg:
@@ -152,8 +152,8 @@ class CrackPropagation(CrackExtension):
         self.init()
         self.R_n = [0]
         self.F_beam = [0]
-        self.Q = [0]
-        self.Q_red = [0]
+        #self.Q = [0]
+        #self.Q_red = [0]
         self.x_tip_1n = [0]
         self.x_tip_0n = [0]
         self.x_tip_1k = [0]
@@ -167,10 +167,10 @@ class CrackPropagation(CrackExtension):
         self.w_steel = [0]
         self.F_Na = [0]
         self.v_n = [0]
-        self.sig_x_tip_0 = [0]
-        self.sig_z1 = [0]
-        self.tau_x_tip_1k = [0]
-        self.F_N_delta = [0]
+        #self.sig_x_tip_0 = [0]
+        #self.sig_z1 = [0]
+        #self.tau_x_tip_1k = [0]
+        #self.F_N_delta = [0]
 
     def subplots(self, fig):
         return fig.subplots(1, 2)

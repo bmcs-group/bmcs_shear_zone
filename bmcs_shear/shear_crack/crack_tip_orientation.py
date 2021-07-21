@@ -16,14 +16,22 @@ sigma_x0 = sigma_xz.subs(sigma_z, 0)
 P_xz, D_xz = sigma_xz.diagonalize()
 P_x0, D_x0 = P_xz.subs(sigma_z, 0), D_xz.subs(sigma_z, 0)
 
-subs_sigma_z = sp.solve({D_xz[1, 1] - f_ct}, {sigma_z})[0]
-P_xf = P_xz.subs(subs_sigma_z)
+subs_sigma_x = sp.solve({D_xz[0,0] - f_ct}, {sigma_x})[0]
+
+#subs_sigma_z = sp.solve({D_xz[1, 1] - f_ct}, {sigma_z})[0]
+#P_xf = P_xz.subs(subs_sigma_z)
+
+P_xf = P_xz.subs(subs_sigma_x)
+
+sigma_xf = sigma_xz.subs(subs_sigma_x)
 
 psi_f = sp.atan(sp.simplify(-P_xf[0, 0] / P_xf[1, 0]))
 psi_0 = sp.atan(sp.simplify(-P_x0[0, 0] / P_x0[1, 0]))
 psi_z = sp.atan(sp.simplify(-P_xz[0, 0] / P_xz[1, 0]))
 
-get_psi_f = sp.lambdify((tau_fps, sigma_x, f_ct), psi_f)
+#get_psi_f = sp.lambdify((tau_fps, sigma_x, f_ct), psi_f)
+
+get_psi_f = sp.lambdify((tau_fps, f_ct, sigma_z), psi_f)
 get_psi_0 = sp.lambdify((tau_fps, sigma_x), psi_0)
 get_psi_z = sp.lambdify((tau_fps, sigma_x, sigma_z), psi_z)
 
@@ -41,7 +49,7 @@ class SZCrackTipOrientation(bu.InteractiveModel):
     #     ('local', SZCrackTipShearStressLocal),
     # ])
 
-    crack_tip_shear_stress = bu.Instance(SZCrackTipShearStressGlobal, ())
+    crack_tip_shear_stress = bu.Instance(SZCrackTipShearStressLocal, ())
     sz_stress_profile = tr.DelegatesTo('crack_tip_shear_stress')
     sz_cp = tr.DelegatesTo('crack_tip_shear_stress')
     sz_bd = tr.DelegatesTo('crack_tip_shear_stress')
@@ -51,12 +59,13 @@ class SZCrackTipOrientation(bu.InteractiveModel):
     def get_psi(self):
         ct_stress = self.crack_tip_shear_stress
         tau_x_tip_1 = ct_stress.tau_x_tip_1k
+        print('tau_x_tip_1', tau_x_tip_1)
         f_t = self.sz_cp.sz_bd.matrix_.f_t
         sig_x_tip_0 = ct_stress.sig_x_tip_0
-        sig_z1 = ct_stress.sig_z1
-        psi_0 = get_psi_z(tau_x_tip_1, sig_x_tip_0, sig_z1)#sig_x_tip_0
+        sig_z_tip_1 = ct_stress.sig_z_tip_1
+        psi_0 = get_psi_z(tau_x_tip_1, f_t, sig_z_tip_1)#sig_x_tip_0
         #psi_0 = get_psi_0(tau_x_tip_1, sig_x_tip_0)
-        #print(psi_0)
+        print('psi_0', psi_0 * 180/np.pi)
         #print('sig_x_tip_0', sig_x_tip_0, psi_0)
         return psi_0
 

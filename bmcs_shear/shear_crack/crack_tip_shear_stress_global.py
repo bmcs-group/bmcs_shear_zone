@@ -80,30 +80,30 @@ get_tau_z_fps = sp.lambdify(
 class SZCrackTipShearStressGlobal(SZCrackTipShearStress):
     name = 'crack tip stress state'
 
-    sig_x_tip_0 = tr.Property
+    # sig_x_tip_0 = tr.Property
+    #
+    # def _get_sig_x_tip_0(self):
+    #     x_tip_1 = self.sz_cp.sz_ctr.x_tip_ak[1,0]
+    #     idx_tip0 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1)
+    #     H_fpz = 100
+    #     idx_tip1 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1 + H_fpz)
+    #     N_c = np.sum(self.sz_stress_profile.F_La[idx_tip0:idx_tip1, 0])
+    #     B = self.sz_bd.B
+    #     H = self.sz_bd.H
+    #     sigma_c = N_c / B / H_fpz
+    #     return sigma_c
 
-    def _get_sig_x_tip_0(self):
-        x_tip_1 = self.sz_cp.sz_ctr.x_tip_ak[1,0]
-        idx_tip0 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1)
-        H_fpz = 100
-        idx_tip1 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1 + H_fpz)
-        N_c = np.sum(self.sz_stress_profile.F_La[idx_tip0:idx_tip1, 0])
-        B = self.sz_bd.B
-        H = self.sz_bd.H
-        sigma_c = N_c / B / H_fpz
-        return sigma_c
-
-    Q = tr.Property
-    """Assuming the parabolic profile of the shear stress within the uncracked
-    zone, calculate the value of shear stress corresponding to the height of the 
-    crack tip
-    """
-    def _get_Q(self):
-        M = self.sz_stress_profile.M
-        L = self.sz_bd.L
-        x_tip_0k = self.sz_cp.sz_ctr.x_tip_ak[0]
-        Q = M / (L - x_tip_0k)[0]
-        return Q
+    # Q = tr.Property
+    # """Assuming the parabolic profile of the shear stress within the uncracked
+    # zone, calculate the value of shear stress corresponding to the height of the
+    # crack tip
+    # """
+    # def _get_Q(self):
+    #     M = self.sz_stress_profile.M
+    #     L = self.sz_bd.L
+    #     x_tip_0k = self.sz_cp.sz_ctr.x_tip_ak[0]
+    #     Q = M / (L - x_tip_0k)[0]
+    #     return Q
 
     Q_reduced = tr.Property
     """Amount of shear force calculated from the global moment equilibrium
