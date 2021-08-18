@@ -22,6 +22,31 @@ class SZCrackTipShearStress(Model):
         Item('L_cs', latex=r'L_{cs}'),
     )
 
+    Q = tr.Property
+    """Assuming the parabolic profile of the shear stress within the uncracked
+    zone, calculate the value of shear stress corresponding to the height of the
+    crack tip
+    """
+
+    def _get_Q(self):
+        M = self.sz_stress_profile.M
+        L = self.sz_bd.L
+        x_tip_0k = self.sz_cp.sz_ctr.x_tip_ak[0]
+        Q = M / (L - x_tip_0k)[0]
+        #print(Q)
+        return Q
+
+    F_beam = tr.Property
+    '''Use the reference to MQProfileand BoundaryConditions
+    to calculate the global load. Its interpretation depends on the   
+    nature of the load - single mid point, four-point, distributed.
+    '''
+
+    # TODO: Currently there is just a single midpoint load of a 3pt bending beam assumed.
+    #       then, the load is equal to the shear force
+    def _get_F_beam(self):
+        return 2 * self.Q
+
     sig_x_tip_0 = tr.Property
 
     def _get_sig_x_tip_0(self):
@@ -33,20 +58,21 @@ class SZCrackTipShearStress(Model):
         B = self.sz_bd.B
         H = self.sz_bd.H
         sigma_c = N_c / B / H_fpz
+        print('sig_x_tip_0', sigma_c)
         return sigma_c
 
-    sig_z1 = tr.Property
+    sig_z_tip_1 = tr.Property
     '''Crack parallel stress from cantilever action'''
 
-    def _get_sig_z1(self):
+    def _get_sig_z_tip_1(self):
         M_cantilever = self.M_cantilever
         B = self.sz_bd.B
 
         L_cs = self.L_cs
         S = (B * L_cs ** 2) / 6
-        sigma_z1 = M_cantilever / S
-        #print(sigma_z1)
-        return sigma_z1
+        sigma_z_tip_1 = M_cantilever / S
+        print('sigma_z_tip_1', sigma_z_tip_1)
+        return sigma_z_tip_1
 
     F_N_delta = tr.Property(depends_on='state_changed')
     '''Force at steel'''
@@ -99,7 +125,3 @@ class SZCrackTipShearStress(Model):
         #print(M_delta_F)
         #print(-(M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0])
         return (- M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0] #-
-
-    ipw_view = View(
-        Item('L_cs', latex='L_cs'),
-    )
