@@ -114,15 +114,15 @@ class SZCrackTipShearStressGlobal(SZCrackTipShearStress):
         return Q_reduced
 
 
-    F_beam = tr.Property
-    '''Use the reference to MQProfileand BoundaryConditions
-    to calculate the global load. Its interpretation depends on the   
-    nature of the load - single mid point, four-point, distributed.
-    '''
-    # TODO: Currently there is just a single midpoint load of a 3pt bending beam assumed.
-    #       then, the load is equal to the shear force
-    def _get_F_beam(self):
-        return  2 * self.Q
+    # F_beam = tr.Property
+    # '''Use the reference to MQProfileand BoundaryConditions
+    # to calculate the global load. Its interpretation depends on the
+    # nature of the load - single mid point, four-point, distributed.
+    # '''
+    # # TODO: Currently there is just a single midpoint load of a 3pt bending beam assumed.
+    # #       then, the load is equal to the shear force
+    # def _get_F_beam(self):
+    #     return  2 * self.Q
 
     x_tip_1k = tr.Property
 
