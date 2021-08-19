@@ -66,8 +66,8 @@ class RCBeamDesign(BeamDesign):
     # cmm = tr.Instance(ConcreteMaterialModelAdv, ()) # ConcreteMaterialModel
     # cmm_adv = tr.Instance(ConcreteMaterialModelAdv,())
     matrix = EitherType(options=[
-        ('simple', ConcreteMaterialModel),
-        ('advanced', ConcreteMaterialModelAdv)
+        ('advanced', ConcreteMaterialModelAdv),
+        ('simple', ConcreteMaterialModel)
         ], MAT=True)
 
     cross_section_shape = EitherType(

@@ -58,7 +58,8 @@ class SZCrackTipShearStress(Model):
         B = self.sz_bd.B
         H = self.sz_bd.H
         sigma_c = N_c / B / H_fpz
-        print('sig_x_tip_0', sigma_c)
+        #sigma_c = 0 #self.sz_bd.matrix_.f_t
+        #print('sig_x_tip_0', sigma_c)
         return sigma_c
 
     sig_z_tip_1 = tr.Property
@@ -70,8 +71,9 @@ class SZCrackTipShearStress(Model):
 
         L_cs = self.L_cs
         S = (B * L_cs ** 2) / 6
-        sigma_z_tip_1 = M_cantilever / S
-        print('sigma_z_tip_1', sigma_z_tip_1)
+        sigma_z_tip_1 = (M_cantilever / S) #/ 2
+        #sigma_z_tip_1 = 0#self.sz_bd.matrix_.f_t
+        #print('sigma_z_tip_1', sigma_z_tip_1)
         return sigma_z_tip_1
 
     F_N_delta = tr.Property(depends_on='state_changed')
