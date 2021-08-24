@@ -52,15 +52,16 @@ class SZCrackTipShearStress(Model):
     def _get_sig_x_tip_0(self):
         x_tip_1 = self.sz_cp.sz_ctr.x_tip_ak[1,0]
         idx_tip0 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1)
-        H_fpz = 10 # @!!! Clarify
-        idx_tip1 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1 + H_fpz)
-        N_c = np.sum(self.sz_stress_profile.F_La[idx_tip0:idx_tip1, 0])
-        B = self.sz_bd.B
-        H = self.sz_bd.H
-        sigma_c = N_c / B / H_fpz
+            # H_fpz = 10 # @!!! Clarify
+            # idx_tip1 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1 + H_fpz)
+            # N_c = np.sum(self.sz_stress_profile.F_La[idx_tip0:idx_tip1, 0])
+            # B = self.sz_bd.B
+            # H = self.sz_bd.H
+            # sigma_c = N_c / B / H_fpz
+        S_tip_0 = self.sz_stress_profile.S_La[idx_tip0,0]
         #sigma_c = self.sz_bd.matrix_.f_t - 0.000001
         #print('sig_x_tip_0', sigma_c)
-        return sigma_c
+        return S_tip_0
 
     sig_z_tip_1 = tr.Property
     '''Crack parallel stress from cantilever action'''
