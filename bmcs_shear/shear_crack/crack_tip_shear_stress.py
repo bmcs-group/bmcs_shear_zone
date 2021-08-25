@@ -50,6 +50,7 @@ class SZCrackTipShearStress(Model):
     sig_x_tip_0 = tr.Property
 
     def _get_sig_x_tip_0(self):
+        B = self.sz_bd.B
         x_tip_1 = self.sz_cp.sz_ctr.x_tip_ak[1,0]
         idx_tip0 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1)
             # H_fpz = 10 # @!!! Clarify
@@ -58,8 +59,14 @@ class SZCrackTipShearStress(Model):
             # B = self.sz_bd.B
             # H = self.sz_bd.H
             # sigma_c = N_c / B / H_fpz
-        S_tip_0 = self.sz_stress_profile.S_La[idx_tip0,0]
-        #sigma_c = self.sz_bd.matrix_.f_t - 0.000001
+        S_La = (self.sz_stress_profile.S_La[idx_tip0,0])
+        S_Lb = (self.sz_stress_profile.S_Lb[idx_tip0, 0])
+        print('S_La',S_La)
+        print('S_Lb', S_Lb)
+        S_tip_0 = S_La / B
+        print('S_tip_0', S_tip_0)
+        print('B', B)
+        #S_tip_0 = 0 #self.sz_bd.matrix_.f_t - 0.000001
         #print('sig_x_tip_0', sigma_c)
         return S_tip_0
 
@@ -72,8 +79,8 @@ class SZCrackTipShearStress(Model):
 
         L_cs = self.L_cs
         S = (B * L_cs ** 2) / 6
-        sigma_z_tip_1 = (M_cantilever / S)
-        #sigma_z_tip_1 = 0 #self.sz_bd.matrix_.f_t
+        #sigma_z_tip_1 = (M_cantilever / S)
+        sigma_z_tip_1 = 0#self.sz_bd.matrix_.f_t - 0.1
         #print('sigma_z_tip_1', sigma_z_tip_1)
         return sigma_z_tip_1
 
