@@ -205,6 +205,7 @@ class CrackTipExpr(SymbExpr):
     x_rot_1k = x_rot_1k
     x_tip_0n = x_tip_0n
     x_tip_1n = x_tip_1n
+    x_tip_ak = x_tip_ak
     c_psi = c_psi
     s_psi = s_psi
 
@@ -218,6 +219,7 @@ class CrackTipExpr(SymbExpr):
     symb_expressions = [
         ('B', ('psi', 'x_rot_1k', 'x_tip_0n', 'x_tip_1n')),
         ('xi_solved', ('psi', 'x_rot_1k', 'x_tip_0n', 'x_tip_1n', 'c_psi', 's_psi')),
+        ('x_tip_ak', ('x_tip_0n', 'x_tip_1n', 'c_psi', 's_psi'))
     ]
 
 

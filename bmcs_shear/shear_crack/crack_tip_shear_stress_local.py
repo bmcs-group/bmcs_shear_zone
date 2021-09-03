@@ -54,15 +54,15 @@ class SZCrackTipShearStressLocal(SZCrackTipShearStress):
     def _get_tau_x_tip_1k(self):  # Shear stress distribution in uncracked region?
         # calculate the biaxial stress
         f_ct = self.f_t
-        print('f_ct', f_ct)
+#        print('f_ct', f_ct)
         f_cm = self.f_c
-        print('f_cm', f_cm)
+#        print('f_cm', f_cm)
         sigma_x = self.sig_x_tip_0
-        print('sigma_x', sigma_x)
+#        print('sigma_x', sigma_x)
         sigma_y = self.sig_z_tip_1
-        print('sigma_y', sigma_y)
+#        print('sigma_y', sigma_y)
         tau_x_tip_1k = get_tau_fps(sigma_x, sigma_y, f_cm, f_ct)#[0]
-        print('tau_x_tip_1k', tau_x_tip_1k)
+#        print('tau_x_tip_1k', tau_x_tip_1k)
         return tau_x_tip_1k
 
     def subplots(self, fig):
