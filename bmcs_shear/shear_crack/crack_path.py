@@ -145,7 +145,7 @@ class SZCrackPath(InteractiveModel):
 
     name = 'Crack path'
 
-    n_m = Int(4, DSC=True)
+    n_m = Int(40, DSC=True)
     n_J = Int(10, DSC=True)
 
     ipw_view = View(
@@ -186,16 +186,6 @@ class SZCrackPath(InteractiveModel):
     x_00 = Float(300, GEO=True)
     '''Initial crack position'''
 
-    # TODO: adjust the range of parameters that support sliding.
-    #       this requires the definition of the traits using the tr.Range type
-    #       direct specification of the range from within the Range editor
-    #       provides an alternative solution - then, the min-max attribute
-    #       must be defined as a trait and named in low / high Range trait parameter.
-        # self.sz_ctr.traits(trantient=False)['x_rot_1k'].minmax = (0, self.sz_bd.H)
-        # self.sz_ctr.traits(trantient=False)['x_tip_0n'].minmax = (0, self.sz_bd.L)
-        # self.sz_ctr.traits(trantient=False)['x_tip_1n'].minmax = (0, self.sz_bd.H)
-        # self.traits(param=True)['x_00'].minmax = (0, self.sz_bd.L)
-
     x_t_Ia = tr.Array
     '''Crack nodes up to a crack tip'''
     def _x_t_Ia_default(self):
@@ -207,6 +197,7 @@ class SZCrackPath(InteractiveModel):
         self.x_t_Ia = np.vstack([self.x_t_Ia, value[np.newaxis, :]])
         self.sz_ctr.x_tip_0n, self.sz_ctr.x_tip_1n = value
         self.crack_extended = True
+        self.state_changed = True
 
     def get_x_tip_an(self):
         return self.x_t_Ia[-1 ,:]
@@ -249,10 +240,14 @@ class SZCrackPath(InteractiveModel):
     @tr.cached_property
     def _get_x_Ia(self):
         x_fps_ak = self.sz_ctr.x_fps_ak
-        return np.vstack([self.x_t_Ia, x_fps_ak.T])
+        x_tip_ak = self.sz_ctr.x_tip_ak
+        return np.vstack([self.x_t_Ia, x_tip_ak.T, x_fps_ak.T])
 
     I_Li = tr.Property(depends_on='state_changed')
-    '''Crack segments'''
+    '''Index map of crack segments corresponding to the explicitly added crack extensions
+    Index L is the segment index
+    Index i is the node index (0,1)
+    '''
     @tr.cached_property
     def _get_I_Li(self):
         N_I = np.arange(len(self.x_Ia))
@@ -260,7 +255,8 @@ class SZCrackPath(InteractiveModel):
         return I_Li
 
     x_Ja = tr.Property(depends_on='state_changed')
-    '''Uncracked vertical section'''
+    '''Uncracked vertical section
+    '''
     @tr.cached_property
     def _get_x_Ja(self):
         x_J_1 = np.linspace(self.x_Ia[-1, 1], self.sz_bd.H, self.n_J)
@@ -318,7 +314,8 @@ class SZCrackPath(InteractiveModel):
         n_vec_La = x_Lia[:, 1, :] - x_Lia[:, 0, :]
         return np.sqrt(np.einsum('...a,...a->...', n_vec_La, n_vec_La))
 
-    T_Lab = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+#    T_Lab = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
+    T_Lab = tr.Property(depends_on='state_changed')
     '''Orthonormal bases of the crack segments, first vector is the line vector.
     '''
     @tr.cached_property

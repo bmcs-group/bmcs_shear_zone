@@ -218,8 +218,25 @@ class SZStressProfile(InteractiveModel):
         M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_Na[:,1])
         return -(M + M_agg + M_z + M_da)
 
-    sig_x_tip_0k = tr.Property(depends_on='state_changed')
+    sig_x_tip_ak = tr.Property(depends_on='state_changed')
     '''Normal stress component in global $x$ direction in the fracture .
+    process segment.
+    '''
+    def _get_sig_x_tip_ak(self):
+        sz_cp = self.sz_cp
+        x_tip_1 = sz_cp.sz_ctr.x_tip_ak[1]
+        idx_tip = np.argmax(sz_cp.x_Ka[:, 1] >= x_tip_1)
+        u_a = self.ds.x1_Ka[idx_tip] - sz_cp.x_Ka[idx_tip]
+        T_ab = sz_cp.T_Lab[-1, :]
+        u_b = np.einsum('a,ab->b', u_a, T_ab)
+        sig_b = self.ds.sz_bd.matrix_.get_sig_a(u_b)
+        sig_a = np.einsum('b,ab->a', sig_b, T_ab)
+        return sig_a
+
+    sig_x_tip_0k = tr.Property(depends_on='state_changed')
+    '''DEPRECATED - it is inprecise because of the discretization
+    
+    Normal stress component in global $x$ direction in the fracture .
     process segment.
     '''
     @tr.cached_property
@@ -227,11 +244,10 @@ class SZStressProfile(InteractiveModel):
         x_tip_1k = self.sz_cp.sz_ctr.x_tip_ak[1][0]
         return self.get_sig_x_tip_0k(x_tip_1k)
 
-    #         S_a = self.S_La[self.xd.n_m_fps, ...]
-    #         return S_a[0] / self.sim.B
-
     get_sig_x_tip_0k = tr.Property(depends_on='state_changed')
-    '''Get an interpolator function returning horizontal stress 
+    '''DEPRECATED - interpolation inprecise and not sufficient for the 
+    crack orientation criterion.
+    Get an interpolator function returning horizontal stress 
     component for a specified vertical coordinate of a ligament.
     '''
     @tr.cached_property
