@@ -75,7 +75,7 @@ class SZCrackTipShearStress(Model):
         L_cs = self.L_cs
         S = (B * L_cs ** 2) / 6
         #sigma_z_tip_1 = (M_cantilever / S)
-        sigma_z_tip_1 = 0#self.sz_bd.matrix_.f_t - 0.1
+        sigma_z_tip_1 = 0 #self.sz_bd.matrix_.f_t - 0.1
         #print('sigma_z_tip_1', sigma_z_tip_1)
         return sigma_z_tip_1
 
