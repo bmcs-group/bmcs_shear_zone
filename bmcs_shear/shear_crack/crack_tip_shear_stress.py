@@ -50,20 +50,20 @@ class SZCrackTipShearStress(Model):
     sig_x_tip_0 = tr.Property
 
     def _get_sig_x_tip_0(self):
-#        return self.sz_stress_profile.sig_x_tip_ak[0]
-        B = self.sz_bd.B
-        x_tip_1 = self.sz_cp.sz_ctr.x_tip_ak[1,0]
-        idx_tip0 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1)
-        S_La = (self.sz_stress_profile.S_La[idx_tip0, 0])
-        S_Lb = (self.sz_stress_profile.S_Lb[idx_tip0, 0])
-        # print('S_La',S_La)
-        # print('S_Lb', S_Lb)
-        S_tip_0 = S_La / B
-        # print('S_tip_0', S_tip_0)
-        # print('B', B)
-        #S_tip_0 = 0 #self.sz_bd.matrix_.f_t - 0.000001
-        #print('sig_x_tip_0', sigma_c)
-        return S_tip_0
+        return self.sz_stress_profile.sig_x_tip_ak[0]
+        # B = self.sz_bd.B
+        # x_tip_1 = self.sz_cp.sz_ctr.x_tip_ak[1,0]
+        # idx_tip0 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1)
+        # S_La = (self.sz_stress_profile.S_La[idx_tip0, 0])
+        # S_Lb = (self.sz_stress_profile.S_Lb[idx_tip0, 0])
+        # # print('S_La',S_La)
+        # # print('S_Lb', S_Lb)
+        # S_tip_0 = S_La / B
+        # # print('S_tip_0', S_tip_0)
+        # # print('B', B)
+        # #S_tip_0 = 0 #self.sz_bd.matrix_.f_t - 0.000001
+        # #print('sig_x_tip_0', sigma_c)
+        # return S_tip_0
 
     sig_z_tip_1 = tr.Property
     '''Crack parallel stress from cantilever action'''
