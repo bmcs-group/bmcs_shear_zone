@@ -22,7 +22,8 @@ class DICCrack(bu.Model):
     U_factor = bu.Float(100, ALG=True)
 
     show_rot = bu.Bool(True, ALG=True)
-    show_perp = bu.Bool(True, ALG=True)
+    show_perp = bu.Bool(False, ALG=True)
+    show_init = bu.Bool(False, ALG=True)
 
     ipw_view = bu.View(
         bu.Item('n_x'),
@@ -34,6 +35,7 @@ class DICCrack(bu.Model):
         bu.Item('U_factor'),
         bu.Item('show_rot'),
         bu.Item('show_perp'),
+        bu.Item('show_init'),
     )
 
     data_dir = tr.Property
@@ -72,21 +74,79 @@ class DICCrack(bu.Model):
         X_ija = np.einsum('aij->ija', X_aij)
         return X_ija
 
+    U_ija = tr.Property(depends_on='state_changed')
+    '''Total displacement
+    '''
+    @tr.cached_property
+    def _get_U_ija(self):
+        return self.u_tija[self.end_t] - self.u_tija[0]
+
+    delta_u_rot_ija = tr.Property(depends_on='state_changed')
+    '''Displacement increment with subtracted rigid body motion
+    within that increment.
+    '''
+    @tr.cached_property
+    def _get_delta_u_rot_ija(self):
+        delta_u_ija = self.u_tija[self.end_t] - self.u_tija[self.start_t]
+        avg_a = np.average(delta_u_ija, axis=(0, 1))
+        delta_u_rot_ija = delta_u_ija - avg_a[np.newaxis, np.newaxis, :]
+        return delta_u_rot_ija
+
+    delta_u_ul_ija = tr.Property(depends_on='state_changed')
+    '''Displacement increment relative to upper left corner.
+    '''
+    @tr.cached_property
+    def _get_delta_u_ul_ija(self):
+        delta_u_ija = self.u_tija[self.end_t] - self.u_tija[self.start_t]
+        u_11a = delta_u_ija[-1:,:1,:]
+        delta_u_ul_ija = delta_u_ija - u_11a
+        return delta_u_ul_ija
+
+    delta_alpha = tr.Property(depends_on='state_changed')
+    '''Rotation of the reference boundary line.
+    '''
+    @tr.cached_property
+    def _get_delta_alpha(self):
+        # slice the left boundary
+        d_u_ul_1j1 = self.delta_u_ul_ija[-1,1:10,0] - self.delta_u_ul_ija[-1,:1,0]
+        d_x_i0 = self.X_ija[-1,1:10,1] - self.X_ija[-1,:1,1]
+        sin_delta_alpha = np.average(d_u_ul_1j1 / d_x_i0)
+        return np.arcsin(sin_delta_alpha)
+
+    T_ab = tr.Property(depends_on='state_changed')
+    '''Rotation of the reference boundary line.
+    '''
+    @tr.cached_property
+    def _get_T_ab(self):
+        delta_alpha = self.delta_alpha
+        sa, ca = np.sin(delta_alpha), np.cos(delta_alpha)
+        return np.array([[ca,-sa],
+                         [sa,ca]])
+
+    delta_u0_ul_ija = tr.Property(depends_on='state_changed')
+    '''Displacement increment relative to the reference line.
+    '''
+    @tr.cached_property
+    def _get_delta_u0_ul_ija(self):
+        XU_ija = self.X_ija + self.delta_u_ul_ija
+        XU_pull_ija = XU_ija - XU_ija[-1:,:1,:]
+        XU0_ija = np.einsum('ba,...a->...b', self.T_ab, XU_pull_ija)
+        XU_push_ija = XU0_ija + XU_ija[-1:,:1,:]
+        return XU_push_ija - self.X_ija
+
     displ_grids = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_displ_grids(self):
-        delta_u_ija = self.u_tija[self.end_t] - self.u_tija[self.start_t]
-        # delta_u_ija = u1_tija[1] - u1_tija[0]
-        avg_a = np.average(delta_u_ija, axis=(0, 1))
-        u_rot_ija = delta_u_ija - avg_a[np.newaxis, np.newaxis, :]
-        rot_Xu_ija = self.X_ija + u_rot_ija * self.U_factor
-        rot_vect_u_nija = np.array([self.X_ija, rot_Xu_ija])
+        X_ija = self.X_ija
+        delta_u_rot_ija = self.delta_u0_ul_ija
+        rot_Xu_ija = X_ija + delta_u_rot_ija * self.U_factor
+        rot_vect_u_nija = np.array([X_ija, rot_Xu_ija])
         rot_vect_u_anij = np.einsum('nija->anij', rot_vect_u_nija)
         rot_vect_u_anp = rot_vect_u_anij.reshape(2, 2, -1)
-        perp_u_aij = np.array([u_rot_ija[..., 1], -u_rot_ija[..., 0]])
+        perp_u_aij = np.array([delta_u_rot_ija[..., 1], -delta_u_rot_ija[..., 0]])
         perp_u_ija = np.einsum('aij->ija', perp_u_aij)
-        perp_Xu_ija = self.X_ija + perp_u_ija * self.U_factor
-        perp_vect_u_nija = np.array([self.X_ija, perp_Xu_ija])
+        perp_Xu_ija = X_ija + perp_u_ija * self.U_factor
+        perp_vect_u_nija = np.array([X_ija, perp_Xu_ija])
         perp_vect_u_anij = np.einsum('nija->anij', perp_vect_u_nija)
         perp_vect_u_anp = perp_vect_u_anij.reshape(2, 2, -1)
         # perp_vect_u_anp
@@ -94,7 +154,15 @@ class DICCrack(bu.Model):
 
     def update_plot(self, axes):
         ax = axes
+        # XU_aij = np.einsum('ija->aij', self.X_ija + self.delta_u_ul_ija)
+        # ax.plot(*XU_aij.reshape(2,-1), 'o', color='black')
+        if self.show_init:
+            XU0_aij = np.einsum('ija->aij', self.X_ija + self.delta_u0_ul_ija)
+            ax.plot(*XU0_aij.reshape(2,-1), 'o', color='blue')
+
         _, rot_vect_u_anp, perp_vect_u_anp = self.displ_grids
+
+        ax.plot(*rot_vect_u_anp[:,-1,:], 'o', color='blue')
         if self.show_rot:
             ax.plot(*rot_vect_u_anp, color='blue', linewidth=0.5);
 

@@ -71,8 +71,9 @@ class DICCOR(bu.Model):
     def update_plot(self, axes):
         ax = axes
         _, rot_vect_u_anp, perp_vect_u_anp = self.dic_crack.displ_grids
-        ax.plot(*rot_vect_u_anp, color='blue', linewidth=0.5);
-        ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
+        self.dic_crack.update_plot(axes)
+        # ax.plot(*rot_vect_u_anp, color='blue', linewidth=0.5);
+        # ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
         ax.plot(*self.x_cor_pa_sol.T, 'o')
         ax.plot([self.X_cor[0]], [self.X_cor[1]], 'o', color='red')
         ax.axis('equal');
