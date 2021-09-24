@@ -98,8 +98,11 @@ class DICCrack(bu.Model):
     @tr.cached_property
     def _get_delta_u_ul_ija(self):
         delta_u_ija = self.u_tija[self.end_t] - self.u_tija[self.start_t]
+        #print('delta_u_ija', delta_u_ija)
         u_11a = delta_u_ija[-1:,:1,:]
+        #print('u_11a', u_11a)
         delta_u_ul_ija = delta_u_ija - u_11a
+        #print('delta_u_ul_ija', delta_u_ul_ija)
         return delta_u_ul_ija
 
     delta_alpha = tr.Property(depends_on='state_changed')
@@ -149,6 +152,7 @@ class DICCrack(bu.Model):
         perp_vect_u_nija = np.array([X_ija, perp_Xu_ija])
         perp_vect_u_anij = np.einsum('nija->anij', perp_vect_u_nija)
         perp_vect_u_anp = perp_vect_u_anij.reshape(2, 2, -1)
+        #print('perp_vect_u_anp', perp_vect_u_anp)
         # perp_vect_u_anp
         return perp_u_ija, rot_vect_u_anp, perp_vect_u_anp
 
@@ -162,9 +166,9 @@ class DICCrack(bu.Model):
 
         _, rot_vect_u_anp, perp_vect_u_anp = self.displ_grids
 
-        ax.plot(*rot_vect_u_anp[:,-1,:], 'o', color='blue')
+        ax.plot(*rot_vect_u_anp[:,-1,:], 'o', color='grey')
         if self.show_rot:
-            ax.plot(*rot_vect_u_anp, color='blue', linewidth=0.5);
+            ax.plot(*rot_vect_u_anp, color='grey', linewidth=0.5);
 
         if self.show_perp:
             ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);

@@ -66,6 +66,7 @@ class DICCOR(bu.Model):
     X_cor = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_X_cor(self):
+        print(np.average(self.x_cor_pa_sol, axis=0))
         return np.average(self.x_cor_pa_sol, axis=0)
 
     def update_plot(self, axes):
@@ -74,6 +75,6 @@ class DICCOR(bu.Model):
         self.dic_crack.update_plot(axes)
         # ax.plot(*rot_vect_u_anp, color='blue', linewidth=0.5);
         # ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
-        ax.plot(*self.x_cor_pa_sol.T, 'o')
+        ax.plot(*self.x_cor_pa_sol.T, 'o', color = 'blue')
         ax.plot([self.X_cor[0]], [self.X_cor[1]], 'o', color='red')
         ax.axis('equal');
