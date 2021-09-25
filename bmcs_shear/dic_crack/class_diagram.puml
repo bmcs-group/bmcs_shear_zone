@@ -1,0 +1,14 @@
+@startuml
+'https://plantuml.com/class-diagram
+
+
+class DICCrack {
+}
+
+class DICAlign{
+}
+
+class DICCOR{
+}
+
+@enduml

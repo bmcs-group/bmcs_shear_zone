@@ -1,5 +1,5 @@
 
-from .dic_crack import DICCrack
+from .dic_aligned_grid import DICAlignedGrid
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
@@ -9,7 +9,9 @@ class DICCOR(bu.Model):
 
     name = 'COR detector'
 
-    dic_crack = bu.Instance(DICCrack, ())
+    dic_aligned_grid = bu.Instance(DICAlignedGrid, ())
+
+    dic_grid = tr.DelegatesTo('dic_aligned_grid')
 
     n_x_min = bu.Int(0, ALG=True)
     n_x_max = bu.Int(-1, ALG=True)
@@ -19,7 +21,13 @@ class DICCOR(bu.Model):
     n_y_max = bu.Int(-1, ALG=True)
     n_y_step = bu.Int(5, ALG=True)
 
-    tree = ['dic_crack']
+    tree = ['dic_aligned_grid']
+
+    t = bu.Float(1, ALG=True)
+    def _t_changed(self):
+        n_t = self.dic_grid.n_t
+        d_t = (1 / n_t)
+        self.dic_grid.end_t = int((n_t - 1) * (self.t + d_t / 2))
 
     ipw_view = bu.View(
         bu.Item('n_x_min'),
@@ -28,17 +36,18 @@ class DICCOR(bu.Model):
         bu.Item('n_y_min'),
         bu.Item('n_y_max'),
         bu.Item('n_y_step'),
+        time_editor=bu.HistoryEditor(
+            var='t'
+        )
     )
 
     x_cor_pa_sol = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_x_cor_pa_sol(self):
-        dc = self.dic_crack
-        perp_u_ija, _, _ = dc.displ_grids
-        n_x, n_y = dc.n_x, dc.n_y
-        X_ija = self.dic_crack.X_ija[
+        X_ija = self.dic_grid.X_ija[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step,:]
+        perp_u_ija, _, _ = self.dic_aligned_grid.displ_grids
         perp_u_ija = perp_u_ija[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step,:]
@@ -66,13 +75,20 @@ class DICCOR(bu.Model):
     X_cor = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_X_cor(self):
-        print(np.average(self.x_cor_pa_sol, axis=0))
         return np.average(self.x_cor_pa_sol, axis=0)
 
     def update_plot(self, axes):
         ax = axes
-        _, rot_vect_u_anp, perp_vect_u_anp = self.dic_crack.displ_grids
-        self.dic_crack.update_plot(axes)
+        _, rot_vect_u_anp, perp_vect_u_anp = self.dic_aligned_grid.displ_grids
+        self.dic_aligned_grid.update_plot(axes)
+
+        rot_Xu_ija = self.dic_aligned_grid.rot_Xu_ija
+        Xu_ija = rot_Xu_ija[
+                self.n_x_min:self.n_x_max:self.n_x_step,
+                self.n_y_min:self.n_y_max:self.n_y_step, :]
+        Xu_aij = np.einsum('ija->aij', Xu_ija)
+        ax.scatter(*Xu_aij.reshape(2,-1), s=7, marker='o', color='black')
+
         # ax.plot(*rot_vect_u_anp, color='blue', linewidth=0.5);
         # ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
         ax.plot(*self.x_cor_pa_sol.T, 'o', color = 'blue')
