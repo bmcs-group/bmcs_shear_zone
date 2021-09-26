@@ -77,11 +77,19 @@ class DICCOR(bu.Model):
     def _get_X_cor(self):
         return np.average(self.x_cor_pa_sol, axis=0)
 
-    def update_plot(self, axes):
-        ax = axes
-        _, rot_vect_u_anp, perp_vect_u_anp = self.dic_aligned_grid.displ_grids
-        self.dic_aligned_grid.update_plot(axes)
 
+    X_cor_b = tr.Property(depends_on='state_changed')
+    '''Global coordinates of COR.
+    '''
+    @tr.cached_property
+    def _get_X_cor_b(self):
+        X_a = self.X_cor
+        X_pull_a = X_a - self.dic_aligned_grid.X_ref_a
+        X_b = np.einsum('ba,a->b', self.dic_aligned_grid.T_ab, X_pull_a)
+        X_push_b = X_b + self.dic_aligned_grid.X_ref_a
+        return X_push_b
+
+    def plot_cor(self, ax):
         rot_Xu_ija = self.dic_aligned_grid.rot_Xu_ija
         Xu_ija = rot_Xu_ija[
                 self.n_x_min:self.n_x_max:self.n_x_step,
@@ -89,8 +97,17 @@ class DICCOR(bu.Model):
         Xu_aij = np.einsum('ija->aij', Xu_ija)
         ax.scatter(*Xu_aij.reshape(2,-1), s=7, marker='o', color='black')
 
+        X_ref_b = self.dic_aligned_grid.X_ref_a
+        ax.scatter([X_ref_b[0]],[X_ref_b[1]], s=20, color='green')
+
         # ax.plot(*rot_vect_u_anp, color='blue', linewidth=0.5);
         # ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
         ax.plot(*self.x_cor_pa_sol.T, 'o', color = 'blue')
         ax.plot([self.X_cor[0]], [self.X_cor[1]], 'o', color='red')
         ax.axis('equal');
+
+    def update_plot(self, axes):
+        ax = axes
+        _, rot_vect_u_anp, perp_vect_u_anp = self.dic_aligned_grid.displ_grids
+        self.dic_aligned_grid.update_plot(axes)
+        self.plot_cor(ax)

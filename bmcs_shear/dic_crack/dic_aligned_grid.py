@@ -36,7 +36,6 @@ class DICAlignedGrid(bu.Model):
         self.dic_grid.end_t = int((n_t - 1) * (self.t + d_t / 2))
 
     ipw_view = bu.View(
-        bu.Item('y_ref_j_min'),
         bu.Item('y_ref_i'),
         bu.Item('y_ref_j_min'),
         bu.Item('y_ref_j_max'),
@@ -80,7 +79,7 @@ class DICAlignedGrid(bu.Model):
         return np.arcsin(sin_delta_alpha)
 
     T_ab = tr.Property(depends_on='state_changed')
-    '''Rotation of the reference boundary line.
+    '''Rotation matrix of the reference boundary line.
     '''
     @tr.cached_property
     def _get_T_ab(self):
@@ -89,16 +88,24 @@ class DICAlignedGrid(bu.Model):
         return np.array([[ca,-sa],
                          [sa,ca]])
 
+    X_ref_a = tr.Property(depends_on='state_changed')
+    '''Origin of the reference frame
+    '''
+    @tr.cached_property
+    def _get_X_ref_a(self):
+        XU_ija = self.X_ija + self.delta_u_ul_ija
+        return XU_ija[self.y_ref_i, self.y_ref_j_min, :]
+
     delta_u0_ul_ija = tr.Property(depends_on='state_changed')
-    '''Displacement increment relative to the reference line.
+    '''Displacement increment relative to the reference frame.
     '''
     @tr.cached_property
     def _get_delta_u0_ul_ija(self):
         XU_ija = self.X_ija + self.delta_u_ul_ija
         XU_pull_ija = XU_ija - XU_ija[-1:,:1,:]
-        XU_pull_ija = XU_ija - XU_ija[self.y_ref_i,self.y_ref_j_min,:][np.newaxis,np.newaxis,:]
+        XU_pull_ija = XU_ija - self.X_ref_a[np.newaxis,np.newaxis,:]
         XU0_ija = np.einsum('ba,...a->...b', self.T_ab, XU_pull_ija)
-        XU_push_ija = XU0_ija + XU_ija[self.y_ref_i,self.y_ref_j_min,:][np.newaxis,np.newaxis,:]
+        XU_push_ija = XU0_ija + self.X_ref_a[np.newaxis,np.newaxis,:]
         return XU_push_ija - self.X_ija
 
     rot_Xu_ija = tr.Property(depends_on='state_changed')
@@ -124,10 +131,6 @@ class DICAlignedGrid(bu.Model):
         perp_vect_u_anij = np.einsum('nija->anij', perp_vect_u_nija)
         perp_vect_u_anp = perp_vect_u_anij.reshape(2, 2, -1)
         return perp_u_ija, rot_vect_u_anp, perp_vect_u_anp
-
-    def plot_cor(self, axes):
-        '''Plot the center of rotation in global coordinates.'''
-        ax = axes
 
     def update_plot(self, axes):
         ax = axes
