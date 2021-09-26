@@ -25,3 +25,19 @@ class DICInspector(bu.Model):
     dic_cracks = bu.Instance(DICCrackList, ())
 
     tree = ['dic_grid', 'dic_strain_grid', 'dic_cracks']
+
+    t = bu.Float(1, ALG=True)
+    def _t_changed(self):
+        n_t = self.dic_grid.n_t
+        d_t = (1 / n_t)
+        self.dic_grid.end_t = int((n_t - 1) * (self.t + d_t / 2))
+
+    ipw_view = bu.View(
+        time_editor=bu.HistoryEditor(
+            var='t'
+        )
+    )
+    def update_plot(self, axes):
+        self.dic_strain_grid.update_plot(axes)
+        for dic_crack in self.dic_cracks.items:
+            dic_crack.dic_cor.plot_cor(axes)
