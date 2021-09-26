@@ -16,3 +16,4 @@ dependencies:
   - bmcs_utils
   - bmcs_cross_section
   - bmcs_beam
+  - bmcs_ibvpy
