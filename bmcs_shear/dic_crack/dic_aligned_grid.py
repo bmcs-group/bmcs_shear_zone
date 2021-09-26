@@ -1,6 +1,6 @@
 
-
 from .dic_grid import DICGrid
+from .dic_strain_grid import DICStrainGrid
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
@@ -123,14 +123,15 @@ class DICAlignedGrid(bu.Model):
         perp_vect_u_nija = np.array([X_ija, perp_Xu_ija])
         perp_vect_u_anij = np.einsum('nija->anij', perp_vect_u_nija)
         perp_vect_u_anp = perp_vect_u_anij.reshape(2, 2, -1)
-        #print('perp_vect_u_anp', perp_vect_u_anp)
-        # perp_vect_u_anp
         return perp_u_ija, rot_vect_u_anp, perp_vect_u_anp
+
+    def plot_cor(self, axes):
+        '''Plot the center of rotation in global coordinates.'''
+        ax = axes
 
     def update_plot(self, axes):
         ax = axes
-        # XU_aij = np.einsum('ija->aij', self.X_ija + self.delta_u_ul_ija)
-        # ax.plot(*XU_aij.reshape(2,-1), 'o', color='black')
+
         if self.show_init:
             XU0_aij = np.einsum('ija->aij', self.X_ija + self.delta_u0_ul_ija)
             ax.scatter(*XU0_aij.reshape(2,-1), s=15, marker='o', color='darkgray')

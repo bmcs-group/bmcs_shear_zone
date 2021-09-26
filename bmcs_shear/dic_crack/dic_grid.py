@@ -39,6 +39,14 @@ class DICGrid(bu.Model):
         )
     )
 
+    L_x = tr.Property
+    def _get_L_x(self):
+        return self.d_x * (self.n_x-1)
+
+    L_y = tr.Property
+    def _get_L_y(self):
+        return self.d_y * (self.n_y-1)
+
     data_dir = tr.Property
     def _get_data_dir(self):
         home_dir = expanduser('~')
