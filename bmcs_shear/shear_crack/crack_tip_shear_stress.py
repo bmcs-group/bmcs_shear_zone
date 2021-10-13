@@ -107,26 +107,25 @@ class SZCrackTipShearStress(Model):
         x_tip_a = sp.ds.sz_ctr.x_tip_ak[0,0] #[:,0]
         x_mid_a = x_tip_a
         x_mid_a -= self.L_cs / 2
-        #print(x_mid_a)
         x_00 = np.ones_like(sp.z_N) * sp.sz_cp.x_00
         M_right_da = np.einsum('L,L', F_Na[:, 1], x_00 - x_mid_a)
         x_00_L = x_00 - self.L_cs
         M_left_da = np.einsum('L,L', - F_Na[:, 1], x_mid_a - x_00_L)
-        #print(M_left_da + M_right_da)
-        #print(np.abs(x_mid_a - x_00_L))
+        # print(M_left_da + M_right_da)
+        # print(np.abs(x_mid_a - x_00_L))
         x_right_La = x_La[...]
         M_right_agg = np.einsum('L,L', F_La[:, 1], (x_right_La[:, 0] - x_mid_a))
         x_left_La = x_La[...]
         x_left_La[..., 0] -= self.L_cs
         M_left_agg = np.einsum('L,L', - F_La[:, 1], (x_mid_a - x_left_La[:, 0]))
-        #print(x_mid_a)
-        #print(x_mid_a - x_left_La[:, 0])
+        # print(x_mid_a)
+        # print(x_mid_a - x_left_La[:, 0])
         x_tip_1k = sp.sz_cp.sz_ctr.x_tip_ak[1,0]
         H = self.sz_bd.H
         delta_z_N = x_tip_1k - sp.z_N
         F_N_delta = self.Q * self.L_cs / H
-        #print(F_N_delta)
+        # print(F_N_delta)
         M_delta_F = (- F_N_delta) * delta_z_N
-        #print(M_delta_F)
+        # print(M_delta_F)
         #print(-(M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0])
         return (- M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0] #-

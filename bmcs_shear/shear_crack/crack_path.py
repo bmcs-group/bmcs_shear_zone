@@ -196,6 +196,14 @@ class SZCrackPath(InteractiveModel):
         value = np.array(value ,dtype=np.float_)
         self.x_t_Ia = np.vstack([self.x_t_Ia, value[np.newaxis, :]])
         self.sz_ctr.x_tip_0n, self.sz_ctr.x_tip_1n = value
+        # set the inclination of the new segment equal to the inclination of the last segment.
+        if len(self.x_t_Ia) > 1:
+            T_n_ab = get_T_Lab(self.x_t_Ia[-2:, :])[-1]
+            s_psi, _ = T_n_ab[-1,:]
+            psi_n = np.arcsin(s_psi)
+        else:
+            psi_n = 0
+        self.sz_ctr.psi = psi_n
         self.crack_extended = True
         self.state_changed = True
 
@@ -292,17 +300,17 @@ class SZCrackPath(InteractiveModel):
     def _get_x_Lb(self):
         return np.sum(self.x_Ka[self.K_Li], axis=1) / 2
 
-    beta = tr.Property(depends_on='state_changed')
-    '''Inclination of the last crack segment with respect to vertical axis'''
-    @tr.cached_property
-    def _get_beta(self):
-        if len(self.x_t_Ia) <= 2:
-            return 0
-        else:
-            T_tip_Lab = self.T_Lab[-1]
-            s_beta, _ = T_tip_Lab[1]
-            beta = np.arcsin(s_beta)
-            return beta
+    # psi_n = tr.Property(depends_on='state_changed')
+    # '''Inclination of the last crack segment with respect to vertical axis'''
+    # @tr.cached_property
+    # def _get_psi_n(self):
+    #     print(len(self.x_t_Ia))
+    #     if len(self.x_t_Ia) < 2:
+    #         return 0
+    #     else:
+    #         s_psi, _ = self.T_Lab[-1,:]
+    #         psi_n = np.arcsin(s_psi)
+    #         return psi_n
 
     norm_n_vec_L = tr.Property(depends_on='state_changed')
     '''Length of a discretization line segment. 
@@ -314,13 +322,19 @@ class SZCrackPath(InteractiveModel):
         n_vec_La = x_Lia[:, 1, :] - x_Lia[:, 0, :]
         return np.sqrt(np.einsum('...a,...a->...', n_vec_La, n_vec_La))
 
-#    T_Lab = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT')
     T_Lab = tr.Property(depends_on='state_changed')
     '''Orthonormal bases of the crack segments, first vector is the line vector.
     '''
     @tr.cached_property
     def _get_T_Lab(self):
         return get_T_Lab(self.x_t_Ia)
+
+    T_tip_k_ab = tr.Property(depends_on='state_changed')
+    '''Orthonormal base of the crack tip segment'''
+    @tr.cached_property
+    def _get_T_tip_k_ab(self):
+        T_tip_ab = get_T_Lab(self.x_Ia[-2:, :])[0]
+        return T_tip_ab
 
     T_Mab = tr.Property(depends_on='state_changed')
     '''Orthonormal bases of the integration segments, first vector is the line vector.

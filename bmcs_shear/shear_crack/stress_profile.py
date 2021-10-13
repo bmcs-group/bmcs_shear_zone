@@ -44,8 +44,6 @@ class SZStressProfile(InteractiveModel):
     sz_cp = tr.DelegatesTo('ds')
     sz_bd = tr.DelegatesTo('sz_cp')
 
-
-
     tree = ['ds']
 
     ipw_view = View()
@@ -187,6 +185,7 @@ class SZStressProfile(InteractiveModel):
     '''
     @tr.cached_property
     def _get_F_a(self):
+        print('F_a')
         F_La = self.F_La
         F_Na = self.F_Na
         sum_F_La = np.sum(F_La, axis=0)
@@ -227,7 +226,7 @@ class SZStressProfile(InteractiveModel):
         x_tip_1 = sz_cp.sz_ctr.x_tip_ak[1]
         idx_tip = np.argmax(sz_cp.x_Ka[:, 1] >= x_tip_1)
         u_a = self.ds.x1_Ka[idx_tip] - sz_cp.x_Ka[idx_tip]
-        T_ab = sz_cp.T_Lab[-1, :]
+        T_ab = sz_cp.T_tip_k_ab
         u_b = np.einsum('a,ab->b', u_a, T_ab)
         sig_b = self.ds.sz_bd.matrix_.get_sig_a(u_b)
         sig_a = np.einsum('b,ab->a', sig_b, T_ab)
