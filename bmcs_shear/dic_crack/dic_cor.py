@@ -41,6 +41,15 @@ class DICCOR(bu.Model):
         )
     )
 
+    X_pa = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_X_pa(self):
+        X_ija = self.dic_grid.X_ija[
+            self.n_x_min:self.n_x_max:self.n_x_step,
+            self.n_y_min:self.n_y_max:self.n_y_step, :]
+        X_pa = X_ija.reshape(-1, 2)
+        return X_pa
+
     x_cor_pa_sol = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_x_cor_pa_sol(self):
@@ -88,6 +97,34 @@ class DICCOR(bu.Model):
         X_b = np.einsum('ba,a->b', self.dic_aligned_grid.T_ab, X_pull_a)
         X_push_b = X_b + self.dic_aligned_grid.X_ref_a
         return X_push_b
+
+    phi = tr.Property(depends_on ='state_changed')
+    ''' Rotation of the center'''
+
+    @tr.cached_property
+    def _get_phi(self):
+        # _, rot_vect_u_anp, _ = self.dic_aligned_grid.displ_grids
+        rot_Xu_ija = self.dic_aligned_grid.rot_Xu_ija
+        rot_Xu_ija_sel = rot_Xu_ija[self.n_x_min:self.n_x_max:self.n_x_step,
+                          self.n_y_min:self.n_y_max:self.n_y_step, :]
+        rot_X_pa_sel = rot_Xu_ija_sel.reshape(-1, 2)
+        dist_x_cor_u_end = np.sqrt((self.x_cor_pa_sol[:, 0] - rot_X_pa_sel[:, 0]) ** 2
+                                   + (self.x_cor_pa_sol[:, 1] - rot_X_pa_sel[:, 1]) ** 2)
+        X_ija_sel = self.dic_grid.X_ija[self.n_x_min:self.n_x_max:self.n_x_step,
+                    self.n_y_min:self.n_y_max:self.n_y_step]
+        X_pa_sel = X_ija_sel.reshape(-1, 2)
+        dist_x_cor_u_start = np.sqrt((self.x_cor_pa_sol[:, 0] - X_pa_sel[:, 0]) ** 2
+                                     + (self.x_cor_pa_sol[:, 1] - X_pa_sel[:, 1]) ** 2)
+        dist_u_end_u_start = np.sqrt((rot_X_pa_sel[:, 0] - X_pa_sel[:, 0]) ** 2
+                                     + (rot_X_pa_sel[:, 1] - X_pa_sel[:, 1]) ** 2)
+        dist_x_cor_u_end_average = np.average(dist_x_cor_u_end)
+        dist_x_cor_u_start_average = np.average(dist_x_cor_u_start)
+        dist_u_end_u_start_average = np.average(dist_u_end_u_start)
+        phi = np.arccos(
+            (dist_x_cor_u_end_average ** 2 + dist_x_cor_u_start_average ** 2 - dist_u_end_u_start_average ** 2)
+            / (2 * dist_x_cor_u_end_average * dist_x_cor_u_start_average))
+        print(phi)
+        return phi
 
     def plot_cor(self, ax):
         rot_Xu_ija = self.dic_aligned_grid.rot_Xu_ija
