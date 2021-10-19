@@ -113,16 +113,24 @@ Z = np.array([0, 0, 1], dtype=np.float_)
 
 def get_T_Lab(x_Ia):
     I_Li = get_I_Li(x_Ia)
+    #print('I_Li', I_Li)
     x_Lia = x_Ia[I_Li]
+    #print('x_Lia', x_Lia)
     line_vec_La = x_Lia[: ,1 ,:] - x_Lia[: ,0 ,:]
+    #print('line_vec_La', line_vec_La)
     norm_line_vec_L = np.sqrt(np.einsum('...a,...a->...',
                                         line_vec_La, line_vec_La))
+    #print('norm_line_vec_L', norm_line_vec_L)
     normed_line_vec_La = np.einsum('...a,...->...a',
                                    line_vec_La, 1. / norm_line_vec_L)
+    #print('normed_line_vec_La', normed_line_vec_La)
     t_vec_La = np.einsum('ijk,...j,k->...i',
                          EPS[:-1 ,:-1 ,:], normed_line_vec_La, Z);
+    #print('t_vec_La', t_vec_La)
     T_bLa = np.array([t_vec_La, normed_line_vec_La])
+    #print('T_bLa', T_bLa)
     T_Lab = np.einsum('bLa->Lab', T_bLa)
+    #print('T_Lab', T_Lab)
     return T_Lab
 
 

@@ -51,7 +51,7 @@ class DICAlignedGrid(bu.Model):
     X_ija = tr.DelegatesTo('dic_grid')
 
     delta_u_ul_ija = tr.Property(depends_on='state_changed')
-    '''Displacement increment relative to upper left corner.
+    '''Displacement increment relative to lower left corner.
     '''
     @tr.cached_property
     def _get_delta_u_ul_ija(self):
@@ -74,6 +74,7 @@ class DICAlignedGrid(bu.Model):
         d_x_i0 = self.X_ija[-1,1:10,1] - self.X_ija[-1,:1,1]
         d_u_ul_1j1 = (self.delta_u_ul_ija[self.y_ref_i,self.y_ref_j_min:self.y_ref_j_max,0] -
                       self.delta_u_ul_ija[self.y_ref_i,:1,0])
+        #print(self.delta_u_ul_ija[self.y_ref_i,:1,0])
         d_x_i0 = self.X_ija[self.y_ref_i,1:10,1] - self.X_ija[self.y_ref_i,:1,1]
         sin_delta_alpha = np.average(d_u_ul_1j1 / d_x_i0)
         return np.arcsin(sin_delta_alpha)
@@ -124,6 +125,8 @@ class DICAlignedGrid(bu.Model):
         rot_vect_u_nija = np.array([X_ija, rot_Xu_ija])
         rot_vect_u_anij = np.einsum('nija->anij', rot_vect_u_nija)
         rot_vect_u_anp = rot_vect_u_anij.reshape(2, 2, -1)
+        #print(np.shape(rot_vect_u_anp))
+        #print('rot_vect_u_anp', rot_vect_u_anp)
         perp_u_aij = np.array([delta_u_rot_ija[..., 1], -delta_u_rot_ija[..., 0]])
         perp_u_ija = np.einsum('aij->ija', perp_u_aij)
         perp_Xu_ija = X_ija + perp_u_ija * self.U_factor
