@@ -123,10 +123,10 @@ class CrackExtension(bu.InteractiveModel):
         N, _ = self.sz_stress_profile.F_a
         M = self.sz_stress_profile.M
         psi_bar = self.crack_tip_orientation.get_psi()
-        # work of unbalanced moment devided by lever arm to obtain the right order
+        # work of unbalanced moment divided by lever arm to obtain the right order
         N_M = M*(self.psi - psi_bar) / (self.sz_bd.H / 2)
         R = np.array([N_M, N], dtype=np.float_)
-        print('R', R)
+        #print('R', R)
         return R
 
     def plot_geo(self, ax):
