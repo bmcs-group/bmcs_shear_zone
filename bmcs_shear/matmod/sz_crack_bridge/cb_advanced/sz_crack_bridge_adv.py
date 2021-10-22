@@ -101,6 +101,7 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
     def get_V_df(self, s):
         '''Calculating dowel action force '''
         V_df = self.symb.get_V_da(s) * self.dowel_factor
+        #print(V_df)
         return V_df
 
 

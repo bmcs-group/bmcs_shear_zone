@@ -185,7 +185,7 @@ class SZStressProfile(InteractiveModel):
     '''
     @tr.cached_property
     def _get_F_a(self):
-        print('F_a')
+        #print('F_a')
         F_La = self.F_La
         F_Na = self.F_Na
         sum_F_La = np.sum(F_La, axis=0)
