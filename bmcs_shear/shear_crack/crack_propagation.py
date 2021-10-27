@@ -2,6 +2,7 @@ import traits.api as tr
 import numpy as np
 
 import bmcs_utils.api as bu
+#from bmcs_shear.shear_crack.crack_extension import CrackExtension
 from bmcs_shear.shear_crack.crack_extension import CrackExtension
 from bmcs_shear.shear_crack.crack_propagation_hist import CrackPropagationHist
 
@@ -20,7 +21,7 @@ class CrackPropagation(CrackExtension):
 
     tree = [
         # 'sz_bd',
-        'crack_tip_orientation',
+        'sz_cto',
         'hist'
     ]
 
@@ -70,29 +71,29 @@ class CrackPropagation(CrackExtension):
 
     def record_timestep(self):
         R_k = self.get_R()
-        v_k = self.sz_stress_profile.u_Ca[1, 1]
+        v_k = self.sz_sp.u_Ca[1, 1]
         x_tip_1k = self.sz_cp.sz_ctr.x_tip_ak[:, 0]
         self.R_n.append(R_k)
-        self.F_beam.append(self.crack_tip_shear_stress.F_beam)
-        #self.Q.append(self.crack_tip_shear_stress.Q)
-        #self.Q_red.append(self.crack_tip_shear_stress.Q_reduced)
-        self.F_a.append(self.sz_stress_profile.F_a[:])
+        self.F_beam.append(self.sz_ctss.F_beam)
+        #self.Q.append(self.sz_ctss.Q)
+        #self.Q_red.append(self.sz_ctss.Q_reduced)
+        self.F_a.append(self.sz_sp.F_a[:])
         self.x_tip_1n.append(self.sz_ctr.x_tip_an[1])
         self.x_tip_0n.append(self.sz_ctr.x_tip_an[0])
         self.x_tip_1k.append(self.sz_ctr.x_tip_ak[1])
-        self.M.append(self.sz_stress_profile.M)
-        self.s_steel.append(self.sz_stress_profile.u_Na[:,1])
-        self.w_steel.append(self.sz_stress_profile.u_Na[:, 0])
-        self.shear_agg.append(self.sz_stress_profile.S_Lb[:,1])
-        self.slip.append(self.sz_stress_profile.u_Lb[:,1])
-        self.w.append(self.sz_stress_profile.u_Lb[:,0])
-        self.F_s.append(self.sz_stress_profile.F_Na[:,0])
-        self.F_Na.append(self.sz_stress_profile.F_Na[:,1])
+        self.M.append(self.sz_sp.M)
+        self.s_steel.append(self.sz_sp.u_Na[:, 1])
+        self.w_steel.append(self.sz_sp.u_Na[:, 0])
+        self.shear_agg.append(self.sz_sp.S_Lb[:, 1])
+        self.slip.append(self.sz_sp.u_Lb[:, 1])
+        self.w.append(self.sz_sp.u_Lb[:, 0])
+        self.F_s.append(self.sz_sp.F_Na[:, 0])
+        self.F_Na.append(self.sz_sp.F_Na[:, 1])
         self.v_n.append(v_k)
-        self.sig_x_tip_0.append(self.crack_tip_shear_stress.sig_x_tip_0)
-        self.sig_z1.append(self.crack_tip_shear_stress.sig_z_tip_1)
-        self.tau_x_tip_1k.append(self.crack_tip_shear_stress.tau_x_tip_1k)
-        #self.F_N_delta.append(self.crack_tip_shear_stress.F_N_delta)
+        self.sig_x_tip_0.append(self.sz_ctss.sig_x_tip_0)
+        self.sig_z1.append(self.sz_ctss.sig_z_tip_1)
+        self.tau_x_tip_1k.append(self.sz_ctss.tau_x_tip_1k)
+        #self.F_N_delta.append(self.sz_ctss.F_N_delta)
 
     def make_incr(self):
         '''Update the control, primary and state variabrles..
@@ -135,6 +136,7 @@ class CrackPropagation(CrackExtension):
 
 
         while self.seg <= self.n_seg:
+            print('seg', self.seg)
             if self.interrupt:
                 break
             try:
