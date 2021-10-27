@@ -6,7 +6,7 @@ from bmcs_utils.api import InteractiveModel, View, Item, mpl_align_xaxis
 from bmcs_shear.shear_crack.deformed_state import \
     SZDeformedState
 from scipy.interpolate import interp1d
-from bmcs_utils.api import View, Item, Float, FloatRangeEditor
+from bmcs_utils.api import View, Bool, Item, Float, FloatRangeEditor
 # # Stress profiles
 
 # ## Stress resultants
@@ -40,20 +40,27 @@ class SZStressProfile(InteractiveModel):
     '''
     name = "Profiles"
 
-    ds = tr.Instance(SZDeformedState, ())
-    sz_cp = tr.DelegatesTo('ds')
+    sz_ds = tr.Instance(SZDeformedState, ())
+    sz_cp = tr.DelegatesTo('sz_ds')
     sz_bd = tr.DelegatesTo('sz_cp')
 
-    tree = ['ds']
+    tree = ['sz_ds']
 
-    ipw_view = View()
+    show_stress = Bool(True)
+    show_force = Bool(False)
+
+    ipw_view = View(
+        Item('show_stress'),
+        Item('show_force')
+    )
 
     u_La = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
     @tr.cached_property
     def _get_u_La(self):
+        sz_cp = self.sz_cp
         K_Li = self.sz_cp.K_Li
-        u_Ka = self.ds.x1_Ka - self.sz_cp.x_Ka
+        u_Ka = self.sz_ds.x1_Ka - self.sz_cp.x_Ka
         u_Lia = u_Ka[K_Li]
         u_La = np.sum(u_Lia, axis=1) / 2
         #print('u_La =', u_La)
@@ -64,7 +71,7 @@ class SZStressProfile(InteractiveModel):
     @tr.cached_property
     def _get_u_Ca(self):
         x_Ca = self.sz_bd.x_Ca
-        x1_Ca = self.ds.x1_Ca
+        x1_Ca = self.sz_ds.x1_Ca
         u_Ca = x1_Ca - x_Ca
         #print('u_Ca =', u_Ca)
         return u_Ca
@@ -91,8 +98,8 @@ class SZStressProfile(InteractiveModel):
     @tr.cached_property
     def _get_S_Lb(self):
         u_Lb = self.u_Lb
-        cmm = self.ds.sz_bd.matrix_  #adv cmm_adv
-        B = self.ds.sz_bd.B
+        cmm = self.sz_ds.sz_bd.matrix_  #adv cmm_adv
+        B = self.sz_ds.sz_bd.B
         sig_La = cmm.get_sig_a(u_Lb)
         return sig_La * B
         # Sig_w = cmm.get_sig_w(u_a[..., 0]) * B #get_sig_w
@@ -104,7 +111,7 @@ class SZStressProfile(InteractiveModel):
     @tr.cached_property
     def _get_S_La(self):
         S_Lb = self.S_Lb
-        S_La = np.einsum('Lb,Lab->La', S_Lb, self.ds.sz_cp.T_Mab)
+        S_La = np.einsum('Lb,Lab->La', S_Lb, self.sz_ds.sz_cp.T_Mab)
         return S_La
 
     # =========================================================================
@@ -116,7 +123,7 @@ class SZStressProfile(InteractiveModel):
     @tr.cached_property
     def _get_F_La(self):
         S_La = self.S_La
-        F_La = np.einsum('La,L->La', S_La, self.ds.sz_cp.norm_n_vec_L)
+        F_La = np.einsum('La,L->La', S_La, self.sz_ds.sz_cp.norm_n_vec_L)
         return F_La
 
     get_w_N = tr.Property(depends_on='state_changed')
@@ -185,12 +192,22 @@ class SZStressProfile(InteractiveModel):
     '''
     @tr.cached_property
     def _get_F_a(self):
-        #print('F_a')
         F_La = self.F_La
         F_Na = self.F_Na
         sum_F_La = np.sum(F_La, axis=0)
         sum_F_Na = np.sum(F_Na, axis=0)
         return sum_F_La + sum_F_Na #+ sum_F_ag
+
+    x_La = tr.Property(depends_on='state_changed')
+    '''Midpoints within the crack segments.
+    '''
+    @tr.cached_property
+    def _get_x_La(self):
+        x_Ka = self.sz_ds.sz_cp.x_Ka
+        K_Li = self.sz_ds.sz_cp.K_Li
+        x_Lia = x_Ka[K_Li]
+        x_La = np.sum(x_Lia, axis=1) / 2
+        return x_La
 
     M = tr.Property(depends_on='state_changed')
     '''Internal bending moment obtained by integrating the
@@ -199,13 +216,14 @@ class SZStressProfile(InteractiveModel):
     '''
     @tr.cached_property
     def _get_M(self):
-        x_Ka = self.ds.sz_cp.x_Ka
-        K_Li = self.ds.sz_cp.K_Li
-        x_Lia = x_Ka[K_Li]
-        x_La = np.sum(x_Lia, axis=1) / 2
+        # x_Ka = self.sz_ds.sz_cp.x_Ka
+        # K_Li = self.sz_ds.sz_cp.K_Li
+        # x_Lia = x_Ka[K_Li]
+        # x_La = np.sum(x_Lia, axis=1) / 2
+        x_La = self.x_La
         F_La = self.F_La
-        x_rot_0k = self.ds.sz_ctr.x_rot_ak[0,0]
-        x_rot_1k = self.ds.sz_ctr.x_rot_ak[1,0]
+        x_rot_0k = self.sz_ds.sz_ctr.x_rot_ak[0,0]
+        x_rot_1k = self.sz_ds.sz_ctr.x_rot_ak[1,0]
         M_L = (x_La[:, 1] - x_rot_1k) * F_La[:, 0]
         M_L_agg = (x_La[:, 0] - x_rot_0k) * F_La[:, 1]
         M = np.sum(M_L, axis=0)
@@ -225,10 +243,10 @@ class SZStressProfile(InteractiveModel):
         sz_cp = self.sz_cp
         x_tip_1 = sz_cp.sz_ctr.x_tip_ak[1]
         idx_tip = np.argmax(sz_cp.x_Ka[:, 1] >= x_tip_1)
-        u_a = self.ds.x1_Ka[idx_tip] - sz_cp.x_Ka[idx_tip]
+        u_a = self.sz_ds.x1_Ka[idx_tip] - sz_cp.x_Ka[idx_tip]
         T_ab = sz_cp.T_tip_k_ab
         u_b = np.einsum('a,ab->b', u_a, T_ab)
-        sig_b = self.ds.sz_bd.matrix_.get_sig_a(u_b)
+        sig_b = self.sz_ds.sz_bd.matrix_.get_sig_a(u_b)
         sig_a = np.einsum('b,ab->a', sig_b, T_ab)
         return sig_a
 
@@ -251,10 +269,29 @@ class SZStressProfile(InteractiveModel):
     '''
     @tr.cached_property
     def _get_get_sig_x_tip_0k(self):
-        B = self.ds.sz_bd.B
+        B = self.sz_ds.sz_bd.B
         return interp1d(self.sz_cp.x_Lb[:, 1], self.S_La[:, 0] / B,
                         fill_value='extrapolate')
 
+    def get_stress_resultant_and_position(self, irange):
+        F_L0 = self.F_La[:, 0]
+        range_F_L0 = F_L0[irange]
+        sum_F_L0 = np.sum(range_F_L0)
+        range_normed_F_L0 = range_F_L0 / sum_F_L0
+        x1 = self.x_La[:, 1][irange]
+        return sum_F_L0, np.sum(range_normed_F_L0 * x1)
+
+    neg_F_y = tr.Property
+    def _get_neg_F_y(self):
+        F_L0 = self.F_La[:, 0]
+        neg_range = F_L0 < 0
+        return self.get_stress_resultant_and_position(neg_range)
+
+    pos_F_y = tr.Property
+    def _get_pos_F_y(self):
+        F_L0 = self.F_La[:, 0]
+        pos_range = F_L0 > 0
+        return self.get_stress_resultant_and_position(pos_range)
 
     # =========================================================================
     # Plotting methods
@@ -321,11 +358,21 @@ class SZStressProfile(InteractiveModel):
         mpl_align_xaxis(ax_sig, ax_tau)
 
     def plot_S_La(self, ax_sig, ax_tau, vot=1):
-        self.plot_u_Lc(ax_sig, self.S_La, 0, label=r'$f_x$ [N/mm]', color='blue')
-        ax_sig.set_xlabel(r'horizontal stress $f_x$ [N/mm]', fontsize=10)
-        self.plot_u_Lc(ax_tau, self.S_La, 1, label=r'$f_z$ [N/mm]', color='green')
-        ax_tau.set_xlabel(r'vertical stress $f_z$ [N/mm]', fontsize=10)
-        mpl_align_xaxis(ax_sig, ax_tau)
+        if self.show_stress:
+            self.plot_u_Lc(ax_sig, self.S_La, 0, label=r'$f_x$ [N/mm]', color='blue')
+            ax_sig.set_xlabel(r'horizontal stress $f_x$ [N/mm]', fontsize=10)
+            self.plot_u_Lc(ax_tau, self.S_La, 1, label=r'$f_z$ [N/mm]', color='green')
+            ax_tau.set_xlabel(r'vertical stress $f_z$ [N/mm]', fontsize=10)
+            mpl_align_xaxis(ax_sig, ax_tau)
+        if self.show_force:
+            neg_F, neg_y = self.neg_F_y
+            #ax_sig.plot([neg_F,0],[y,y], color='orange')
+            ax_sig.arrow(neg_F, neg_y,-neg_F, 0, color='red')
+            print(neg_F, neg_y)
+            pos_F, pos_y = self.pos_F_y
+            print(pos_F, pos_y)
+            ax_sig.arrow(pos_F, pos_y, -pos_F, 0, color='red')
+        ax_sig.set_ylim(0, self.sz_bd.H )
 
     def plot_N_a(self, ax_N):
         z_N = self.z_N

@@ -64,20 +64,20 @@ class SZCrackTipOrientation(bu.InteractiveModel):
     """
     name = "Orientation"
 
-    # crack_tip_shear_stress = bu.EitherType(options=[
+    # sz_ctss = bu.EitherType(options=[
     #      ('global', SZCrackTipShearStressGlobal),
     #      ('local', SZCrackTipShearStressLocal)
     # ])
 
-    crack_tip_shear_stress = bu.Instance(SZCrackTipShearStressLocal, ())
-    sz_stress_profile = tr.DelegatesTo('crack_tip_shear_stress')
-    sz_cp = tr.DelegatesTo('crack_tip_shear_stress')
-    sz_bd = tr.DelegatesTo('crack_tip_shear_stress')
+    sz_ctss = bu.Instance(SZCrackTipShearStressLocal, ())
+    sz_sp = tr.DelegatesTo('sz_ctss')
+    sz_cp = tr.DelegatesTo('sz_ctss')
+    sz_bd = tr.DelegatesTo('sz_ctss')
 
-    tree = ['crack_tip_shear_stress']
+    tree = ['sz_ctss']
 
     def get_psi(self):
-        ct_stress = self.crack_tip_shear_stress #_
+        ct_stress = self.sz_ctss #_
         tau_x_tip_1 = ct_stress.tau_x_tip_1k
         #print('tau_x_tip_1', tau_x_tip_1)
         f_t = self.sz_cp.sz_bd.matrix_.f_t
@@ -92,7 +92,7 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         return psi_0
 
     def plot_crack_extension(self, ax):
-        ct_tau = self.crack_tip_shear_stress #_
+        ct_tau = self.sz_ctss #_
         x_tip_an = ct_tau.sz_cp.sz_ctr.x_tip_an[:, 0]
         L_fps = ct_tau.sz_cp.sz_ctr.L_fps
         psi = self.get_psi()
@@ -102,7 +102,7 @@ class SZCrackTipOrientation(bu.InteractiveModel):
         ax.plot(*v_fps_an.T, '-o', color='magenta', lw=3)
 
     def plot(self, ax):
-        sz_ctr = self.crack_tip_shear_stress.sz_cp.sz_ctr #_
+        sz_ctr = self.sz_ctss.sz_cp.sz_ctr #_
         sz_ctr.plot_crack_tip_rotation(ax)
         self.plot_crack_extension(ax)
         ax.axis('equal')
@@ -137,8 +137,8 @@ class CrackStateAnimator(SZCrackTipOrientation):
     )
 
     def subplots(self, fig):
-        return self.sz_stress_profile.subplots(fig)
+        return self.sz_sp.subplots(fig)
 
     def update_plot(self, ax):
-        self.sz_stress_profile.update_plot(ax)
+        self.sz_sp.update_plot(ax)
 

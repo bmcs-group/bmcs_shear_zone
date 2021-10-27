@@ -1,6 +1,6 @@
 import numpy as np
 import traits.api as tr
-from bmcs_utils.api import InteractiveModel, InteractiveWindow, View, Item, Float, Int
+from bmcs_utils.api import Model, InteractiveWindow, View, Item, Float, Int
 from bmcs_shear.shear_crack.crack_tip_rotation import \
     SZCrackTipRotation
 from bmcs_shear.shear_crack.beam_design import \
@@ -140,7 +140,7 @@ def get_T_Lab(x_Ia):
 # In[65]:
 
 
-class SZCrackPath(InteractiveModel):
+class SZCrackPath(Model):
     '''Crack path representation
 
     Defines the incrementally extensible crack path through the shear zone.

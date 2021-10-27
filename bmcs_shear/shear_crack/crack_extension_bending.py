@@ -35,7 +35,7 @@ class CrackExtension(bu.InteractiveModel):
         'sz_bd'
     ]
 
-    psi = tr.DelegatesTo('sz_ctr')
+    # psi = tr.DelegatesTo('sz_ctr')
     w_cr = tr.DelegatesTo('sz_ctr','w')
     x_rot_1k = tr.DelegatesTo('sz_ctr')
 
@@ -66,7 +66,7 @@ class CrackExtension(bu.InteractiveModel):
         '''Initialize state.
         '''
         self.U_n[:] = 0.0
-        self.U_k = [self.psi, self.x_rot_1k]
+        self.U_k = [self.x_rot_1k]
         self.X_iter = self.U_k
 
     X = tr.Property(depends_on='state_changed')
@@ -82,23 +82,24 @@ class CrackExtension(bu.InteractiveModel):
         '''
         X0 = np.copy(self.X_iter[:])
         def get_R_X(X):
+            print('X', X)
             self.X_iter = X
             R = self.get_R()
             return R
         res = root(get_R_X, X0, method='hybr',
                    options={'xtol': self.xtol,})
         self.X_iter[:] = res.x
-        self.psi = self.X_iter[0]
+        #self.psi = self.X_iter[0]
         # update w_cr based on the \sigma_2 value
         # set the w_cr = 1 / E_c * sig_2 * L_c
-        self.x_rot_1k = self.X_iter[1]
+        self.x_rot_1k = self.X_iter[0]
 
         self.U_n[:] = self.U_k[:]
         R_k = self.get_R()
         psi_bar = self.sz_cto.get_psi()
-        if np.fabs(self.psi - psi_bar) > np.pi/2 * self.psi_tol:
-            print('non-matching crack direction')
-            raise StopIteration('non-matching crack direction')
+        # if np.fabs(self.psi - psi_bar) > np.pi/2 * self.psi_tol:
+        #     print('non-matching crack direction')
+        #     raise StopIteration('non-matching crack direction')
         if res.success == False:
             print('no convergence')
             raise StopIteration('no solution found')
@@ -111,8 +112,8 @@ class CrackExtension(bu.InteractiveModel):
 
     def _set_X_iter(self, value):
         self.U_k[:] = value
-        self.psi = value[0]
-        self.x_rot_1k = value[1]
+        # self.psi = value[0]
+        self.x_rot_1k = value[0]
 
     def get_R(self):
         '''Residuum checking the lack-of-fit
@@ -121,11 +122,11 @@ class CrackExtension(bu.InteractiveModel):
           process segment (FPS)
         '''
         N, _ = self.sz_sp.F_a
-        M = self.sz_sp.M
-        psi_bar = self.sz_cto.get_psi()
+        #M = self.sz_sp.M
+        #psi_bar = self.sz_cto.get_psi()
         # work of unbalanced moment devided by lever arm to obtain the right order
-        N_M = M*(self.psi - psi_bar) / (self.sz_bd.H / 2)
-        R = np.array([N_M, N], dtype=np.float_)
+        #N_M = M*(self.psi - psi_bar) / (self.sz_bd.H / 2)
+        R = np.array([N], dtype=np.float_)
         return R
 
     def plot_geo(self, ax):

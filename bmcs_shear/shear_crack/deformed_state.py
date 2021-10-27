@@ -1,7 +1,7 @@
 
 import traits.api as tr
 import numpy as np
-from bmcs_utils.api import InteractiveModel, View, Item
+from bmcs_utils.api import Model, View, Item
 from bmcs_shear.shear_crack.crack_path import \
     SZCrackPath
 
@@ -44,13 +44,16 @@ from bmcs_shear.shear_crack.crack_path import \
 # In[70]:
 
 
-class SZDeformedState(InteractiveModel):
+class SZDeformedState(Model):
 
     name = 'Deformed state'
 
     ipw_view = View()
 
-    sz_cp = tr.Instance(SZCrackPath ,())
+    sz_cp = tr.Instance(SZCrackPath)
+    def _sz_cp_default(self):
+        return SZCrackPath()
+
     sz_ctr = tr.DelegatesTo('sz_cp')
     sz_bd = tr.DelegatesTo('sz_cp')
 
