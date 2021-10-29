@@ -77,8 +77,7 @@ class SZCrackTipShearStress(Model):
         sigma_tip_1 = -(M_cantilever / S)
         if sigma_tip_1 < 0:
             sigma_tip_1 = 0
-        #sigma_z_tip_1 = 0#self.sz_bd.matrix_.f_t - 0.1
-        print('sigma_tip_1', sigma_tip_1)
+        # print('sigma_tip_1', sigma_tip_1)
         return sigma_tip_1
 
     F_N_delta = tr.Property(depends_on='state_changed')
@@ -126,24 +125,21 @@ class SZCrackTipShearStress(Model):
             # print('x_mid_a + x_00_L', np.abs(x_mid_a - x_00_L))
             x_tip_1k = sp.sz_cp.sz_ctr.x_tip_ak[1, 0]
             H = self.sz_bd.H
-            print('x_tip_1n', x_tip_1n, end=', ')
+            # print('x_tip_1n', x_tip_1n, end=', ')
             if x_tip_1n > sp.z_N:
                 delta_z_N = x_tip_1k - sp.z_N
-                print('d_z_N', delta_z_N, end=', ')
+                # print('d_z_N', delta_z_N, end=', ')
                 # Get the current lever arm
-                # neg_F, neg_y = self.sz_sp.neg_F_y
-                # pos_F, pos_y = self.sz_sp.pos_F_y
-                # tot_F = neg_F + pos_F
-                # tot_y = neg_F * neg_y + pos_F * pos_y
-                # H_N = neg_y - sp.z_N
-                # F_N_delta = self.Q * self.L_cs / H_N
                 L = self.sz_bd.L
-                F_N_delta = F_Na[:,0] / (L-self.sz_cp.x_00) * self.L_cs
-                #f_cm = self.f_c
-
-                print('F_N_delta', F_N_delta, end=', ')
-                print('F_Na', F_Na[:,0], end=', ')
-                print('d_z_N', delta_z_N, end=', ')
+                F_N_delta_ = F_Na[:,0] / (L-self.sz_cp.x_00) * self.L_cs
+                f_cm = self.f_c
+                p_N = self.sz_bd.csl.p_j
+                F_N_delta_max = p_N * self.L_cs * 1.26 * np.sqrt(f_cm/20)
+                # print(F_N_delta_, F_N_delta_max)
+                F_N_delta = np.min(np.c_[F_N_delta_, F_N_delta_max], axis=1)
+                # print('F_N_delta', F_N_delta, end=', ')
+                # print('F_Na', F_Na[:,0], end=', ')
+                # print('d_z_N', delta_z_N, end=', ')
                 M_delta_F = (-F_N_delta * delta_z_N)[0]
             else:
                 M_delta_F = 0
@@ -157,11 +153,10 @@ class SZCrackTipShearStress(Model):
         # M_left_agg=0
         # M_right_agg=0
 
-        print('M_delta_F', M_delta_F, end=', ')
-        print('M_left_agg', M_left_agg, end=', ')
-        print('M_right_agg', M_right_agg, end=', ')
-        print('M_left_da', M_left_da, end=', ')
-        print('M_right_da', M_right_da, end=', ')
-        print()
-        #print(-(M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0])
+        # print('M_delta_F', M_delta_F, end=', ')
+        # print('M_left_agg', M_left_agg, end=', ')
+        # print('M_right_agg', M_right_agg, end=', ')
+        # print('M_left_da', M_left_da, end=', ')
+        # print('M_right_da', M_right_da, end=', ')
+        # print()
         return (M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)
