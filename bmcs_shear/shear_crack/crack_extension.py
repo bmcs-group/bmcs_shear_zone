@@ -82,6 +82,7 @@ class CrackExtension(bu.InteractiveModel):
         '''
         X0 = np.copy(self.X_iter[:])
         def get_R_X(X):
+            print('X', X)
             self.X_iter = X
             R = self.get_R()
             return R
@@ -125,7 +126,9 @@ class CrackExtension(bu.InteractiveModel):
         psi_bar = self.sz_cto.get_psi()
         # work of unbalanced moment devided by lever arm to obtain the right order
         N_M = M*(self.psi - psi_bar) / (self.sz_bd.H / 2)
+        #N_M = N*(self.psi - psi_bar)
         R = np.array([N_M, N], dtype=np.float_)
+        print('psi', self.psi, psi_bar, R)
         return R
 
     def plot_geo(self, ax):

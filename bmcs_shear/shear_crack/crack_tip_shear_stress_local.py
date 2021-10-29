@@ -34,9 +34,9 @@ tau_fps_ct_solved = sp.solve(sig_2_ct_eq_xy, tau_fps)[0]
 
 get_tau_fps = sp.lambdify((sigma_x, sigma_y, f_cm, f_ct), tau_fps_ct_solved, 'numpy')
 
-theta = sp.atan( sp.simplify(-P_xy[0,0] / P_xy[1,0])).subs(tau_fps, tau_fps_ct_solved)
+psi = sp.atan( sp.simplify(-P_xy[0,0] / P_xy[1,0])).subs(tau_fps, tau_fps_ct_solved)
 
-get_theta = sp.lambdify((sigma_x, sigma_y, f_cm, f_ct), theta, 'numpy')
+get_psi = sp.lambdify((sigma_x, sigma_y, f_cm, f_ct), psi, 'numpy')
 
 class SZCrackTipShearStressLocal(SZCrackTipShearStress):
     name = 'crack tip stress state'
@@ -64,6 +64,17 @@ class SZCrackTipShearStressLocal(SZCrackTipShearStress):
         tau_x_tip_1k = get_tau_fps(sigma_x, sigma_y, f_cm, f_ct)#[0]
 #        print('tau_x_tip_1k', tau_x_tip_1k)
         return tau_x_tip_1k
+
+    psi_k = tr.Property
+
+    def _get_psi_k(self):
+        # calculate the biaxial stress
+        f_ct = self.f_t
+        f_cm = self.f_c
+        sigma_x = min(self.sig_x_tip_0, f_ct)
+        sigma_y = min(self.sig_z_tip_1, f_ct)
+        psi_k = get_psi(sigma_x, sigma_y, f_cm, f_ct)
+        return psi_k
 
     def subplots(self, fig):
         return fig.subplots(1, 2)

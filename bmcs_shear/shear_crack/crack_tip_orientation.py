@@ -77,14 +77,17 @@ class SZCrackTipOrientation(bu.InteractiveModel):
     tree = ['sz_ctss']
 
     def get_psi(self):
-        ct_stress = self.sz_ctss #_
+        sz_ctss = self.sz_ctss #_
+        return sz_ctss.psi_k
         tau_x_tip_1 = ct_stress.tau_x_tip_1k
         #print('tau_x_tip_1', tau_x_tip_1)
         f_t = self.sz_cp.sz_bd.matrix_.f_t
         f_cm = self.sz_cp.sz_bd.matrix_.f_c
         sig_x_tip_0 = ct_stress.sig_x_tip_0
+        sig_x_tip_0 = min(sig_x_tip_0, f_t)
         sig_z_tip_1 = ct_stress.sig_z_tip_1
         #psi_0 = get_psi_global(tau_x_tip_1, f_t, sig_z_tip_1)#sig_x_tip_0 #Global Condition
+        #print('sig_ctss', sig_x_tip_0, sig_z_tip_1, f_cm, f_t)
         psi_0 = get_psi_tau(sig_x_tip_0, sig_z_tip_1, f_cm, f_t) #Local Condition
         #psi_0 = get_psi_0(tau_x_tip_1, sig_x_tip_0)
         #print('psi_0', psi_0 * 180/np.pi)

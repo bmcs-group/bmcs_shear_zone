@@ -65,9 +65,10 @@ class SZCrackTipShearStress(Model):
         # #print('sig_x_tip_0', sigma_c)
         # return S_tip_0
 
-    sig_z_tip_1 = tr.Property
+    sig_z_tip_1 = tr.Property(depends_on='state_changed')
     '''Crack parallel stress from cantilever action'''
 
+    @tr.cached_property
     def _get_sig_z_tip_1(self):
         M_cantilever = self.M_cantilever
         B = self.sz_bd.B
@@ -98,9 +99,10 @@ class SZCrackTipShearStress(Model):
     def _get_M_cantilever(self):
         # crack paths of two neighboring cracks to calculate the cantilever action
         sp = self.sz_sp
-        x_tip_a = sp.sz_ds.sz_ctr.x_tip_ak[0,0] #[:,0]
-        x_mid_a = np.copy(x_tip_a)
-        x_mid_a -= self.L_cs / 2
+        x_tip_0 = sp.sz_ds.sz_ctr.x_tip_ak[0,0] #[:,0]
+        x_tip_1n = sp.sz_ds.sz_ctr.x_tip_1n
+        x_mid_0 = np.copy(x_tip_0)
+        x_mid_0 -= self.L_cs / 2
 
         x_Ka = sp.sz_ds.sz_cp.x_Ka
         K_Li = sp.sz_ds.sz_cp.K_Li
@@ -108,42 +110,58 @@ class SZCrackTipShearStress(Model):
         x_La = np.sum(x_Lia, axis=1) / 2
         F_La = sp.F_La
         x_right_La = x_La[...]
-        M_right_agg = np.einsum('L,L', F_La[:, 1], (x_right_La[:, 0] - x_mid_a))
+        M_right_agg = np.einsum('L,L', F_La[:, 1], (x_right_La[:, 0] - x_mid_0))
         x_left_La = x_La[...]
         x_left_La[..., 0] -= self.L_cs
-        M_left_agg = np.einsum('L,L', F_La[:, 1], (x_mid_a - x_left_La[:, 0]))
+        M_left_agg = np.einsum('L,L', -F_La[:, 1], (x_left_La[:, 0] - x_mid_0))
         # print('M_cantilever')
         # print('x_mid_a', x_mid_a)
         # print('x_mid_a - x_left_La', x_mid_a - x_left_La[:, 0])
         if len(sp.z_N > 0):
             F_Na = sp.F_Na
             x_00 = np.ones_like(sp.z_N) * sp.sz_cp.x_00
-            M_right_da = np.einsum('L,L', F_Na[:, 1], x_00 - x_mid_a)
+            M_right_da = np.einsum('L,L', F_Na[:, 1], x_00 - x_mid_0)
             x_00_L = x_00 - self.L_cs
-            M_left_da = np.einsum('L,L', F_Na[:, 1], x_mid_a - x_00_L)
+            M_left_da = np.einsum('L,L', -F_Na[:, 1], x_00_L - x_mid_0)
             # print('x_mid_a + x_00_L', np.abs(x_mid_a - x_00_L))
             x_tip_1k = sp.sz_cp.sz_ctr.x_tip_ak[1, 0]
             H = self.sz_bd.H
-            delta_z_N = x_tip_1k - sp.z_N
-            # Get the current lever arm
-            neg_F, neg_y = self.sz_sp.neg_F_y
-            pos_F, pos_y = self.sz_sp.pos_F_y
-            tot_F = neg_F + pos_F
-            tot_y = neg_F * neg_y + pos_F * pos_y
+            print('x_tip_1n', x_tip_1n, end=', ')
+            if x_tip_1n > sp.z_N:
+                delta_z_N = x_tip_1k - sp.z_N
+                print('d_z_N', delta_z_N, end=', ')
+                # Get the current lever arm
+                # neg_F, neg_y = self.sz_sp.neg_F_y
+                # pos_F, pos_y = self.sz_sp.pos_F_y
+                # tot_F = neg_F + pos_F
+                # tot_y = neg_F * neg_y + pos_F * pos_y
+                # H_N = neg_y - sp.z_N
+                # F_N_delta = self.Q * self.L_cs / H_N
+                L = self.sz_bd.L
+                F_N_delta = F_Na[:,0] / (L-self.sz_cp.x_00) * self.L_cs
+                #f_cm = self.f_c
 
-            H_N = neg_y - sp.z_N
-            F_N_delta = self.Q * self.L_cs / H_N
-            print('F_N_delta', F_N_delta, F_Na)
-            M_delta_F = (-F_N_delta * delta_z_N)[0]
+                print('F_N_delta', F_N_delta, end=', ')
+                print('F_Na', F_Na[:,0], end=', ')
+                print('d_z_N', delta_z_N, end=', ')
+                M_delta_F = (-F_N_delta * delta_z_N)[0]
+            else:
+                M_delta_F = 0
         else:
             M_right_da = 0
             M_left_da = 0
             M_delta_F = 0
 
-        # print('M_delta_F', M_delta_F)
-        # print('M_left_agg', M_left_agg)
-        # print('M_right_agg', M_right_agg)
-        # print('M_left_da', M_left_da)
-        # print('M_right_da', M_right_da)
+        # M_left_da=0
+        # M_right_da=0
+        # M_left_agg=0
+        # M_right_agg=0
+
+        print('M_delta_F', M_delta_F, end=', ')
+        print('M_left_agg', M_left_agg, end=', ')
+        print('M_right_agg', M_right_agg, end=', ')
+        print('M_left_da', M_left_da, end=', ')
+        print('M_right_da', M_right_da, end=', ')
+        print()
         #print(-(M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)[0])
-        return (- M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)
+        return (M_delta_F + M_left_agg + M_right_agg + M_right_da + M_left_da)
