@@ -51,19 +51,6 @@ class SZCrackTipShearStress(Model):
 
     def _get_sig_x_tip_0(self):
         return self.sz_sp.sig_x_tip_ak[0]
-        # B = self.sz_bd.B
-        # x_tip_1 = self.sz_cp.sz_ctr.x_tip_ak[1,0]
-        # idx_tip0 = np.argmax(self.sz_cp.x_Ka[:, 1] >= x_tip_1)
-        # S_La = (self.sz_sp.S_La[idx_tip0, 0])
-        # S_Lb = (self.sz_sp.S_Lb[idx_tip0, 0])
-        # # print('S_La',S_La)
-        # # print('S_Lb', S_Lb)
-        # S_tip_0 = S_La / B
-        # # print('S_tip_0', S_tip_0)
-        # # print('B', B)
-        # #S_tip_0 = 0 #self.sz_bd.matrix_.f_t - 0.000001
-        # #print('sig_x_tip_0', sigma_c)
-        # return S_tip_0
 
     sig_z_tip_1 = tr.Property(depends_on='state_changed')
     '''Crack parallel stress from cantilever action'''
@@ -77,7 +64,7 @@ class SZCrackTipShearStress(Model):
         sigma_tip_1 = -(M_cantilever / S)
         if sigma_tip_1 < 0:
             sigma_tip_1 = 0
-        # print('sigma_tip_1', sigma_tip_1)
+        print('sig_tip_1', sigma_tip_1)
         return sigma_tip_1
 
     F_N_delta = tr.Property(depends_on='state_changed')
@@ -135,8 +122,8 @@ class SZCrackTipShearStress(Model):
                 f_cm = self.f_c
                 p_N = self.sz_bd.csl.p_j
                 F_N_delta_max = p_N * self.L_cs * 1.26 * np.sqrt(f_cm/20)
-                # print(F_N_delta_, F_N_delta_max)
                 F_N_delta = np.min(np.c_[F_N_delta_, F_N_delta_max], axis=1)
+                print(F_N_delta_, F_N_delta_max)
                 # print('F_N_delta', F_N_delta, end=', ')
                 # print('F_Na', F_Na[:,0], end=', ')
                 # print('d_z_N', delta_z_N, end=', ')
