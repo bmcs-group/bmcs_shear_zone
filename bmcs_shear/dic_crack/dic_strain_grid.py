@@ -78,7 +78,17 @@ class DICStrainGrid(bu.Model):
         # plot
         pos_max_eps_E = self.pos_max_eps_E
         ax.scatter(*x_aE, s=self.ball_size * pos_max_eps_E, color='red')
-        ax.axis('equal')
+        # x_aE_ = np.round(x_aE,1)
+        # import joblib
+        #
+        # xVal = x_aE_[0,:] #size of 812
+        # yVal = x_aE_[1,:] #size of 812
+        # fracS = self.ball_size * pos_max_eps_E #size of 812
+        # data = [xVal, yVal, fracS]
+        # file = 'D:\Shear zones\drawings\data.pkl.lz4'
+        # joblib.dump(data, file)
+
+        #ax.axis('equal')
 
     def update_plot(self, axes):
         ax = axes

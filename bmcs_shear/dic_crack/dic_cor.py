@@ -108,21 +108,24 @@ class DICCOR(bu.Model):
         rot_Xu_ija_sel = rot_Xu_ija[self.n_x_min:self.n_x_max:self.n_x_step,
                           self.n_y_min:self.n_y_max:self.n_y_step, :]
         rot_X_pa_sel = rot_Xu_ija_sel.reshape(-1, 2)
-        dist_x_cor_u_end = np.sqrt((self.x_cor_pa_sol[:, 0] - rot_X_pa_sel[:, 0]) ** 2
-                                   + (self.x_cor_pa_sol[:, 1] - rot_X_pa_sel[:, 1]) ** 2)
+        d_tc = np.sqrt((self.x_cor_pa_sol[:, 0] - rot_X_pa_sel[:, 0]) ** 2
+                                   + (self.x_cor_pa_sol[:, 1] - rot_X_pa_sel[:, 1]) ** 2) #dist_x_cor_u_end
         X_ija_sel = self.dic_grid.X_ija[self.n_x_min:self.n_x_max:self.n_x_step,
                     self.n_y_min:self.n_y_max:self.n_y_step]
         X_pa_sel = X_ija_sel.reshape(-1, 2)
-        dist_x_cor_u_start = np.sqrt((self.x_cor_pa_sol[:, 0] - X_pa_sel[:, 0]) ** 2
-                                     + (self.x_cor_pa_sol[:, 1] - X_pa_sel[:, 1]) ** 2)
-        dist_u_end_u_start = np.sqrt((rot_X_pa_sel[:, 0] - X_pa_sel[:, 0]) ** 2
-                                     + (rot_X_pa_sel[:, 1] - X_pa_sel[:, 1]) ** 2)
-        dist_x_cor_u_end_average = np.average(dist_x_cor_u_end)
-        dist_x_cor_u_start_average = np.average(dist_x_cor_u_start)
-        dist_u_end_u_start_average = np.average(dist_u_end_u_start)
+        d_0c = np.sqrt((self.x_cor_pa_sol[:, 0] - X_pa_sel[:, 0]) ** 2
+                                     + (self.x_cor_pa_sol[:, 1] - X_pa_sel[:, 1]) ** 2) #dist_x_cor_u_start
+        d_0t = np.sqrt((rot_X_pa_sel[:, 0] - X_pa_sel[:, 0]) ** 2
+                                     + (rot_X_pa_sel[:, 1] - X_pa_sel[:, 1]) ** 2) #dist_u_end_u_start
+        #dist_x_cor_u_end_average = np.average(d_tc)
+        #dist_x_cor_u_start_average = np.average(d_0c)
+        #dist_u_end_u_start_average = np.average(d_0t)
+        # phi = np.arccos(
+        #     (dist_x_cor_u_end_average ** 2 + dist_x_cor_u_start_average ** 2 - dist_u_end_u_start_average ** 2)
+        #     / (2 * dist_x_cor_u_end_average * dist_x_cor_u_start_average))
         phi = np.arccos(
-            (dist_x_cor_u_end_average ** 2 + dist_x_cor_u_start_average ** 2 - dist_u_end_u_start_average ** 2)
-            / (2 * dist_x_cor_u_end_average * dist_x_cor_u_start_average))
+            (d_tc ** 2 + d_0c ** 2 - d_0t ** 2)
+            / (2 * d_tc * d_0c))
         print(phi)
         return phi
 
