@@ -170,7 +170,7 @@ class SZCrackPath(Model):
 
     sz_ctr = tr.Instance(SZCrackTipRotation)
     '''Center of tip rotation - private model component 
-       representing the crck tip kinematics.
+       representing the crack tip kinematics.
     '''
     def _sz_ctr_default(self):
         # Initialize the crack tip at the bottom of a beam with beta=0

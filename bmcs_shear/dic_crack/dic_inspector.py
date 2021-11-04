@@ -40,22 +40,22 @@ class DICInspector(bu.Model):
     )
 
     def subplots(self, fig):
-        return fig.subplots(1, 2)
+        return fig.subplots(1, 1)
 
-    def update_plot(self, ax):
-        ax1, ax2 = ax
-        self.dic_strain_grid.update_plot(ax1)
-        for dic_crack in self.dic_cracks.items:
-            dic_crack.dic_cor.plot_cor(ax1)
-        F = np.linspace(0,100,1)
-        #print(F)
-        rot = dic_crack.dic_cor.phi
-        #print(rot)
-        ax2.plot(rot, F)
-        ax2.set_xlabel(r'Rotation $\phi$')
-        ax2.set_ylabel(r'Load $F$ [kN]')
-
-    # def update_plot(self, axes):
-    #     self.dic_strain_grid.update_plot(axes)
+    # def update_plot(self, ax):
+    #     ax1, ax2 = ax
+    #     self.dic_strain_grid.update_plot(ax1)
     #     for dic_crack in self.dic_cracks.items:
-    #         dic_crack.dic_cor.plot_cor(axes)
+    #         dic_crack.dic_cor.plot_cor(ax1)
+    #     F = np.linspace(0,100,1)
+    #     #print(F)
+    #     rot = dic_crack.dic_cor.phi
+    #     #print(rot)
+    #     ax2.plot(rot, F)
+    #     ax2.set_xlabel(r'Rotation $\phi$')
+    #     ax2.set_ylabel(r'Load $F$ [kN]')
+
+    def update_plot(self, axes):
+        self.dic_strain_grid.update_plot(axes)
+        for dic_crack in self.dic_cracks.items:
+            dic_crack.dic_cor.plot_cor(axes)
