@@ -57,13 +57,14 @@ class SZCrackTipShearStressLocal(SZCrackTipShearStress):
 #        print('f_ct', f_ct)
         f_cm = self.f_c
 #        print('f_cm', f_cm)
-        sigma_x = self.sig_x_tip_0
-#        print('sigma_x', sigma_x)
-        sigma_y = self.sig_z_tip_1
-#        print('sigma_y', sigma_y)
-        tau_x_tip_1k = get_tau_fps(sigma_x, sigma_y, f_cm, f_ct)#[0]
-#        print('tau_x_tip_1k', tau_x_tip_1k)
+        sigma_x = min(self.sig_x_tip_0, f_ct)
+        sigma_y = min(self.sig_z_tip_1, f_ct)
+        tau_x_tip_1k = get_tau_fps(sigma_x, sigma_y, f_cm, f_ct)
         return tau_x_tip_1k
+
+    sig_tip_ab_k = tr.Property
+    def _get_sig_tip_k(self):
+        return np.array()
 
     psi_k = tr.Property
 
