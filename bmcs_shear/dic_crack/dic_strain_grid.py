@@ -61,7 +61,7 @@ class DICStrainGrid(bu.Model):
     pos_max_eps_E = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_pos_max_eps_E(self):
-        # strain evaluated using bilinear shape functions in the gauus points
+        # strain evaluated using bilinear shape functions in the gauss points
         eps_Emab = self.fe_grid.map_U_to_field(self.U_o)
         eps_abp = np.einsum('Emab->abEm', eps_Emab).reshape(2, 2, -1)
         # principal strain values and directions
