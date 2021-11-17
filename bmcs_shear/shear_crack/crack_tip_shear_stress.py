@@ -64,7 +64,7 @@ class SZCrackTipShearStress(Model):
         sigma_tip_1 = -(M_cantilever / S)
         if sigma_tip_1 < 0:
             sigma_tip_1 = 0
-        print('sig_tip_1', sigma_tip_1)
+        #print('sig_tip_1', sigma_tip_1)
         return sigma_tip_1
 
     F_N_delta = tr.Property(depends_on='state_changed')
@@ -121,9 +121,9 @@ class SZCrackTipShearStress(Model):
                 F_N_delta_ = F_Na[:,0] / (L-self.sz_cp.x_00) * self.L_cs
                 f_cm = self.f_c
                 p_N = self.sz_bd.csl.p_j
-                F_N_delta_max = p_N * self.L_cs * 1.26 * np.sqrt(f_cm/20)
+                F_N_delta_max = p_N * self.L_cs * 1.26 * np.sqrt(f_cm/20) #p_N
                 F_N_delta = np.min(np.c_[F_N_delta_, F_N_delta_max], axis=1)
-                print(F_N_delta_, F_N_delta_max)
+                #print(F_N_delta_, F_N_delta_max)
                 # print('F_N_delta', F_N_delta, end=', ')
                 # print('F_Na', F_Na[:,0], end=', ')
                 # print('d_z_N', delta_z_N, end=', ')
