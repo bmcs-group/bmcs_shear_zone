@@ -29,17 +29,31 @@ class DICStrainGrid(bu.Model):
         )
     )
 
+    #grid_number_vertical = bu.Bool(True)
+
     fe_grid = tr.Property(bu.Instance(ib.XDomainFEGrid), depends_on='state_changed')
     @tr.cached_property
     def _get_fe_grid(self):
         n_x, n_y = self.dic_grid.n_x, self.dic_grid.n_y
         L_x, L_y = self.dic_grid.L_x, self.dic_grid.L_y
-        return ib.XDomainFEGrid(coord_min=(L_x, 0),
-                                coord_max=(0, L_y),
-                                integ_factor=1,
-                                shape=(n_x-1, n_y-1), # number of elements!
-                                fets=ib.FETS2D4Q());
 
+        if self.dic_grid.grid_number_vertical:
+            grid = ib.XDomainFEGrid(coord_min=(L_x, L_y),
+                             coord_max=(0, 0),
+                             integ_factor=1,
+                             shape=(n_x - 1, n_y - 1),  # number of elements!
+                             fets=ib.FETS2D4Q());
+        else:
+            grid = ib.XDomainFEGrid(coord_min=(L_x, 0),
+                                    coord_max=(0, L_y),
+                                    integ_factor=1,
+                                    shape=(n_x - 1, n_y - 1),  # number of elements!
+                                    fets=ib.FETS2D4Q());
+
+        return grid
+
+    #coord_min = (L_x, 0),
+    #coord_max = (0, L_y),
     U_o = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_U_o(self):
