@@ -108,7 +108,6 @@ class DICGrid(bu.Model):
         y_ij, x_ij = np.meshgrid(y_range, x_range)
         X_aij = np.array([x_ij, y_ij])
         X_ija = np.einsum('aij->ija', X_aij)
-        #print(X_aij)
         return X_ija
 
     U_ija = tr.Property(depends_on='state_changed')
