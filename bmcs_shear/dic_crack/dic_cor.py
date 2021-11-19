@@ -42,6 +42,7 @@ class DICCOR(bu.Model):
     )
 
     X_pa = tr.Property(depends_on='state_changed')
+    '''Nodal coordinates of the crack rotation patch - flattened'''
     @tr.cached_property
     def _get_X_pa(self):
         X_ija = self.dic_grid.X_ija[
@@ -51,6 +52,8 @@ class DICCOR(bu.Model):
         return X_pa
 
     x_cor_pa_sol = tr.Property(depends_on='state_changed')
+    '''Center of rotation determined for each patch point separately
+    '''
     @tr.cached_property
     def _get_x_cor_pa_sol(self):
         X_ija = self.dic_grid.X_ija[
@@ -82,13 +85,15 @@ class DICCOR(bu.Model):
         return x_cor_pa_sol
 
     X_cor = tr.Property(depends_on='state_changed')
+    '''Center of rotation of the patch related 
+    to the local patch reference system
+    '''
     @tr.cached_property
     def _get_X_cor(self):
         return np.average(self.x_cor_pa_sol, axis=0)
 
-
     X_cor_b = tr.Property(depends_on='state_changed')
-    '''Global coordinates of COR.
+    '''Center of rotation within the global reference system
     '''
     @tr.cached_property
     def _get_X_cor_b(self):
