@@ -59,12 +59,12 @@ class DICCOR(bu.Model):
         X_ija = self.dic_grid.X_ija[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step,:]
-        perp_u_ija, _, _ = self.dic_aligned_grid.displ_grids
+        XU_mid_ija, perp_u_ija, _, _ = self.dic_aligned_grid.displ_grids
         perp_u_ija = perp_u_ija[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step,:]
 
-        X_pa = X_ija.reshape(-1, 2)
+        X_pa = XU_mid_ija.reshape(-1, 2)
         perp_u_pa = perp_u_ija.reshape(-1, 2)
 
         def get_x_cor_pa(eta_p):

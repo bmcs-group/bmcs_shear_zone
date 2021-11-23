@@ -127,13 +127,23 @@ class DICAlignedGrid(bu.Model):
         rot_vect_u_anp = rot_vect_u_anij.reshape(2, 2, -1)
         #print(np.shape(rot_vect_u_anp))
         #print('rot_vect_u_anp', rot_vect_u_anp)
-        perp_u_aij = np.array([delta_u_rot_ija[..., 1], -delta_u_rot_ija[..., 0]])
-        perp_u_ija = np.einsum('aij->ija', perp_u_aij)
-        perp_Xu_ija = X_ija + perp_u_ija * self.U_factor
-        perp_vect_u_nija = np.array([X_ija, perp_Xu_ija])
-        perp_vect_u_anij = np.einsum('nija->anij', perp_vect_u_nija)
-        perp_vect_u_anp = perp_vect_u_anij.reshape(2, 2, -1)
-        return perp_u_ija, rot_vect_u_anp, perp_vect_u_anp
+        if False:
+            perp_u_aij = np.array([delta_u_rot_ija[..., 1], -delta_u_rot_ija[..., 0]])
+            perp_u_ija = np.einsum('aij->ija', perp_u_aij)
+            perp_Xu_ija = X_ija + perp_u_ija * self.U_factor
+            perp_vect_u_nija = np.array([X_ija, perp_Xu_ija])
+            perp_vect_u_anij = np.einsum('nija->anij', perp_vect_u_nija)
+            perp_vect_u_anp = perp_vect_u_anij.reshape(2, 2, -1)
+        else:
+            XU_mid_ija = (X_ija + rot_Xu_ija)
+            perp_u_aij = np.array([delta_u_rot_ija[..., 1], -delta_u_rot_ija[..., 0]])
+            perp_u_ija = np.einsum('aij->ija', perp_u_aij)
+            XU_perp_ija = X_mid_ija + perp_u_ija * self.U_factor
+            V_perp_u_nija = np.array([XU_mid_ija, XU_perp_ija])
+            V_perp_u_anij = np.einsum('nija->anij', V_perp_u_nija)
+            V_perp_u_anp = V_perp_u_anij.reshape(2, 2, -1)
+
+        return XU_mid_ija, perp_u_ija, rot_vect_u_anp, V_perp_u_anp
 
     def update_plot(self, axes):
         ax = axes
@@ -142,7 +152,7 @@ class DICAlignedGrid(bu.Model):
             XU0_aij = np.einsum('ija->aij', self.X_ija + self.delta_u0_ul_ija)
             ax.scatter(*XU0_aij.reshape(2,-1), s=15, marker='o', color='darkgray')
 
-        _, rot_vect_u_anp, perp_vect_u_anp = self.displ_grids
+        _, _, rot_vect_u_anp, perp_vect_u_anp = self.displ_grids
 
         ax.scatter(*rot_vect_u_anp[:,-1,:], s=15, marker='o', color='silver')
         if self.show_rot:
