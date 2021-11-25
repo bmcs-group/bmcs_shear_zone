@@ -135,10 +135,10 @@ class DICAlignedGrid(bu.Model):
             perp_vect_u_anij = np.einsum('nija->anij', perp_vect_u_nija)
             perp_vect_u_anp = perp_vect_u_anij.reshape(2, 2, -1)
         else:
-            XU_mid_ija = (X_ija + rot_Xu_ija)
+            XU_mid_ija = (X_ija + rot_Xu_ija) / 2
             perp_u_aij = np.array([delta_u_rot_ija[..., 1], -delta_u_rot_ija[..., 0]])
             perp_u_ija = np.einsum('aij->ija', perp_u_aij)
-            XU_perp_ija = X_mid_ija + perp_u_ija * self.U_factor
+            XU_perp_ija = XU_mid_ija + perp_u_ija * self.U_factor
             V_perp_u_nija = np.array([XU_mid_ija, XU_perp_ija])
             V_perp_u_anij = np.einsum('nija->anij', V_perp_u_nija)
             V_perp_u_anp = V_perp_u_anij.reshape(2, 2, -1)
@@ -155,11 +155,11 @@ class DICAlignedGrid(bu.Model):
         _, _, rot_vect_u_anp, perp_vect_u_anp = self.displ_grids
 
         ax.scatter(*rot_vect_u_anp[:,-1,:], s=15, marker='o', color='silver')
-        if self.show_rot:
-            ax.plot(*rot_vect_u_anp, color='silver', linewidth=0.5);
+        #if self.show_rot:
+        ax.plot(*rot_vect_u_anp, color='silver', linewidth=0.5);
 
-        if self.show_perp:
-            ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
+        #if self.show_perp:
+        ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
         ax.axis('equal');
 
         y_ref_ja = self.rot_Xu_ija[self.y_ref_i, self.y_ref_j_min:self.y_ref_j_max]
