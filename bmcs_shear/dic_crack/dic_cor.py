@@ -60,6 +60,9 @@ class DICCOR(bu.Model):
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step,:]
         XU_mid_ija, perp_u_ija, _, _ = self.dic_aligned_grid.displ_grids
+        XU_mid_ija = XU_mid_ija[
+                self.n_x_min:self.n_x_max:self.n_x_step,
+                self.n_y_min:self.n_y_max:self.n_y_step,:]
         perp_u_ija = perp_u_ija[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step,:]
@@ -153,6 +156,6 @@ class DICCOR(bu.Model):
 
     def update_plot(self, axes):
         ax = axes
-        _, rot_vect_u_anp, perp_vect_u_anp = self.dic_aligned_grid.displ_grids
+        _, _, rot_vect_u_anp, perp_vect_u_anp = self.dic_aligned_grid.displ_grids
         self.dic_aligned_grid.update_plot(axes)
         self.plot_cor(ax)
