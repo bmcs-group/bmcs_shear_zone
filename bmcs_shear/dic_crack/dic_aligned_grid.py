@@ -75,7 +75,9 @@ class DICAlignedGrid(bu.Model):
         d_u_ul_1j1 = (self.delta_u_ul_ija[self.y_ref_i,self.y_ref_j_min:self.y_ref_j_max,0] -
                       self.delta_u_ul_ija[self.y_ref_i,:1,0])
         #print(self.delta_u_ul_ija[self.y_ref_i,:1,0])
+        #print(self.delta_u_ul_ija[self.y_ref_i,:1,0])
         d_x_i0 = self.X_ija[self.y_ref_i,1:10,1] - self.X_ija[self.y_ref_i,:1,1]
+        #print(d_x_i0)
         sin_delta_alpha = np.average(d_u_ul_1j1 / d_x_i0)
         return np.arcsin(sin_delta_alpha)
 
@@ -95,6 +97,7 @@ class DICAlignedGrid(bu.Model):
     @tr.cached_property
     def _get_X_ref_a(self):
         XU_ija = self.X_ija + self.delta_u_ul_ija
+        #print(XU_ija[self.y_ref_i, self.y_ref_j_min,:])
         return XU_ija[self.y_ref_i, self.y_ref_j_min, :]
 
     delta_u0_ul_ija = tr.Property(depends_on='state_changed')
