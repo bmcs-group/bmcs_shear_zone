@@ -56,7 +56,7 @@ class DICCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_X_cor_pa_sol(self):
-        xu_mid_ija, w_ref_ija, _, _ = self.dic_aligned_grid.displ_grids
+        xu_mid_ija, w_ref_ija = self.dic_aligned_grid.xu_mid_w_ref_ija
         xu_mid_ija = xu_mid_ija[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step,:]
