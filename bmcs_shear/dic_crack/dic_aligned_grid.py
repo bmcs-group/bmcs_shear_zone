@@ -25,11 +25,13 @@ class DICAlignedGrid(bu.Model):
     '''Vertical index defining the end position of y axis
     '''
 
-    show_rot = bu.Bool(False, ALG=True)
-    show_perp = bu.Bool(False, ALG=True)
     show_init = bu.Bool(False, ALG=True)
+    show_xu = bu.Bool(True, ALG=True)
+    show_xw = bu.Bool(False, ALG=True)
 
     t = bu.Float(1, ALG=True)
+    '''Slider over the time history
+    '''
     def _t_changed(self):
         n_t = self.dic_grid.n_t
         d_t = (1 / n_t)
@@ -37,133 +39,160 @@ class DICAlignedGrid(bu.Model):
 
     ipw_view = bu.View(
         bu.Item('y_ref_i'),
-        bu.Item('y_ref_j_min'),
         bu.Item('y_ref_j_max'),
-        bu.Item('show_rot'),
-        bu.Item('show_perp'),
         bu.Item('show_init'),
+        bu.Item('show_xu'),
+        bu.Item('show_xw'),
         time_editor=bu.HistoryEditor(
             var='t'
         )
     )
 
-    u_tija = tr.DelegatesTo('dic_grid')
     X_ija = tr.DelegatesTo('dic_grid')
+    U_ija = tr.DelegatesTo('dic_grid')
 
-    delta_u_ul_ija = tr.Property(depends_on='state_changed')
-    '''Displacement increment relative to lower left corner.
+    U0_a = tr.Property(depends_on='state_changed')
+    '''Origin of the reference frame
     '''
     @tr.cached_property
-    def _get_delta_u_ul_ija(self):
-        delta_u_ija = self.u_tija[self.end_t] - self.u_tija[self.start_t]
-        #print('delta_u_ija', delta_u_ija)
-        #u_11a = delta_u_ija[-1:,:1,:]
-        u_11a = delta_u_ija[self.y_ref_i,self.y_ref_j_min,:][np.newaxis,np.newaxis,:]
-        #print('u_11a', u_11a)
-        delta_u_ul_ija = delta_u_ija - u_11a
-        #print('delta_u_ul_ija', delta_u_ul_ija)
-        return delta_u_ul_ija
+    def _get_U0_a(self):
+        return self.U_ija[self.y_ref_i,0,:]
 
-    delta_alpha = tr.Property(depends_on='state_changed')
+    X0_a = tr.Property(depends_on='state_changed')
+    '''Origin of the reference frame
+    '''
+    @tr.cached_property
+    def _get_X0_a(self):
+        return self.X_ija[self.y_ref_i,0,:] + self.U0_a
+
+    U_ref_ija = tr.Property(depends_on='state_changed')
+    '''Displacement increment relative to the reference point.
+    '''
+    @tr.cached_property
+    def _get_U_ref_ija(self):
+        U0_11a = self.U0_a[np.newaxis,np.newaxis,:]
+        U_ref_ija = self.U_ija - U0_11a
+        return U_ref_ija
+
+    X_ref_ija = tr.Property(depends_on='state_changed')
+    '''Displacement increment relative to the reference point.
+    '''
+    @tr.cached_property
+    def _get_X_ref_ija(self):
+        X_ref_ija = self.X_ija + self.U_ref_ija
+        return X_ref_ija
+
+    alpha_ref = tr.Property(depends_on='state_changed')
     '''Rotation of the reference boundary line.
     '''
     @tr.cached_property
-    def _get_delta_alpha(self):
-        # slice the left boundary
-        d_u_ul_1j1 = self.delta_u_ul_ija[-1,1:10,0] - self.delta_u_ul_ija[-1,:1,0]
-        d_x_i0 = self.X_ija[-1,1:10,1] - self.X_ija[-1,:1,1]
-        d_u_ul_1j1 = (self.delta_u_ul_ija[self.y_ref_i,self.y_ref_j_min:self.y_ref_j_max,0] -
-                      self.delta_u_ul_ija[self.y_ref_i,:1,0])
-        #print(self.delta_u_ul_ija[self.y_ref_i,:1,0])
-        #print(self.delta_u_ul_ija[self.y_ref_i,:1,0])
-        d_x_i0 = self.X_ija[self.y_ref_i,1:10,1] - self.X_ija[self.y_ref_i,:1,1]
-        #print(d_x_i0)
-        sin_delta_alpha = np.average(d_u_ul_1j1 / d_x_i0)
-        return np.arcsin(sin_delta_alpha)
+    def _get_alpha_ref(self):
+        # Put the origin of the coordinate system into the reference point
+        X_ref_ja = (self.X_ija[self.y_ref_i, :self.y_ref_j_max,:] +
+                    self.U_ref_ija[self.y_ref_i, :self.y_ref_j_max,:])
+        X0_a = X_ref_ja[0, :]
+        X0_ja = X_ref_ja - X0_a[np.newaxis, :]
+        alpha_ref = np.arctan(X0_ja[1:, 0] / X0_ja[1:, 1])
+        return np.average(alpha_ref)
 
     T_ab = tr.Property(depends_on='state_changed')
     '''Rotation matrix of the reference boundary line.
     '''
     @tr.cached_property
     def _get_T_ab(self):
-        delta_alpha = self.delta_alpha
-        sa, ca = np.sin(delta_alpha), np.cos(delta_alpha)
+        alpha_ref = self.alpha_ref
+        sa, ca = np.sin(alpha_ref), np.cos(alpha_ref)
         return np.array([[ca,-sa],
                          [sa,ca]])
 
-    X_ref_a = tr.Property(depends_on='state_changed')
-    '''Origin of the reference frame
-    '''
-    @tr.cached_property
-    def _get_X_ref_a(self):
-        XU_ija = self.X_ija + self.delta_u_ul_ija
-        #print(XU_ija[self.y_ref_i, self.y_ref_j_min,:])
-        return XU_ija[self.y_ref_i, self.y_ref_j_min, :]
-
-    delta_u0_ul_ija = tr.Property(depends_on='state_changed')
+    x_ref_ija = tr.Property(depends_on='state_changed')
     '''Displacement increment relative to the reference frame.
     '''
     @tr.cached_property
-    def _get_delta_u0_ul_ija(self):
-        XU_ija = self.X_ija + self.delta_u_ul_ija
-        XU_pull_ija = XU_ija - XU_ija[-1:,:1,:]
-        XU_pull_ija = XU_ija - self.X_ref_a[np.newaxis,np.newaxis,:]
-        XU0_ija = np.einsum('ba,...a->...b', self.T_ab, XU_pull_ija)
-        XU_push_ija = XU0_ija + self.X_ref_a[np.newaxis,np.newaxis,:]
-        return XU_push_ija - self.X_ija
+    def _get_x_ref_ija(self):
+        # Get the global displaced configuration without reference point displacement
+        X_ref_ija = self.X_ija + self.U_ref_ija
+        # Put the origin of the coordinate system into the reference point
+        X0_a = X_ref_ija[self.y_ref_i, 0]
+        X0_ija = X_ref_ija - X0_a[np.newaxis, np.newaxis, :]
+        # Rotate all points by the inclination of the vertical axis alpha
+        x0_ija = np.einsum('ba,...a->...b', self.T_ab, X0_ija)
+        # Return to the global coordinate system
+        x_ref_ija = x0_ija + X0_a[np.newaxis, np.newaxis, :]
+        return x_ref_ija
 
-    rot_Xu_ija = tr.Property(depends_on='state_changed')
+    u_ref_ija = tr.Property(depends_on='state_changed')
+    '''Displacement increment relative to the reference frame.
+    '''
     @tr.cached_property
-    def _get_rot_Xu_ija(self):
+    def _get_u_ref_ija(self):
+        return self.x_ref_ija - self.X_ija
+
+    x_ref_ija_scaled = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_x_ref_ija_scaled(self):
         X_ija = self.X_ija
-        delta_u_rot_ija = self.delta_u0_ul_ija
-        return X_ija + delta_u_rot_ija * self.U_factor
+        return X_ija + self.u_ref_ija * self.U_factor
 
     displ_grids = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_displ_grids(self):
         X_ija = self.X_ija
-        delta_u_rot_ija = self.delta_u0_ul_ija
-        rot_Xu_ija = self.rot_Xu_ija
-        rot_vect_u_nija = np.array([X_ija, rot_Xu_ija])
-        rot_vect_u_anij = np.einsum('nija->anij', rot_vect_u_nija)
-        rot_vect_u_anp = rot_vect_u_anij.reshape(2, 2, -1)
-        #print(np.shape(rot_vect_u_anp))
-        #print('rot_vect_u_anp', rot_vect_u_anp)
-        if False:
-            perp_u_aij = np.array([delta_u_rot_ija[..., 1], -delta_u_rot_ija[..., 0]])
-            perp_u_ija = np.einsum('aij->ija', perp_u_aij)
-            perp_Xu_ija = X_ija + perp_u_ija * self.U_factor
-            perp_vect_u_nija = np.array([X_ija, perp_Xu_ija])
-            perp_vect_u_anij = np.einsum('nija->anij', perp_vect_u_nija)
-            perp_vect_u_anp = perp_vect_u_anij.reshape(2, 2, -1)
-        else:
-            XU_mid_ija = (X_ija + rot_Xu_ija) / 2
-            perp_u_aij = np.array([delta_u_rot_ija[..., 1], -delta_u_rot_ija[..., 0]])
-            perp_u_ija = np.einsum('aij->ija', perp_u_aij)
-            XU_perp_ija = XU_mid_ija + perp_u_ija * self.U_factor
-            V_perp_u_nija = np.array([XU_mid_ija, XU_perp_ija])
-            V_perp_u_anij = np.einsum('nija->anij', V_perp_u_nija)
-            V_perp_u_anp = V_perp_u_anij.reshape(2, 2, -1)
+        xu_ref_ija = self.x_ref_ija
+        # construct the displacement vector v
+        xu_ref_nija = np.array([X_ija, xu_ref_ija])
+        xu_ref_anij = np.einsum('nija->anij', xu_ref_nija)
+        xu_ref_anp = xu_ref_anij.reshape(2, 2, -1)
+        # construct the perpendicular vector w
+        xu_mid_ija = np.average(xu_ref_nija, axis=0)
+        u_ref_ija = self.u_ref_ija
+        w_ref_aij = np.array([u_ref_ija[..., 1], -u_ref_ija[..., 0]])
+        w_ref_ija = np.einsum('aij->ija', w_ref_aij)
+        xw_ref_ija = xu_mid_ija + w_ref_ija
+        xw_ref_nija = np.array([xu_mid_ija, xw_ref_ija])
+        xw_ref_anij = np.einsum('nija->anij', xw_ref_nija)
+        xw_ref_anp = xw_ref_anij.reshape(2, 2, -1)
+        return xu_mid_ija, w_ref_ija, xu_ref_anp, xw_ref_anp
 
-        return XU_mid_ija, perp_u_ija, rot_vect_u_anp, V_perp_u_anp
+    displ_grids_scaled = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_displ_grids_scaled(self):
+        X_ija = self.X_ija
+        xu_ref_ija_scaled = self.x_ref_ija_scaled
+        # construct the displacement vector v
+        xu_ref_nija_scaled = np.array([X_ija, xu_ref_ija_scaled])
+        xu_ref_anij_scaled = np.einsum('nija->anij', xu_ref_nija_scaled)
+        xu_ref_anp_scaled = xu_ref_anij_scaled.reshape(2, 2, -1)
+        # construct the perpendicular vector w
+        xu_mid_ija_scaled = np.average(xu_ref_nija_scaled, axis=0)
+        u_ref_ija = self.u_ref_ija
+        w_ref_aij = np.array([u_ref_ija[..., 1], -u_ref_ija[..., 0]])
+        w_ref_ija = np.einsum('aij->ija', w_ref_aij)
+        xw_ref_ija_scaled = xu_mid_ija_scaled + w_ref_ija * self.U_factor
+        xw_ref_nija_scaled = np.array([xu_mid_ija_scaled, xw_ref_ija_scaled])
+        xw_ref_anij_scaled = np.einsum('nija->anij', xw_ref_nija_scaled)
+        xw_ref_anp_scaled = xw_ref_anij_scaled.reshape(2, 2, -1)
+        return xu_mid_ija_scaled, w_ref_ija, xu_ref_anp_scaled, xw_ref_anp_scaled
 
     def update_plot(self, axes):
         ax = axes
 
         if self.show_init:
-            XU0_aij = np.einsum('ija->aij', self.X_ija + self.delta_u0_ul_ija)
-            ax.scatter(*XU0_aij.reshape(2,-1), s=15, marker='o', color='darkgray')
+            X_ref_aij = np.einsum('ija->aij', self.X_ref_ija)
+            ax.scatter(*X_ref_aij.reshape(2,-1), s=15, marker='o', color='darkgray')
+            X_aij = np.einsum('ija->aij', self.X_ija)
+            ax.scatter(*X_aij.reshape(2,-1), s=15, marker='o', color='blue')
 
-        _, _, rot_vect_u_anp, perp_vect_u_anp = self.displ_grids
+        _, _, xu_ref_anp_scaled, xw_ref_anp_scaled = self.displ_grids_scaled
 
-        ax.scatter(*rot_vect_u_anp[:,-1,:], s=15, marker='o', color='silver')
-        #if self.show_rot:
-        ax.plot(*rot_vect_u_anp, color='silver', linewidth=0.5);
+        if self.show_xu:
+            ax.scatter(*xu_ref_anp_scaled[:, -1, :], s=15, marker='o', color='silver')
+            ax.plot(*xu_ref_anp_scaled, color='silver', linewidth=0.5);
 
-        #if self.show_perp:
-        ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
-        ax.axis('equal');
+        if self.show_xw:
+            ax.plot(*xw_ref_anp_scaled, color='green', linewidth=0.5);
 
-        y_ref_ja = self.rot_Xu_ija[self.y_ref_i, self.y_ref_j_min:self.y_ref_j_max]
+        y_ref_ja = self.x_ref_ija_scaled[self.y_ref_i, :self.y_ref_j_max]
         ax.scatter(*y_ref_ja.T, s=20, color='green')
+
+        ax.axis('equal');

@@ -51,41 +51,38 @@ class DICCOR(bu.Model):
         X_pa = X_ija.reshape(-1, 2)
         return X_pa
 
-    x_cor_pa_sol = tr.Property(depends_on='state_changed')
+    X_cor_pa_sol = tr.Property(depends_on='state_changed')
     '''Center of rotation determined for each patch point separately
     '''
     @tr.cached_property
-    def _get_x_cor_pa_sol(self):
-        X_ija = self.dic_grid.X_ija[
+    def _get_X_cor_pa_sol(self):
+        xu_mid_ija, w_ref_ija, _, _ = self.dic_aligned_grid.displ_grids
+        xu_mid_ija = xu_mid_ija[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step,:]
-        XU_mid_ija, perp_u_ija, _, _ = self.dic_aligned_grid.displ_grids
-        XU_mid_ija = XU_mid_ija[
-                self.n_x_min:self.n_x_max:self.n_x_step,
-                self.n_y_min:self.n_y_max:self.n_y_step,:]
-        perp_u_ija = perp_u_ija[
+        w_ref_ija = w_ref_ija[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step,:]
 
-        X_pa = XU_mid_ija.reshape(-1, 2)
-        perp_u_pa = perp_u_ija.reshape(-1, 2)
+        xu_mid_pa = xu_mid_ija.reshape(-1, 2)
+        w_ref_pa = w_ref_ija.reshape(-1, 2)
 
-        def get_x_cor_pa(eta_p):
+        def get_X_cor_pa(eta_p):
             '''Get the points on the perpendicular lines with the sliders eta_p'''
-            return X_pa + np.einsum('p,pa->pa', eta_p, perp_u_pa)
+            return xu_mid_pa + np.einsum('p,pa->pa', eta_p, w_ref_pa)
 
         def get_R(eta_p):
             '''Residuum of the closest distance condition'''
-            x_cor_pa = get_x_cor_pa(eta_p)
+            x_cor_pa = get_X_cor_pa(eta_p)
             delta_x_cor_pqa = x_cor_pa[:, np.newaxis, :] - x_cor_pa[np.newaxis, :, :]
             R2 = np.einsum('pqa,pqa->', delta_x_cor_pqa, delta_x_cor_pqa)
             return np.sqrt(R2)
 
-        eta0_p = np.zeros((X_pa.shape[0],))
+        eta0_p = np.zeros((xu_mid_pa.shape[0],))
         min_eta_p_sol = minimize(get_R, eta0_p, method='BFGS')
         eta_p_sol = min_eta_p_sol.x
-        x_cor_pa_sol = get_x_cor_pa(eta_p_sol)
-        return x_cor_pa_sol
+        X_cor_pa_sol = get_X_cor_pa(eta_p_sol)
+        return X_cor_pa_sol
 
     X_cor = tr.Property(depends_on='state_changed')
     '''Center of rotation of the patch related 
@@ -93,7 +90,7 @@ class DICCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_X_cor(self):
-        return np.average(self.x_cor_pa_sol, axis=0)
+        return np.average(self.X_cor_pa_sol, axis=0)
 
     X_cor_b = tr.Property(depends_on='state_changed')
     '''Center of rotation within the global reference system
@@ -101,9 +98,9 @@ class DICCOR(bu.Model):
     @tr.cached_property
     def _get_X_cor_b(self):
         X_a = self.X_cor
-        X_pull_a = X_a - self.dic_aligned_grid.X_ref_a
+        X_pull_a = X_a - self.dic_aligned_grid.X0_a
         X_b = np.einsum('ba,a->b', self.dic_aligned_grid.T_ab, X_pull_a)
-        X_push_b = X_b + self.dic_aligned_grid.X_ref_a
+        X_push_b = X_b + self.dic_aligned_grid.X0_a
         return X_push_b
 
     # phi = tr.Property(depends_on ='state_changed')
@@ -112,8 +109,8 @@ class DICCOR(bu.Model):
     # @tr.cached_property
     # def _get_phi(self):
     #     # _, rot_vect_u_anp, _ = self.dic_aligned_grid.displ_grids
-    #     rot_Xu_ija = self.dic_aligned_grid.rot_Xu_ija
-    #     rot_Xu_ija_sel = rot_Xu_ija[self.n_x_min:self.n_x_max:self.n_x_step,
+    #     x_ref_ija_scaled = self.dic_aligned_grid.x_ref_ija_scaled
+    #     rot_Xu_ija_sel = x_ref_ija_scaled[self.n_x_min:self.n_x_max:self.n_x_step,
     #                       self.n_y_min:self.n_y_max:self.n_y_step, :]
     #     rot_X_pa_sel = rot_Xu_ija_sel.reshape(-1, 2)
     #     d_tc = np.sqrt((self.x_cor_pa_sol[:, 0] - rot_X_pa_sel[:, 0]) ** 2
@@ -138,24 +135,23 @@ class DICCOR(bu.Model):
     #     return phi
 
     def plot_cor(self, ax):
-        rot_Xu_ija = self.dic_aligned_grid.rot_Xu_ija
-        Xu_ija = rot_Xu_ija[
+        x_ref_ija_scaled = self.dic_aligned_grid.x_ref_ija_scaled
+        Xu_ija = x_ref_ija_scaled[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step, :]
         Xu_aij = np.einsum('ija->aij', Xu_ija)
         ax.scatter(*Xu_aij.reshape(2,-1), s=7, marker='o', color='black')
 
-        X_ref_b = self.dic_aligned_grid.X_ref_a
-        ax.scatter([X_ref_b[0]],[X_ref_b[1]], s=20, color='green')
+        X0_b = self.dic_aligned_grid.X0_a
+        ax.scatter([X0_b[0]],[X0_b[1]], s=20, color='green')
 
         # ax.plot(*rot_vect_u_anp, color='blue', linewidth=0.5);
         # ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
-        ax.plot(*self.x_cor_pa_sol.T, 'o', color = 'blue')
+        ax.plot(*self.X_cor_pa_sol.T, 'o', color = 'blue')
         ax.plot([self.X_cor[0]], [self.X_cor[1]], 'o', color='red')
         ax.axis('equal');
 
     def update_plot(self, axes):
         ax = axes
-        _, _, rot_vect_u_anp, perp_vect_u_anp = self.dic_aligned_grid.displ_grids
         self.dic_aligned_grid.update_plot(axes)
         self.plot_cor(ax)
