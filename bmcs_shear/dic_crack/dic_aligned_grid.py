@@ -134,25 +134,22 @@ class DICAlignedGrid(bu.Model):
         X_ija = self.X_ija
         return X_ija + self.u_ref_ija * self.U_factor
 
-    displ_grids = tr.Property(depends_on='state_changed')
+    xu_mid_w_ref_ija = tr.Property(depends_on='state_changed')
+    '''Get the midpoint on the displacement line and perpendicular
+    vector w along which the search of the center of rotation can be defined.
+    '''
     @tr.cached_property
-    def _get_displ_grids(self):
+    def _get_xu_mid_w_ref_ija(self):
         X_ija = self.X_ija
+        # find a midpoint on the line xu
         xu_ref_ija = self.x_ref_ija
-        # construct the displacement vector v
         xu_ref_nija = np.array([X_ija, xu_ref_ija])
-        xu_ref_anij = np.einsum('nija->anij', xu_ref_nija)
-        xu_ref_anp = xu_ref_anij.reshape(2, 2, -1)
-        # construct the perpendicular vector w
         xu_mid_ija = np.average(xu_ref_nija, axis=0)
+        # construct the perpendicular vector w
         u_ref_ija = self.u_ref_ija
         w_ref_aij = np.array([u_ref_ija[..., 1], -u_ref_ija[..., 0]])
         w_ref_ija = np.einsum('aij->ija', w_ref_aij)
-        xw_ref_ija = xu_mid_ija + w_ref_ija
-        xw_ref_nija = np.array([xu_mid_ija, xw_ref_ija])
-        xw_ref_anij = np.einsum('nija->anij', xw_ref_nija)
-        xw_ref_anp = xw_ref_anij.reshape(2, 2, -1)
-        return xu_mid_ija, w_ref_ija, xu_ref_anp, xw_ref_anp
+        return xu_mid_ija, w_ref_ija
 
     displ_grids_scaled = tr.Property(depends_on='state_changed')
     @tr.cached_property
@@ -172,7 +169,7 @@ class DICAlignedGrid(bu.Model):
         xw_ref_nija_scaled = np.array([xu_mid_ija_scaled, xw_ref_ija_scaled])
         xw_ref_anij_scaled = np.einsum('nija->anij', xw_ref_nija_scaled)
         xw_ref_anp_scaled = xw_ref_anij_scaled.reshape(2, 2, -1)
-        return xu_mid_ija_scaled, w_ref_ija, xu_ref_anp_scaled, xw_ref_anp_scaled
+        return xu_ref_anp_scaled, xw_ref_anp_scaled
 
     def update_plot(self, axes):
         ax = axes
@@ -183,7 +180,7 @@ class DICAlignedGrid(bu.Model):
             X_aij = np.einsum('ija->aij', self.X_ija)
             ax.scatter(*X_aij.reshape(2,-1), s=15, marker='o', color='blue')
 
-        _, _, xu_ref_anp_scaled, xw_ref_anp_scaled = self.displ_grids_scaled
+        xu_ref_anp_scaled, xw_ref_anp_scaled = self.displ_grids_scaled
 
         if self.show_xu:
             ax.scatter(*xu_ref_anp_scaled[:, -1, :], s=15, marker='o', color='silver')
