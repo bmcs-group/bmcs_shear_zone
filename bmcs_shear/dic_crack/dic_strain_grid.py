@@ -58,7 +58,7 @@ class DICStrainGrid(bu.Model):
     @tr.cached_property
     def _get_U_o(self):
         end_t = self.dic_grid.end_t
-        u_ija = self.dic_grid.u_tija[end_t]
+        u_ija = self.dic_grid.U_tija[end_t]
         U_Ia = u_ija.reshape(-1, 2)
         U_o = U_Ia.flatten()  # array of displacements corresponding to the DOF enumeration
         return U_o
