@@ -53,7 +53,7 @@ class DICGrid(bu.Model):
     '''Directory with the data'''
     def _get_data_dir(self):
         home_dir = expanduser('~')
-        data_dir = join(home_dir, 'simdb', 'data', 'shear_zone', self.dir_name)
+        data_dir = join(home_dir, 'simdb', 'data', 'shear_zone', 'displacements', self.dir_name)
         return data_dir
 
     grid_column_first = bu.Bool(True)
@@ -81,6 +81,7 @@ class DICGrid(bu.Model):
             return U_tija[:,:,::-1,:]
         else:
             return U_tija
+
 
     n_t = tr.Property(depends_on='state_changed')
     '''Read the displacement data from the individual csv files'''
