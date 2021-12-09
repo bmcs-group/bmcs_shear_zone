@@ -4,6 +4,7 @@ import traits.api as tr
 from os.path import join, expanduser
 import os
 import numpy as np
+import pandas as pd
 
 class DICGrid(bu.Model):
 
@@ -53,8 +54,31 @@ class DICGrid(bu.Model):
     '''Directory with the data'''
     def _get_data_dir(self):
         home_dir = expanduser('~')
-        data_dir = join(home_dir, 'simdb', 'data', 'shear_zone', 'displacements', self.dir_name)
+        data_dir = join(home_dir, 'simdb', 'data', 'shear_zone', self.dir_name)
         return data_dir
+
+    dic_data_dir = tr.Property
+    '''Directory with the DIC data'''
+    def _get_dic_data_dir(self):
+        return join(self.data_dir, 'dic_data')
+
+    ld_data_dir = tr.Property
+    '''Directory with the load deflection data'''
+    def _get_ld_data_dir(self):
+        return join(self.data_dir, 'load_deflection')
+
+    files = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_files(self):
+        return [join(self.dic_data_dir, each)
+         for each in sorted(os.listdir(self.dic_data_dir))
+         if each.endswith('.csv')]
+
+    load_levels = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_load_levels(self):
+        return np.array([float(os.path.basename(file_name).split('_')[-2])
+                         for file_name in self.files ], dtype=np.float_ )
 
     grid_column_first = bu.Bool(True)
 
@@ -62,9 +86,7 @@ class DICGrid(bu.Model):
     '''Read the displacement data from the individual csv files'''
     @tr.cached_property
     def _get_U_tija(self):
-        files = [join(self.data_dir, each)
-               for each in sorted(os.listdir(self.data_dir))
-               if each.endswith('.csv')]
+        files = self.files
         U_tpa = np.array([
             np.loadtxt(csv_file, dtype=float,
                        skiprows=1, delimiter=',', usecols=(2,3), unpack=False)
@@ -110,8 +132,33 @@ class DICGrid(bu.Model):
     def _get_U_ija(self):
         return self.U_tija[self.end_t] - self.U_tija[self.start_t]
 
+    ld_file_name = tr.Str('load_deflection.csv')
+    
+    ld_values = tr.Property(depends_on='state_changed')
+    '''Read the load displacement values from the individual csv files from the test'''
+
+    @tr.cached_property
+    def _get_ld_values(self):
+        ld_file = join(self.ld_data_dir, self.ld_file_name)
+        ld_values = np.array(pd.read_csv(ld_file, decimal=",", skiprows=1, delimiter=None), dtype=np.float_)
+        return ld_values
+
+    def subplots(self, fig):
+        return fig.subplots(1,2)
+
+    current_load = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_current_load(self):
+        return self.load_levels[self.end_t]
+
     def update_plot(self, axes):
-        ax = axes
+        ax_u, ax_load = axes
         XU_aij = np.einsum('ija->aij', self.X_ija + self.U_ija * self.U_factor)
-        ax.scatter(*XU_aij.reshape(2,-1), s=15, marker='o', color='darkgray')
-        ax.axis('equal');
+        ax_u.scatter(*XU_aij.reshape(2,-1), s=15, marker='o', color='darkgray')
+        ax_u.axis('equal');
+        deflection = self.ld_values[::50, 2]
+        load = -self.ld_values[::50,1]
+        ax_load.plot(deflection, load, color='black')
+        max_deflection = np.max(deflection)
+        load_level = self.current_load
+        ax_load.plot([0, max_deflection], [load_level, load_level], color='green', lw=2)
