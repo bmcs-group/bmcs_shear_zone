@@ -104,11 +104,13 @@ class DICStrainGrid(bu.Model):
 
         #ax.axis('equal')
 
+    def subplots(self, fig):
+        return fig.subplots(1,2)
+
     def update_plot(self, axes):
-        ax = axes
-        self.dic_grid.update_plot(axes)
+        ax_u, _ = axes
         u_Ea = self.u_Ea
         x_Ea = np.average(self.fe_grid.x_Ema, axis=1)
         U_factor = self.dic_grid.U_factor
         x_aE = np.einsum('Ea->aE', x_Ea + u_Ea * U_factor)
-        self.plot_eps_a(ax, x_aE)
+        self.plot_eps_a(ax_u, x_aE)

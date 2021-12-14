@@ -21,6 +21,8 @@ class DICCOR(bu.Model):
     n_y_max = bu.Int(-1, ALG=True)
     n_y_step = bu.Int(5, ALG=True)
 
+    crack_idx = bu.Int
+
     tree = ['dic_aligned_grid']
 
     t = bu.Float(1, ALG=True)
@@ -103,55 +105,82 @@ class DICCOR(bu.Model):
         X_push_b = X_b + self.dic_aligned_grid.X0_a
         return X_push_b
 
-    # phi = tr.Property(depends_on ='state_changed')
-    # ''' Rotation of the center'''
-    #
-    # @tr.cached_property
-    # def _get_phi(self):
-    #     # _, rot_vect_u_anp, _ = self.dic_aligned_grid.displ_grids
-    #     x_ref_ija_scaled = self.dic_aligned_grid.x_ref_ija_scaled
-    #     rot_Xu_ija_sel = x_ref_ija_scaled[self.n_x_min:self.n_x_max:self.n_x_step,
-    #                       self.n_y_min:self.n_y_max:self.n_y_step, :]
-    #     rot_X_pa_sel = rot_Xu_ija_sel.reshape(-1, 2)
-    #     d_tc = np.sqrt((self.x_cor_pa_sol[:, 0] - rot_X_pa_sel[:, 0]) ** 2
-    #                                + (self.x_cor_pa_sol[:, 1] - rot_X_pa_sel[:, 1]) ** 2) #dist_x_cor_u_end
-    #     X_ija_sel = self.dic_grid.X_ija[self.n_x_min:self.n_x_max:self.n_x_step,
-    #                 self.n_y_min:self.n_y_max:self.n_y_step]
-    #     X_pa_sel = X_ija_sel.reshape(-1, 2)
-    #     d_0c = np.sqrt((self.x_cor_pa_sol[:, 0] - X_pa_sel[:, 0]) ** 2
-    #                                  + (self.x_cor_pa_sol[:, 1] - X_pa_sel[:, 1]) ** 2) #dist_x_cor_u_start
-    #     d_0t = np.sqrt((rot_X_pa_sel[:, 0] - X_pa_sel[:, 0]) ** 2
-    #                                  + (rot_X_pa_sel[:, 1] - X_pa_sel[:, 1]) ** 2) #dist_u_end_u_start
-    #     #dist_x_cor_u_end_average = np.average(d_tc)
-    #     #dist_x_cor_u_start_average = np.average(d_0c)
-    #     #dist_u_end_u_start_average = np.average(d_0t)
-    #     # phi = np.arccos(
-    #     #     (dist_x_cor_u_end_average ** 2 + dist_x_cor_u_start_average ** 2 - dist_u_end_u_start_average ** 2)
-    #     #     / (2 * dist_x_cor_u_end_average * dist_x_cor_u_start_average))
-    #     phi = np.arccos(
-    #         (d_tc ** 2 + d_0c ** 2 - d_0t ** 2)
-    #         / (2 * d_tc * d_0c))
-    #     print(phi)
-    #     return phi
+    phi = tr.Property(depends_on='state_changed')
+    '''Calculate of angle of rotation'''
 
-    def plot_cor(self, ax):
+    @tr.cached_property
+    def _get_phi(self):
+        end_t_arr = np.arange(0, self.dic_grid.end_t, 1)
+        phi_arr = []
+        for end_t in end_t_arr[::1]:
+            #print('evaluating step', end_t)
+
+            self.dic_grid.end_t = end_t
+
+            # selected points for rotation
+            XU_ija = self.dic_aligned_grid.x_ref_ija_scaled  # check the refence system and verify
+            XU_ija_sel = (XU_ija[self.n_x_min:self.n_x_max:self.n_x_step,
+                          self.n_y_min:self.n_y_max:self.n_y_step])
+            XU_pr = XU_ija_sel.reshape(-1, 2)
+
+            self.dic_grid.X_ija
+            # selection of grid of points
+            X_ija_sel = self.dic_grid.X_ija[self.n_x_min:self.n_x_max:self.n_x_step,
+                        self.n_y_min:self.n_y_max:self.n_y_step]
+            X_pr = X_ija_sel.reshape(-1, 2)
+
+            # evaluating distances using distance formula
+            X_cor_r = self.X_cor
+            XU_mid_pr = (XU_pr + X_pr) / 2
+
+            V_X_XU_mid_pr = X_cor_r[np.newaxis, :] - XU_mid_pr
+            V_XU_XU_mid_pr = XU_pr - XU_mid_pr
+
+            len_d_0c = np.sqrt(np.einsum('...i,...i->...', V_X_XU_mid_pr, V_X_XU_mid_pr))
+            len_d_0t = np.sqrt(np.einsum('...i,...i->...', V_XU_XU_mid_pr, V_XU_XU_mid_pr))
+
+            phi = 2 * np.arctan(len_d_0t / len_d_0c)
+            phi = np.where(np.isnan(phi), 0, phi)
+            # if phi.any == np.nan:
+            #     phi = 0
+            # else:
+            #     phi = 2 * np.arctan(len_d_0t / len_d_0c)
+
+            phi_avg = np.average(phi)
+            phi_arr.append(phi_avg)
+
+            #print('phi_avg', phi_avg)
+
+        return phi_arr
+
+
+    def subplots(self, fig):
+        return fig.subplots(1,2)
+
+    def plot_cor(self, axes):
+        ax_u, ax_lr = axes
         x_ref_ija_scaled = self.dic_aligned_grid.x_ref_ija_scaled
         Xu_ija = x_ref_ija_scaled[
                 self.n_x_min:self.n_x_max:self.n_x_step,
                 self.n_y_min:self.n_y_max:self.n_y_step, :]
         Xu_aij = np.einsum('ija->aij', Xu_ija)
-        ax.scatter(*Xu_aij.reshape(2,-1), s=7, marker='o', color='black')
+        ax_u.scatter(*Xu_aij.reshape(2,-1), s=7, marker='o', color='black')
 
         X0_b = self.dic_aligned_grid.X0_a
-        ax.scatter([X0_b[0]],[X0_b[1]], s=20, color='green')
+        ax_u.scatter([X0_b[0]],[X0_b[1]], s=20, color='green')
+
+        # self.dic_grid.update_plot(axes)
 
         # ax.plot(*rot_vect_u_anp, color='blue', linewidth=0.5);
         # ax.plot(*perp_vect_u_anp, color='green', linewidth=0.5);
-        ax.plot(*self.X_cor_pa_sol.T, 'o', color = 'blue')
-        ax.plot([self.X_cor[0]], [self.X_cor[1]], 'o', color='red')
-        ax.axis('equal');
+        ax_u.plot(*self.X_cor_pa_sol.T, 'o', color = 'blue')
+        ax_u.plot([self.X_cor[0]], [self.X_cor[1]], 'o', color='red')
+        ax_u.axis('equal');
+        ax_lr.plot(self.phi[:-1], self.dic_grid.load_levels[:self.dic_grid.end_t], label='crack {}'.format(self.crack_idx))
+        ax_lr.set_xlabel(r'$\varphi$'), ax_lr.set_ylabel('Load [KN]')
+        ax_lr.legend()
 
-    def update_plot(self, axes):
-        ax = axes
-        self.dic_aligned_grid.update_plot(axes)
+    def update_plot(self, ax):
+        ax = ax
+        self.dic_aligned_grid.update_plot(ax)
         self.plot_cor(ax)

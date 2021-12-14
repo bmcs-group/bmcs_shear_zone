@@ -171,25 +171,36 @@ class DICAlignedGrid(bu.Model):
         xw_ref_anp_scaled = xw_ref_anij_scaled.reshape(2, 2, -1)
         return xu_ref_anp_scaled, xw_ref_anp_scaled
 
+    def subplots(self, fig):
+        return fig.subplots(1, 2)
+
     def update_plot(self, axes):
-        ax = axes
+        ax_u, ax_load = axes
 
         if self.show_init:
             X_ref_aij = np.einsum('ija->aij', self.X_ref_ija)
-            ax.scatter(*X_ref_aij.reshape(2,-1), s=15, marker='o', color='darkgray')
+            ax_u.scatter(*X_ref_aij.reshape(2,-1), s=15, marker='o', color='darkgray')
             X_aij = np.einsum('ija->aij', self.X_ija)
-            ax.scatter(*X_aij.reshape(2,-1), s=15, marker='o', color='blue')
+            ax_u.scatter(*X_aij.reshape(2,-1), s=15, marker='o', color='blue')
 
         xu_ref_anp_scaled, xw_ref_anp_scaled = self.displ_grids_scaled
 
         if self.show_xu:
-            ax.scatter(*xu_ref_anp_scaled[:, -1, :], s=15, marker='o', color='silver')
-            ax.plot(*xu_ref_anp_scaled, color='silver', linewidth=0.5);
+            ax_u.scatter(*xu_ref_anp_scaled[:, -1, :], s=15, marker='o', color='silver')
+            ax_u.plot(*xu_ref_anp_scaled, color='silver', linewidth=0.5);
 
         if self.show_xw:
-            ax.plot(*xw_ref_anp_scaled, color='green', linewidth=0.5);
+            ax_u.plot(*xw_ref_anp_scaled, color='green', linewidth=0.5);
 
         y_ref_ja = self.x_ref_ija_scaled[self.y_ref_i, :self.y_ref_j_max]
-        ax.scatter(*y_ref_ja.T, s=20, color='green')
+        ax_u.scatter(*y_ref_ja.T, s=20, color='green')
 
-        ax.axis('equal');
+        ax_u.axis('equal');
+
+        deflection = self.dic_grid.ld_values[::50, 2]
+        load = -self.dic_grid.ld_values[::50, 1]
+        ax_load.plot(deflection, load, color='black')
+        max_deflection = np.max(deflection)
+        load_level = self.dic_grid.current_load
+        ax_load.plot([0, max_deflection], [load_level, load_level],
+                     color='green', lw=2)
