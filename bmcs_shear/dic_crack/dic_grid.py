@@ -153,9 +153,15 @@ class DICGrid(bu.Model):
 
     def update_plot(self, axes):
         ax_u, ax_load = axes
+        self.plot_grid(ax_u)
+        self.plot_load_deflection(ax_load)
+
+    def plot_grid(self, ax_u):
         XU_aij = np.einsum('ija->aij', self.X_ija + self.U_ija * self.U_factor)
-        ax_u.scatter(*XU_aij.reshape(2,-1), s=15, marker='o', color='darkgray')
-        ax_u.axis('equal');
+        ax_u.scatter(*XU_aij.reshape(2, -1), s=15, marker='o', color='darkgray')
+        ax_u.axis('equal')
+
+    def plot_load_deflection(self, ax_load):
         deflection = self.ld_values[::50, 2]
         load = -self.ld_values[::50,1]
         ax_load.plot(deflection, load, color='black')

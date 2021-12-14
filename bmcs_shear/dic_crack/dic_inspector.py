@@ -40,7 +40,7 @@ class DICInspector(bu.Model):
     )
 
     def subplots(self, fig):
-        return fig.subplots(1, 1)
+        return fig.subplots(1, 2)
 
     # def update_plot(self, ax):
     #     ax1, ax2 = ax
@@ -56,6 +56,7 @@ class DICInspector(bu.Model):
     #     ax2.set_ylabel(r'Load $F$ [kN]')
 
     def update_plot(self, axes):
+        self.dic_grid.plot_grid(axes[0])
         self.dic_strain_grid.update_plot(axes)
         for dic_crack in self.dic_cracks.items:
             dic_crack.dic_cor.plot_cor(axes)
