@@ -118,12 +118,12 @@ class DICCOR(bu.Model):
             self.dic_grid.end_t = end_t
 
             # selected points for rotation
-            XU_ija = self.dic_aligned_grid.x_ref_ija_scaled  # check the refence system and verify
+            XU_ija = self.dic_aligned_grid.x_ref_ija  # check the refence system and verify
             XU_ija_sel = (XU_ija[self.n_x_min:self.n_x_max:self.n_x_step,
                           self.n_y_min:self.n_y_max:self.n_y_step])
             XU_pr = XU_ija_sel.reshape(-1, 2)
 
-            self.dic_grid.X_ija
+            #self.dic_grid.X_ija
             # selection of grid of points
             X_ija_sel = self.dic_grid.X_ija[self.n_x_min:self.n_x_max:self.n_x_step,
                         self.n_y_min:self.n_y_max:self.n_y_step]
@@ -141,10 +141,6 @@ class DICCOR(bu.Model):
 
             phi = 2 * np.arctan(len_d_0t / len_d_0c)
             phi = np.where(np.isnan(phi), 0, phi)
-            # if phi.any == np.nan:
-            #     phi = 0
-            # else:
-            #     phi = 2 * np.arctan(len_d_0t / len_d_0c)
 
             phi_avg = np.average(phi)
             phi_arr.append(phi_avg)

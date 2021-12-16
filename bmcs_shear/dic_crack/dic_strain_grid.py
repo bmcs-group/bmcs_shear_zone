@@ -36,15 +36,7 @@ class DICStrainGrid(bu.Model):
     def _get_fe_grid(self):
         n_x, n_y = self.dic_grid.n_x, self.dic_grid.n_y
         L_x, L_y = self.dic_grid.L_x, self.dic_grid.L_y
-
-        if self.dic_grid.grid_number_vertical:
-            grid = ib.XDomainFEGrid(coord_min=(L_x, L_y),
-                             coord_max=(0, 0),
-                             integ_factor=1,
-                             shape=(n_x - 1, n_y - 1),  # number of elements!
-                             fets=ib.FETS2D4Q());
-        else:
-            grid = ib.XDomainFEGrid(coord_min=(L_x, 0),
+        grid = ib.XDomainFEGrid(coord_min=(L_x, 0),
                                     coord_max=(0, L_y),
                                     integ_factor=1,
                                     shape=(n_x - 1, n_y - 1),  # number of elements!
