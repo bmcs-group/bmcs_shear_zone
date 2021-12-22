@@ -1,7 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/bmcs_shear/dic_crack/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/bmcs_shear/matmod/sz_concrete/sz_advanced/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/bmcs_shear/matmod/sz_concrete/sz_simple/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/bmcs_shear/sz_study/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/crack_tip/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/dic_grids/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/fib/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/fib_2021_presentation/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/matmod/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/sz_beam_verification/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/sz_debugging/.ipynb_checkpoints" />
+      <excludeFolder url="file://$MODULE_DIR$/.ipynb_checkpoints" />
+    </content>
     <orderEntry type="jdk" jdkName="Python 3.9 (bmcs_env)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
