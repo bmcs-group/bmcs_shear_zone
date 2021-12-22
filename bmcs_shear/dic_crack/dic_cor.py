@@ -149,6 +149,24 @@ class DICCOR(bu.Model):
 
         return phi_arr
 
+    M = tr.Property(depends_on = 'state_changed')
+    '''Moment evaluation'''
+
+    @tr.cached_property
+    def _get_M(self):
+        end_t_arr = np.arange(0, self.dic_grid.end_t, 1)
+        X_cor_arr = []
+        M_arr = []
+        for end_t in end_t_arr[::1]:
+            self.dic_grid.end_t = end_t
+            X_cor_r = self.X_cor[0] # dic_cor.X_cor[0]
+            M = ((self.dic_grid.load_levels[1:][end_t] / 2) * (self.dic_grid.L - X_cor_r)) / 1000
+            X_cor_arr.append(X_cor_r)
+            M_arr.append(M)
+            #print(M_arr)
+            #print(np.shape(M_arr))
+            #print(np.shape(X_cor_arr))
+        return M_arr
 
     def subplots(self, fig):
         return fig.subplots(1,2)
@@ -172,8 +190,13 @@ class DICCOR(bu.Model):
         ax_u.plot(*self.X_cor_pa_sol.T, 'o', color = 'blue')
         ax_u.plot([self.X_cor[0]], [self.X_cor[1]], 'o', color='red')
         ax_u.axis('equal');
-        ax_lr.plot(self.phi[:-1], self.dic_grid.load_levels[:self.dic_grid.end_t], label='crack {}'.format(self.crack_idx))
-        ax_lr.set_xlabel(r'$\varphi$'), ax_lr.set_ylabel('Load [KN]')
+        # ax_lr.plot(self.phi[:-1], self.dic_grid.load_levels[:self.dic_grid.end_t],
+        #            label='crack {}'.format(self.crack_idx))
+        # ax_lr.set_xlabel(r'$\varphi$'), ax_lr.set_ylabel('Load [KN]')
+        # ax_lr.legend()
+        ax_lr.plot(self.phi[1:], self.M,
+                    label='crack {}'.format(self.crack_idx)) #phi[:-1]
+        ax_lr.set_xlabel(r'$\varphi$'), ax_lr.set_ylabel('Moment [kNm]')
         ax_lr.legend()
 
     def update_plot(self, ax):

@@ -29,6 +29,8 @@ class DICGrid(bu.Model):
 
     U_factor = bu.Float(100, ALG=True)
 
+    L = bu.Float(10, MAT=True)
+
     t = bu.Float(1, ALG=True)
 
     def _t_changed(self):
