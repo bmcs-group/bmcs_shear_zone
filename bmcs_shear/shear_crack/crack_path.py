@@ -1,117 +1,90 @@
+'''
+# Crack path
+
+## Level set crack path representation
+
+Consider a crack path defined by a level set function
+\begin{align}
+\gamma( x_a ) = 0
+\end{align}
+This function consists of three branches. The existing crack $\gamma_0( x_a ) = 0$ which ends at a point $x_a^{\mathrm{tip}}$
+
+On the other hand, assuming
+
+Localization length is used to transform the crack opening at the crack tip
+to the tensile strain within that zone.
+
+## Discrete crack path representation
+The crack path is defined along the nodes $x_{aI}$ with $a \in (0,1)$ representing the dimension index and $I \in 1 \ldots n_I$ defining the global node index.
+
+A starting example of a crack geometry is defined as follows
+'''
+
 import numpy as np
 import traits.api as tr
 from bmcs_utils.api import Model, InteractiveWindow, View, Item, Float, Int
 from bmcs_shear.shear_crack.crack_tip_rotation import \
     SZCrackTipRotation
-from bmcs_shear.shear_crack.beam_design import \
+from bmcs_shear.beam_design import \
     RCBeamDesign
-
-# # Crack path
-
-# ## Level set crack path representation
-
-# Consider a crack path defined by a level set function
-# \begin{align}
-# \gamma( x_a ) = 0
-# \end{align}
-# This function consists of three branches. The existing crack $\gamma_0( x_a ) = 0$ which ends at a point $x_a^{\mathrm{tip}}$
-
-# On the other hand, assuming
-
-# Localization length is used to transform the crack opening at the crack tip
-# to the tensile strain within that zone.
-
-# ## Discrete crack path representation
-# The crack path is defined along the nodes $x_{aI}$ with $a \in (0,1)$ representing the dimension index and $I \in 1 \ldots n_I$ defining the global node index.
-
-# A starting example of a crack geometry is defined as follows
 
 
 def get_I_Li(x_Ia):
+    ''' The nodal coordinates rearranged into an array accessible via a line
+    segment index $L$ and the local segment node $i \in (0,1)$ is defined as.
+    '''
     N_I = np.arange(len(x_Ia))
     I_Li = np.array([N_I[:-1], N_I[1:]], dtype=np.int_).T
     return I_Li
 
 
-# The nodal coordinates rearranged into an array accessible via a line segment index $L$ and the local segment node $i \in (0,1)$ is defined as.
-
-
 def get_x_Ja(x_Ia, x_Ca, n_J):
+    ''' The nodal coordinates rearranged into an array accessible via a line
+    segment index $L$ and the local segment node $i \in (0,1)$ is defined as.
+    '''
     x_J_1 = np.linspace(x_Ia[-1 ,1], x_Ca[-1 ,1], n_J)
     return np.c_[x_Ia[-1 ,0 ] *np.ones_like(x_J_1), x_J_1]
 
 
-# The line vector $v_{La}$ is obtained by subtracting the first node $i=0$ from the second node $i=1$
-# \begin{align}
-# v_{La} = x_{L1a} - x_{L0a}
-# \end{align}
-
-# In[60]:
-
-
 def get_n_vec_La(x_Ia):
+    '''The line vector $v_{La}$ is obtained by subtracting the first node $i=0$
+    from the second node $i=1$
+    \begin{align}
+    v_{La} = x_{L1a} - x_{L0a}
+    \end{align}
+    '''
     x_Lia = x_Ia[get_I_Li(x_Ia)]
     n_vec_La = x_Lia[: ,1 ,:] - x_Lia[: ,0 ,:]
     return n_vec_La
-
-
-# In[61]:
-
 
 def get_norm_n_vec_L(x_Ia):
     n_vec_La = get_n_vec_La(x_Ia)
     return np.sqrt(np.einsum('...a,...a->...', n_vec_La, n_vec_La))
 
-
-# normalize the vector to a unit length
-# \begin{align}
-#  \hat{v}_{La} = \frac{v_{La}}{| v |_L}
-# \end{align}
-
-# In[62]:
-
-
 def get_normed_n_vec_La(x_Ia):
+    '''normalize the vector to a unit length
+    \begin{align}
+     \hat{v}_{La} = \frac{v_{La}}{| v |_L}
+    \end{align}
+    '''
     return np.einsum('...a,...->...a',
                      get_n_vec_La(x_Ia), 1. / get_norm_n_vec_L(x_Ia))
 
-
+EPS = np.zeros((3, 3, 3), dtype='f')
+EPS[(0, 1, 2), (1, 2, 0), (2, 0, 1)] = 1
+EPS[(2, 1, 0), (1, 0, 2), (0, 2, 1)] = -1
 # Using the Levi-Civita symbol
 # \begin{align}
 # \epsilon_{abc}
 # \end{align}
 # and an out-of-plane vector $z_a = [0,0,1]$
-
-# In[63]:
-
-
-EPS = np.zeros((3, 3, 3), dtype='f')
-EPS[(0, 1, 2), (1, 2, 0), (2, 0, 1)] = 1
-EPS[(2, 1, 0), (1, 0, 2), (0, 2, 1)] = -1
 Z = np.array([0, 0, 1], dtype=np.float_)
 
-
-# we obtain the normal vector to the line as
-# \begin{align}
-# \hat{t}_{La} = \hat{n}_{Lb} z_c \epsilon_{abc}
-# \end{align}
-
-# \begin{align}
-# \nonumber
-# \hat{T}_{bLa} = [\hat{n}_{La}, \hat{t}_{La}]
-# \end{align}
-# and after reordering indexes the transformation matrix for each line segment along the crack path is obtained as
-# \begin{align}
-# \label{eq:T_Lab}
-# \hat{T}_{Lab} = \hat{T}_{bLa}
-# \end{align}
-
-# The function with the parameters defining the current crack path is defined as follows
-
-# In[64]:
-
-
 def get_T_Lab(x_Ia):
+    '''
+    Given a sequence of nodes, I with the coordinates a return
+    the transformation matrices into the local coordinates of the lines.
+    '''
     I_Li = get_I_Li(x_Ia)
     #print('I_Li', I_Li)
     x_Lia = x_Ia[I_Li]
@@ -132,12 +105,6 @@ def get_T_Lab(x_Ia):
     T_Lab = np.einsum('bLa->Lab', T_bLa)
     #print('T_Lab', T_Lab)
     return T_Lab
-
-
-# **Treatment of the crack propagation:** The crack tip is updated during the
-# crack extension by setting the values of `x_tip_0n` and `x_tip_1n`.
-
-# In[65]:
 
 
 class SZCrackPath(Model):
@@ -218,17 +185,6 @@ class SZCrackPath(Model):
     def get_x_tip_an(self):
         return self.x_t_Ia[-1 ,:]
 
-    # TODO: distinguish the changes in ITER, INCR and PARAM
-    #       Following state changes can occur
-    #       ctr: +ITR - the control parameters changed by the
-    #            the iterative solver - currently psi and x_ctr_1k
-    #       ctr: +INC - x_tip_an - crack tip positions
-    #       ctr: +MAT - material parameters only changed by user
-    #       self: +GEO - parameters describing the geometry
-    #                    that means initial crack position / length, / width
-    #       dependency - GEO|MAT -> INCR -> ITER - there must be a handling
-    #                    of the change at the higher level (reset)
-
     _ITR = tr.DelegatesTo('sz_ctr', '_ITR')
 
     _INC = tr.Event
@@ -308,18 +264,6 @@ class SZCrackPath(Model):
     def _get_x_Lb(self):
         return np.sum(self.x_Ka[self.K_Li], axis=1) / 2
 
-    # psi_n = tr.Property(depends_on='state_changed')
-    # '''Inclination of the last crack segment with respect to vertical axis'''
-    # @tr.cached_property
-    # def _get_psi_n(self):
-    #     print(len(self.x_t_Ia))
-    #     if len(self.x_t_Ia) < 2:
-    #         return 0
-    #     else:
-    #         s_psi, _ = self.T_Lab[-1,:]
-    #         psi_n = np.arcsin(s_psi)
-    #         return psi_n
-
     norm_n_vec_L = tr.Property(depends_on='state_changed')
     '''Length of a discretization line segment. 
     '''
@@ -377,6 +321,3 @@ class SZCrackPath(Model):
         self.sz_bd.plot_sz_bd(ax)
         self.plot_sz0(ax)
 #        self.plot_x_Ka(ax)
-
-
-
