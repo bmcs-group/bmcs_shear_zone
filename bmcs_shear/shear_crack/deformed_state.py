@@ -1,48 +1,45 @@
+'''
+**Remark:** Upon a crack extension, the state parameters
+of the crack tip object, namely $\beta$ and $x^\mathrm{rot}_{1k}$ are reset
+to initial values of the next iterative solution step. The value of $\beta$
+is calculated using the last segment of the crack path. The crack tip
+accepts $\beta$ as a constant and sets the value of $\psi = \beta$ and $\theta = 0$
+
+# Deformed state
+
+Let us now consider a rotated configuration of the right plate around $x_{ak}^{\mathrm{rot}}$ by the angle $\theta$ inducing the critical crack opening $w_\mathrm{cr}$ at the point $x^{\mathrm{tip}}_{ak}$
+
+## Displacement and stress along the crack
+
+The displacement at the ligament
+\begin{align}
+u_{Lb} &= x^1_{Lb} - x^0_{Lb}
+\end{align}
+
+By substituting for $x_{Lb}^1$ we obtain the displaced configuration of any point on the right plate.
+
+
+By transforming the $u_{Lb}$ to in-line and out-of-line components using the orthonormal basis (\ref{eq:T_Lab})
+\begin{align}
+ w_{Lr} = T_{Lar} u_{La}
+\end{align}
+
+By applying the constitutive relation
+\begin{align}
+s_{Ls} = \mathcal{S}_{Ls}(w_{Lr})
+\end{align}
+
+Transformation to the global coordinate system
+\begin{align}
+\sigma_{La} = T_{Las} s_{Ls}
+\end{align}
+'''
 
 import traits.api as tr
 import numpy as np
 from bmcs_utils.api import Model, View, Item
 from bmcs_shear.shear_crack.crack_path import \
     SZCrackPath
-
-
-# **Remark:** Upon a crack extension, the state parameters
-# of the crack tip object, namely $\beta$ and $x^\mathrm{rot}_{1k}$ are reset
-# to initial values of the next iterative solution step. The value of $\beta$
-# is calculated using the last segment of the crack path. The crack tip
-# accepts $\beta$ as a constant and sets the value of $\psi = \beta$ and $\theta = 0$
-
-# # Deformed state
-
-# Let us now consider a rotated configuration of the right plate around $x_{ak}^{\mathrm{rot}}$ by the angle $\theta$ inducing the critical crack opening $w_\mathrm{cr}$ at the point $x^{\mathrm{tip}}_{ak}$
-
-# ## Displacement and stress along the crack
-
-# The displacement at the ligament
-# \begin{align}
-# u_{Lb} &= x^1_{Lb} - x^0_{Lb}
-# \end{align}
-
-# By substituting for $x_{Lb}^1$ we obtain the displaced configuration of any point on the right plate.
-
-
-# By transforming the $u_{Lb}$ to in-line and out-of-line components using the orthonormal basis (\ref{eq:T_Lab})
-# \begin{align}
-#  w_{Lr} = T_{Lar} u_{La}
-# \end{align}
-
-# By applying the constitutive relation
-# \begin{align}
-# s_{Ls} = \mathcal{S}_{Ls}(w_{Lr})
-# \end{align}
-
-# Transformation to the global coordinate system
-# \begin{align}
-# \sigma_{La} = T_{Las} s_{Ls}
-# \end{align}
-
-# In[70]:
-
 
 class SZDeformedState(Model):
 
@@ -154,6 +151,3 @@ class SZDeformedState(Model):
         self.plot_sz1(ax)
         self.plot_sz_fill(ax)
         self.plot_reinf1(ax)
-
-
-

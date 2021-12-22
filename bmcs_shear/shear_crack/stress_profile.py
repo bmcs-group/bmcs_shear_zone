@@ -1,4 +1,31 @@
+'''
+# Stress profiles
 
+## Stress resultants
+
+Normal force is obtained by evaluating the integral
+\begin{align}
+N = \int_{0}^{H} \sigma_{0}(x_1) \; \mathrm{d}x
+\end{align}
+
+Given a normal load $\bar{N}$ the equilibrium condition
+\begin{align}
+N = \bar{N}
+\end{align}
+must be fulfilled.
+
+At the same tome the shear force gets calculated as
+\begin{align}
+Q =
+\int_{\Gamma} \sigma_1(x_1) \; \mathrm{d}x
+\end{align}
+
+The moment around the center of rotation $x^\mathrm{rot}_a$ is obtained as
+\begin{align}
+M = \int \sigma_0 \left(x_1 - x^\mathrm{rot}_1\right) \; \mathrm{d}x_1
++ \int \sigma_1 \left(x_0 - x^\mathrm{rot}_0\right) \mathrm{d}x_0
+\end{align}
+'''
 
 import traits.api as tr
 import numpy as np
@@ -7,33 +34,6 @@ from bmcs_shear.shear_crack.deformed_state import \
     SZDeformedState
 from scipy.interpolate import interp1d
 from bmcs_utils.api import View, Bool, Item, Float, FloatRangeEditor
-# # Stress profiles
-
-# ## Stress resultants
-
-# Normal force is obtained by evaluating the integral
-# \begin{align}
-# N = \int_{0}^{H} \sigma_{0}(x_1) \; \mathrm{d}x
-# \end{align}
-
-# Given a normal load $\bar{N}$ the equilibrium condition
-# \begin{align}
-# N = \bar{N}
-# \end{align}
-# must be fulfilled.
-
-# At the same tome the shear force gets calculated as
-# \begin{align}
-# Q =
-# \int_{\Gamma} \sigma_1(x_1) \; \mathrm{d}x
-# \end{align}
-
-# The moment around the center of rotation $x^\mathrm{rot}_a$ is obtained as
-# \begin{align}
-# M = \int \sigma_0 \left(x_1 - x^\mathrm{rot}_1\right) \; \mathrm{d}x_1
-# + \int \sigma_1 \left(x_0 - x^\mathrm{rot}_0\right) \mathrm{d}x_0
-# \end{align}
-
 
 class SZStressProfile(InteractiveModel):
     '''Stress profile calculation in an intermediate state
@@ -366,7 +366,6 @@ class SZStressProfile(InteractiveModel):
             mpl_align_xaxis(ax_sig, ax_tau)
         if self.show_force:
             neg_F, neg_y = self.neg_F_y
-            #ax_sig.plot([neg_F,0],[y,y], color='orange')
             ax_sig.arrow(neg_F, neg_y,-neg_F, 0, color='red')
             print(neg_F, neg_y)
             pos_F, pos_y = self.pos_F_y
@@ -382,7 +381,6 @@ class SZStressProfile(InteractiveModel):
 
     def subplots(self, fig):
         ax_u_0, ax_w_0, ax_S_0, ax_F_0 = fig.subplots(1 ,4)
-#        ((ax_u_0, ax_w_0), (ax_S_0, ax_F_0)) = fig.subplots(2 ,2)
         ax_u_1 = ax_u_0.twiny()
         ax_w_1 = ax_w_0.twiny()
         ax_S_1 = ax_S_0.twiny()
@@ -396,4 +394,3 @@ class SZStressProfile(InteractiveModel):
         self.plot_S_Lb(ax_S_0, ax_S_1)
         self.plot_S_La(ax_F_0, ax_F_1)
         self.plot_N_a(ax_S_0)
-

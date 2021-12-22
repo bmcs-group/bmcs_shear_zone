@@ -5,8 +5,15 @@ from os.path import join, expanduser
 import os
 import numpy as np
 import pandas as pd
+from bmcs_shear.beam_design import RCBeamDesign
 
 class DICGrid(bu.Model):
+
+    tree = ['sz_bd']
+
+    sz_bd = tr.Instance(RCBeamDesign ,())
+    '''Beam design object provides geometrical data and material data.
+    '''
 
     name = 'DIC grid history'
     dir_name = bu.Str('<unnamed>', ALG=True)
