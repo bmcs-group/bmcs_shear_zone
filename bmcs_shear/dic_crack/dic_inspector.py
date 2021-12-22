@@ -4,7 +4,6 @@ from .dic_cor import DICCOR
 from .dic_grid import DICGrid
 from .dic_strain_grid import DICStrainGrid
 from .dic_crack_list import DICCrackList
-from .dic_beam_design import DICBeamDesign
 import traits.api as tr
 import numpy as np
 
@@ -18,8 +17,6 @@ class DICInspector(bu.Model):
     '''
     name = 'crack inspector'
     dic_grid = bu.Instance(DICGrid, ())
-
-    dic_beam_design = bu.Instance(DICBeamDesign, ())
 
     dic_strain_grid = tr.Property(bu.Instance(DICStrainGrid), depends_on='state_changed')
     @tr.cached_property
