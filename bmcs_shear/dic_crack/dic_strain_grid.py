@@ -41,11 +41,8 @@ class DICStrainGrid(bu.Model):
                                     integ_factor=1,
                                     shape=(n_x - 1, n_y - 1),  # number of elements!
                                     fets=ib.FETS2D4Q());
-
         return grid
 
-    #coord_min = (L_x, 0),
-    #coord_max = (0, L_y),
     U_o = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_U_o(self):

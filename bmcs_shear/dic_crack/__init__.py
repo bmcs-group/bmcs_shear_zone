@@ -7,3 +7,4 @@ from .dic_inspector import DICInspector
 from .dic_crack import DICCrack
 from .dic_load_def import DICLoadDeflection
 from .dic_load_rotation import DICLoadRotation
+from .dic_beam_design import DICBeamDesign
