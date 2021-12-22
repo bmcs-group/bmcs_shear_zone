@@ -3,7 +3,7 @@ import numpy as np
 from bmcs_shear.matmod import CrackBridgeSteel, ConcreteMaterialModel, SteelMaterialModel
 from bmcs_shear.matmod.sz_concrete.sz_advanced.sz_advanced import ConcreteMaterialModelAdv
 from bmcs_shear.matmod.sz_crack_bridge.cb_advanced import CrackBridgeAdv
-#from bmcs_shear.matmod import DowelAction, AggregateInterlock
+#from bmcs_shear.sz_matmod import DowelAction, AggregateInterlock
 from bmcs_cross_section.cs_design import CrossSectionDesign, Rectangle
 import traits.api as tr
 from bmcs_utils.api import \
