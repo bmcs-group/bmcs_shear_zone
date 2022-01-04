@@ -174,6 +174,6 @@ class DICGrid(bu.Model):
         deflection = self.ld_values[::50, 2]
         load = -self.ld_values[::50,1]
         ax_load.plot(deflection, load, color='black')
-        max_deflection = np.max(deflection)
-        load_level = self.current_load
-        ax_load.plot([0, max_deflection], [load_level, load_level], color='green', lw=2)
+        # max_deflection = np.max(deflection)
+        # load_level = self.current_load
+        # ax_load.plot([0, max_deflection], [load_level, load_level], color='green', lw=2)
