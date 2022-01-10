@@ -2,8 +2,23 @@
 'https://plantuml.com/class-diagram
 
 
-class DICCrack {
+class DICGrid {
+  U_tija
 }
+
+class DICStateFields{
+
+}
+
+DICStateFields --> DICGrid
+
+class DICCrack {
+   index_range
+}
+
+DICCrackList --> DICStateFields
+
+DICCrackList *--> DICCrack
 
 class DICAlign{
 }

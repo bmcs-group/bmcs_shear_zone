@@ -29,18 +29,6 @@ class DICStateFields(ib.TStepBC):
     tmodel = bu.EitherType(options=[('miproplane_mdm', ib.MATS2DMplDamageEEQ),
                                     ('scalar_damage', ib.MATS2DScalarDamage)])
 
-    # tmodel = tr.Property(depends_on='state_changed')
-    # '''Material model
-    # '''
-    # @tr.cached_property
-    # def _get_tmodel(self):
-    #     m_mic = ib.MATS2DMplDamageEEQ()
-    #     return m_mic
-    #     m_scalar_damage = ib.MATS2DScalarDamage()
-    #     m_scalar_damage.strain_norm = 'Masars'
-    #     m_scalar_damage.omega_fn = 'exp-slope'
-    #     return m_scalar_damage
-
     xmodel = tr.Property(depends_on='dic_grid')
     '''Finite element discretization of the monotored grid field
     '''
@@ -154,11 +142,10 @@ class DICStateFields(ib.TStepBC):
         omega_ipl_NM[omega_ipl_NM < 0] = 0
         return xx_NM, yy_NM, omega_ipl_NM
 
-    def crack_detection(self, xx_MN, yy_MN, omega_MN):
+    def detect_cracks(self, xx_MN, yy_MN, omega_MN):
         N_range = np.arange(yy_MN.shape[1])
         omega_NM = omega_MN.T
         n_N, n_M = omega_NM.shape
-        omega_NM[omega_NM < 0.15] = 0  # cutoff small damage values
         # smooth the landscape
         # initial crack positions at the bottom of the zone
         arg_C = argrelextrema(omega_NM[0, :], np.greater)[0]
@@ -205,7 +192,8 @@ class DICStateFields(ib.TStepBC):
         arg_y_NC = np.repeat(arg_y_C, n_C).reshape(n_N, -1)
         xx_NC = xx_MN[arg_x_NC, arg_y_NC]
         yy_NC = yy_MN[arg_x_NC, arg_y_NC]
-        return xx_NC, yy_NC, crack_tip_y
+        print(xx_NC.shape, yy_NC.shape, crack_tip_y, arg_x_NC.shape)
+        return xx_NC, yy_NC, crack_tip_y, arg_x_NC
 
     def mlab_tensor(self, x_NM, y_NM, omega_NM, tensor_MNab, factor=100, label='damage'):
         mlab.figure()
@@ -258,48 +246,80 @@ class DICStateFields(ib.TStepBC):
         mlab.pipeline.surface(d)
         mlab.show()
 
-    def subplots(self, fig):
-        self.fig = fig
-        return fig.subplots(3, 2)
+    x_MNa = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_x_MNa(self):
+        return self.transform_mesh_to_grid(self.xmodel.x_Ema)
 
-    def update_plot(self, axes):
-        ((ax_eps, ax_FU), (ax_sig, ax_sig_eps), (ax_omega, ax_cracks)) = axes
-        fig = self.fig
-        # spatial coordinates
-        x_MNa = self.transform_mesh_to_grid(self.xmodel.x_Ema)
-        x_aMN = np.einsum('MNa->aMN', x_MNa)
-        x_MN, y_MN = x_aMN
-        # evaluate the state variables
-        t_idx = self.t_idx
-        # state variables
-        kappa_Emr = self.hist.state_vars[t_idx][0]['kappa']
-        omega_Emr = self.hist.state_vars[t_idx][0]['omega']
-        phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
-        # plot parameters - ge them from the state evaluation
-        max_sig = 5
-        max_eps = 0.02
-        # strain fields
-        U_o = self.hist.U_t[t_idx]
+    eps_fields = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_eps_fields(self):
+        U_o = self.hist.U_t[self.t_idx]
         eps_Emab = self.xmodel.map_U_to_field(U_o)
         eps_MNab = self.transform_mesh_to_grid(eps_Emab)
         eps_MNa, _ = np.linalg.eig(eps_MNab)
         max_eps_MN = np.max(eps_MNa, axis=-1)
         max_eps_MN[max_eps_MN < 0] = 0
-        # stress fields
-        sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, kappa_Emr, omega_Emr)
+        return eps_Emab, eps_MNab, eps_MNa, max_eps_MN
+
+    sig_fields = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_sig_fields(self):
+        state_vars = self.hist.state_vars[self.t_idx][0]
+        eps_Emab, _, _, _ = self.eps_fields
+        sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, **state_vars)
         sig_MNab = self.transform_mesh_to_grid(sig_Emab)
         sig_MNa, _ = np.linalg.eig(sig_MNab)
         max_sig_MN = np.max(sig_MNa, axis=-1)
         max_sig_MN[max_sig_MN < 0] = 0
-        # damage tensor field
+        return sig_Emab, sig_MNab, sig_MNa, max_sig_MN
+
+    omega_MN = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_omega_MN(self):
+        # state variables
+        t_idx = self.t_idx
+        kappa_Emr = self.hist.state_vars[t_idx][0]['kappa']
+        phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
         phi_MNab = self.transform_mesh_to_grid(phi_Emab)
         omega_MNab = np.identity(2) - phi_MNab
         phi_MNa, _ = np.linalg.eig(phi_MNab)
         min_phi_MN = np.min(phi_MNa, axis=-1)
         omega_MN = 1 - min_phi_MN
         omega_MN[omega_MN < 0.2] = 0
-        # cumulative stress strain analysis
-        kappa_zero = np.zeros_like(kappa_Emr[0, 0, :])
+        return omega_MN
+
+    crack_detection_field = tr.Property(depends_on='state_changed')
+    def _get_crack_detection_field(self):
+        cd_field_MN = self.omega_MN
+        x_MNa = self.x_MNa
+        x_aMN = np.einsum('MNa->aMN', x_MNa)
+        x_MN, y_MN = x_aMN
+        xx_NM, yy_NM, cd_field_ipl_NM = self.interp_omega(x_MN, y_MN, cd_field_MN)
+        xx_MN, yy_MN, cd_field_ipl_MN = xx_NM.T, yy_NM.T, cd_field_ipl_NM.T
+        cd_field_irn_MN = self.get_z_MN_ironed(xx_MN, yy_MN, cd_field_ipl_MN)
+        cd_field_irn_MN[cd_field_irn_MN < 0.2] = 0
+        return xx_MN, yy_MN, cd_field_irn_MN
+
+    cracks = tr.Property(depends_on='state_changed')
+    def _get_cracks(self):
+        # spatial coordinates
+        xx_MN, yy_MN, cd_field_irn_MN = self.crack_detection_field
+        xx_NC, yy_NC, crack_tip_y, arg_x_NC = self.detect_cracks(xx_MN, yy_MN, cd_field_irn_MN)
+        return xx_NC, yy_NC, crack_tip_y, arg_x_NC
+
+    def subplots(self, fig):
+        self.fig = fig
+        return fig.subplots(3, 2)
+
+    # plot parameters - get them from the state evaluation
+    max_sig = bu.Float(5)
+    max_eps = bu.Float(0.02)
+
+    def plot_sig_eps(self, ax_sig_eps, color='white'):
+        # plot the stress strain curve
+        state_var_shape = self.tmodel_.state_var_shapes['kappa']
+        kappa_zero = np.zeros(state_var_shape)
         omega_zero = np.zeros_like(kappa_zero)
         eps_test = np.zeros((2, 2), dtype=np.float_)
         eps_range = np.linspace(0, 0.5, 1000)
@@ -308,28 +328,47 @@ class DICStateFields(ib.TStepBC):
             eps_test[0, 0] = eps_i
             arg_sig, _ = self.tmodel_.get_corr_pred(eps_test, 1, kappa_zero, omega_zero)
             sig_range.append(arg_sig)
-        # max_eps = np.max(max_eps_MN)
-        arg_max_eps = np.argwhere(eps_range > max_eps)[0][0]
+        arg_max_eps = np.argwhere(eps_range > self.max_eps)[0][0]
         sig_range = np.array(sig_range, dtype=np.float_)
         G_f = np.trapz(sig_range[:, 0, 0], eps_range)
+
+        ax_sig_eps.plot(eps_range[:arg_max_eps], sig_range[:arg_max_eps, 0, 0],
+                        color=color, lw=2, label='$G_f$ = %g [N/mm]' % G_f)
+        ax_sig_eps.set_xlabel(r'$\varepsilon$ [-]')
+        ax_sig_eps.set_ylabel(r'$\sigma$ [MPa]')
+
+    def update_plot(self, axes):
+        ((ax_eps, ax_FU), (ax_sig, ax_sig_eps), (ax_omega, ax_cracks)) = axes
+        fig = self.fig
+        # time index
+        t_idx = self.t_idx
+        # spatial coordinates
+        x_MNa = self.x_MNa
+        x_aMN = np.einsum('MNa->aMN', x_MNa)
+        # TODO - check why the next line cannot be used in the plots.
+        x_MN, y_MN = x_aMN
+        # strain fields
+        eps_Emab, eps_MNab, eps_MNa, max_eps_MN = self.eps_fields
+        # stress fields
+        sig_Emab, sig_MNab, sig_MNa, max_sig_MN = self.sig_fields
+        # damage field
+        omega_MN = self.omega_MN
         # crack detection
-        xx_NM, yy_NM, omega_ipl_NM = self.interp_omega(x_MN, y_MN, omega_MN)
-        xx_MN, yy_MN, omega_ipl_MN = xx_NM.T, yy_NM.T, omega_ipl_NM.T
-        omega_irn_MN = self.get_z_MN_ironed(xx_MN, yy_MN, omega_ipl_MN)
-        xx_NC, yy_NC, crack_tip_y = self.crack_detection(xx_MN, yy_MN, omega_irn_MN)
+        xx_MN, yy_MN, cd_field_irn_MN = self.crack_detection_field
+        xx_NC, yy_NC, crack_tip_y, _ = self.cracks
         # plot
         cs_eps = ax_eps.contourf(x_aMN[0], x_aMN[1], max_eps_MN, cmap='BuPu',
-                                 vmin=0, vmax=max_eps)
+                                 vmin=0, vmax=self.max_eps)
         cbar_eps = fig.colorbar(cm.ScalarMappable(norm=cs_eps.norm, cmap=cs_eps.cmap),
-                                ax=ax_eps, ticks=np.arange(0, max_eps * 1.01, 0.005),
+                                ax=ax_eps, ticks=np.arange(0, self.max_eps * 1.01, 0.005),
                                 orientation='horizontal')
         cbar_eps.set_label(r'$\max(\varepsilon_I) > 0$')
         ax_eps.axis('equal')
         ax_eps.axis('off')
         cs_sig = ax_sig.contourf(x_aMN[0], x_aMN[1], max_sig_MN, cmap='Reds',
-                                 vmin=0, vmax=max_sig)
+                                 vmin=0, vmax=self.max_sig)
         cbar_sig = fig.colorbar(cm.ScalarMappable(norm=cs_sig.norm, cmap=cs_sig.cmap),
-                                ax=ax_sig, ticks=np.arange(0, max_sig * 1.01, 0.5),
+                                ax=ax_sig, ticks=np.arange(0, self.max_sig * 1.01, 0.5),
                                 orientation='horizontal')
         cbar_sig.set_label(r'$\max(\sigma_I) > 0$')
         ax_sig.axis('equal')
@@ -345,17 +384,14 @@ class DICStateFields(ib.TStepBC):
         self.dic_grid.plot_load_deflection(ax_FU)
 
         ax_sig_eps.plot(eps_MNa[..., 0].flatten(), sig_MNa[..., 0].flatten(), 'o', color='green')
-        ax_sig_eps.plot(eps_range[:arg_max_eps], sig_range[:arg_max_eps, 0, 0],
-                        color='white', lw=2, label='$G_f$ = %g [N/mm]' % G_f)
-        ax_sig_eps.set_xlabel(r'$\varepsilon$ [-]')
-        ax_sig_eps.set_ylabel(r'$\sigma$ [MPa]')
+        self.plot_sig_eps(ax_sig_eps)
         ax_sig_eps.legend()
 
         # check if an array can be used in a slice to obtain variable length arrays?
         for C, y_tip in enumerate(crack_tip_y):
             ax_cracks.plot(xx_NC[:y_tip, C], yy_NC[:y_tip, C], color='black', linewidth=1);
 
-        cs = ax_cracks.contour(xx_MN, yy_MN, omega_irn_MN, cmap=cm.coolwarm, antialiased=False)
+        cs = ax_cracks.contour(xx_MN, yy_MN, cd_field_irn_MN, cmap=cm.coolwarm, antialiased=False)
         cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
                                    ax=ax_cracks, ticks=np.linspace(0, 1, 6),
                                    orientation='horizontal')
