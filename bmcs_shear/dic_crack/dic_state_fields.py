@@ -387,14 +387,15 @@ class DICStateFields(ib.TStepBC):
         self.plot_sig_eps(ax_sig_eps)
         ax_sig_eps.legend()
 
-        # check if an array can be used in a slice to obtain variable length arrays?
-        for C, y_tip in enumerate(crack_tip_y):
-            ax_cracks.plot(xx_NC[:y_tip, C], yy_NC[:y_tip, C], color='black', linewidth=1);
-
         cs = ax_cracks.contour(xx_MN, yy_MN, cd_field_irn_MN, cmap=cm.coolwarm, antialiased=False)
         cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
                                    ax=ax_cracks, ticks=np.linspace(0, 1, 6),
                                    orientation='horizontal')
         cbar_cracks.set_label(r'$\omega = 1 - \min(\phi_I)$')
+
+        for C, y_tip in enumerate(crack_tip_y):
+            ax_cracks.plot(xx_NC[:y_tip, C], yy_NC[:y_tip, C], color='black', linewidth=1);
+            print("crack", C)
+
         ax_cracks.axis('equal')
         ax_cracks.axis('off');
