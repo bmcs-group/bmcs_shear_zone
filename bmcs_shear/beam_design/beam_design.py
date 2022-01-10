@@ -117,10 +117,6 @@ class RCBeamDesign(BeamDesign):
         x_iCa = self.x_Ca[self.C_Li]
         return np.einsum('iMa->aiM', x_iCa)
 
-    z_N = tr.Property
-    def _get_z_N(self):
-        return self.cross_section_layout.z_j
-
     def plot_sz_bd(self, ax):
         ax.set_xlim(0, self.L)
         ax.set_ylim(0, self.H)
@@ -132,10 +128,11 @@ class RCBeamDesign(BeamDesign):
         ax.set_xlim(0, self.B)
         ax.set_ylim(0, self.H)
 
-    def subplots(self, fig):
-        return fig.subplots(1,1)
+    def xsubplots(self, fig):
+        return fig.subplots(1,2)
 
-    def update_plot(self, ax1):
+    def xupdate_plot(self, axes):
+        ax1, ax2 = axes
         ax1.axis('equal');
         self.plot_sz_bd(ax1)
-#        self.plot_sz_cross_section(ax1)
+        self.plot_sz_cross_section(ax2)
