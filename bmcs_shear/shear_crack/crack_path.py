@@ -37,14 +37,12 @@ def get_I_Li(x_Ia):
     I_Li = np.array([N_I[:-1], N_I[1:]], dtype=np.int_).T
     return I_Li
 
-
 def get_x_Ja(x_Ia, x_Ca, n_J):
     ''' The nodal coordinates rearranged into an array accessible via a line
     segment index $L$ and the local segment node $i \in (0,1)$ is defined as.
     '''
     x_J_1 = np.linspace(x_Ia[-1 ,1], x_Ca[-1 ,1], n_J)
     return np.c_[x_Ia[-1 ,0 ] *np.ones_like(x_J_1), x_J_1]
-
 
 def get_n_vec_La(x_Ia):
     '''The line vector $v_{La}$ is obtained by subtracting the first node $i=0$
@@ -105,7 +103,6 @@ def get_T_Lab(x_Ia):
     T_Lab = np.einsum('bLa->Lab', T_bLa)
     #print('T_Lab', T_Lab)
     return T_Lab
-
 
 class SZCrackPath(Model):
     '''Crack path representation

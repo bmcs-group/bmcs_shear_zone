@@ -237,39 +237,90 @@ class DICGrid(bu.Model):
         ax_u.scatter(*XU_aij.reshape(2, -1), s=15, marker='o', color='darkgray')
         ax_u.axis('equal')
 
-    def plot_load_deflection(self, ax_load):
-        deflection = self.ld_values[::50, 2]
-        load = -self.ld_values[::50,1]
+    def plot_bounding_box(self, ax):
+        X_00 = self.X_ija[0, 0, :]
+        X_01 = self.X_ija[0, -1, :]
+        X_11 = self.X_ija[-1, -1, :]
+        X_10 = self.X_ija[-1, 0, :]
+        x_Lia = np.array([[X_00, X_01],
+                          [X_01, X_11],
+                          [X_11, X_10],
+                          [X_10, X_00],
+                          ])
+        X_Ca = self.X_ija[(0, 0, -1, -1, 0), (0, -1, -1, 0, 0), :]
+        X_iLa = np.array([X_Ca[:-1], X_Ca[1:]], dtype=np.float_)
+        X_aiL = np.einsum('iLa->aiL', X_iLa)
+        ax.plot(*X_aiL, color='black', lw=0.5)
 
-        ax_load.plot(deflection, load, color='black')
+    def plot_box_annotate(self, ax):
+        X_Ca = self.X_ija[(0, 0, -1, -1, 0), (0, -1, -1, 0, 0), :]
+        X_iLa = np.array([X_Ca[:-1], X_Ca[1:]], dtype=np.float_)
+        X_La = np.sum(X_iLa, axis=0) / 2
+        x, y = X_La[0, :]
+        ax.annotate(f'{self.L_y} mm',
+                    xy=(x, y), xytext=(5, 0), xycoords='data',
+                    textcoords='offset pixels',
+                    horizontalalignment='left',
+                    verticalalignment='center',
+                    rotation=90
+                    )
+        x, y = X_La[1, :]
+        ax.annotate(f'{self.L_x} mm',
+                    xy=(x, y), xytext=(0, 1), xycoords='data',
+                    textcoords='offset pixels',
+                    horizontalalignment='center',
+                    verticalalignment='bottom',
+                    )
+        x, y = X_Ca[1, :]
+        ax.annotate(f'{self.dir_name}',
+                    xy=(x, y), xytext=(-2, -2), xycoords='data',
+                    textcoords='offset pixels',
+                    horizontalalignment='right',
+                    verticalalignment='top',
+                    )
+
+    def get_F_eta_dic_idx(self, eta = 0.9):
+        '''Get the dic index correponding to the specified fraction
+        of ultimate load.
+        '''
+        F = -self.ld_values[::50,1]
+        F_max = np.max(F)
+        F_eta = eta * F_max
+        # define an interpolation function
+        argmax_F_dic_idx = np.argmax(self.load_levels)
+        F_levels = self.load_levels[:argmax_F_dic_idx]
+        idx_range = np.arange(len(F_levels))
+        idx_eta = np.interp(F_eta, F_levels[:argmax_F_dic_idx], idx_range)
+        return int(idx_eta)
+
+    def plot_load_deflection(self, ax_load):
+        w = self.ld_values[::50, 2]
+        F = -self.ld_values[::50,1]
+
+        ax_load.plot(w, F, color='black')
         ax_load.set_ylabel(r'$F$ [kN]')
         ax_load.set_xlabel(r'$w$ [mm]')
 
-        max_deflection = np.max(deflection)
-        argmax_load_idx = np.argmax(load)
+        argmax_F_idx = np.argmax(F)
         # define an interpolation function
-        argmax_load_dic_idx = np.argmax(self.load_levels)
-
-        # show available load levels
-        F_levels = self.load_levels[:argmax_load_dic_idx]
-        w_levels = np.interp(F_levels, load[:argmax_load_idx], deflection[:argmax_load_idx])
+        argmax_F_dic_idx = np.argmax(self.load_levels)
+        F_levels = self.load_levels[:argmax_F_dic_idx]
+        w_levels = np.interp(F_levels, F[:argmax_F_idx], w[:argmax_F_idx])
         ax_load.plot(w_levels, F_levels, 'o', markersize=3, color='orange')
 
         # show the current load marker
         F_idx = self.end_t
         F_level = self.load_levels[F_idx]
-        if F_idx < argmax_load_dic_idx:
-            w_level = np.interp(F_level, load[:argmax_load_idx], deflection[:argmax_load_idx])
+        if F_idx < argmax_F_dic_idx:
+            w_level = np.interp(F_level, F[:argmax_F_idx], w[:argmax_F_idx])
             ax_load.plot(w_level, F_level, marker='o',
                          markersize=6, color='green')
 
         # annotate the maximum load level
-        max_load = load[argmax_load_idx]
-        argmax_deflection = deflection[argmax_load_idx]
-        ax_load.annotate(f'[$F_\max=${max_load:.1f}, w={argmax_deflection:.2f}]',
-                    xy=(argmax_deflection, max_load), xycoords='data',
+        max_F = F[argmax_F_idx]
+        argmax_w = w[argmax_F_idx]
+        ax_load.annotate(f'$F_\max=${max_F:.1f} kN, w={argmax_w:.2f} mm',
+                    xy=(argmax_w, max_F), xycoords='data',
                     xytext=(0.05, 0.95), textcoords='axes fraction',
-                    # arrowprops=dict(arrowstyle="->", connectionstyle="arc3",
-                    #                 facecolor='blue'),
                     horizontalalignment='left', verticalalignment='top',
                     )
