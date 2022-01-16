@@ -227,11 +227,6 @@ class DICGrid(bu.Model):
     def _get_current_load(self):
         return self.load_levels[self.end_t]
 
-    def update_plot(self, axes):
-        ax_u, ax_load = axes
-        self.plot_grid(ax_u)
-        self.plot_load_deflection(ax_load)
-
     def plot_grid(self, ax_u):
         XU_aij = np.einsum('ija->aij', self.X_ija + self.U_ija * self.U_factor)
         ax_u.scatter(*XU_aij.reshape(2, -1), s=15, marker='o', color='darkgray')
@@ -310,6 +305,7 @@ class DICGrid(bu.Model):
 
         # show the current load marker
         F_idx = self.end_t
+        print('dig_grid: end_t', self.end_t)
         F_level = self.load_levels[F_idx]
         if F_idx < argmax_F_dic_idx:
             w_level = np.interp(F_level, F[:argmax_F_idx], w[:argmax_F_idx])
@@ -324,3 +320,8 @@ class DICGrid(bu.Model):
                     xytext=(0.05, 0.95), textcoords='axes fraction',
                     horizontalalignment='left', verticalalignment='top',
                     )
+
+    def update_plot(self, axes):
+        ax_u, ax_load = axes
+        self.plot_grid(ax_u)
+        self.plot_load_deflection(ax_load)
