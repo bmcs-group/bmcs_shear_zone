@@ -63,8 +63,6 @@ np.einsum('iLa->aiL', x_iLa)
 class RCBeamDesign(BeamDesign):
     name = 'Beam design'
 
-    # cmm = tr.Instance(ConcreteMaterialModelAdv, ()) # ConcreteMaterialModel
-    # cmm_adv = tr.Instance(ConcreteMaterialModelAdv,())
     matrix = EitherType(options=[
         ('advanced', ConcreteMaterialModelAdv),
         ('simple', ConcreteMaterialModel)
@@ -118,9 +116,38 @@ class RCBeamDesign(BeamDesign):
         return np.einsum('iMa->aiM', x_iCa)
 
     def plot_sz_bd(self, ax):
-        ax.set_xlim(0, self.L)
-        ax.set_ylim(0, self.H)
-        ax.plot(*self.x_aiM, color='black')
+        L, H = self.L, self.H
+        X_00 = [0, 0]
+        X_01 = [L, 0]
+        X_11 = [L, H]
+        X_10 = [0, H]
+        X_Lia = np.array([[X_00, X_01],
+                          [X_01, X_11],
+                          [X_11, X_10],
+                          [X_10, X_00],
+                          ])
+        X_aiL = np.einsum('Lia->aiL', X_Lia)
+        ax.plot(*X_aiL, color='black', lw=0.5)
+        X_La = np.sum(X_Lia, axis=1) / 2
+        x, y = X_La[2, :]
+        ax.annotate(f'{L} mm',
+                    xy=(x, y), xytext=(0, 1), xycoords='data',
+                    textcoords='offset pixels',
+                    horizontalalignment='center',
+                    verticalalignment='bottom',
+                    rotation=0
+                    )
+        x, y = X_La[3, :]
+        ax.annotate(f'{H} mm',
+                    xy=(x, y), xytext=(-5, 0),
+                    xycoords='data',
+                    textcoords='offset pixels',
+                    horizontalalignment='right',
+                    verticalalignment='center',
+                    rotation=90
+                    )
+        ax.axis('off')
+        ax.axis('equal')
 
     def plot_sz_cross_section(self, ax):
         ax.plot([0, self.B, self.B, 0, 0],
@@ -128,11 +155,11 @@ class RCBeamDesign(BeamDesign):
         ax.set_xlim(0, self.B)
         ax.set_ylim(0, self.H)
 
-    def xsubplots(self, fig):
+    def subplots(self, fig):
         return fig.subplots(1,2)
 
-    def xupdate_plot(self, axes):
+    def update_plot(self, axes):
         ax1, ax2 = axes
         ax1.axis('equal');
         self.plot_sz_bd(ax1)
-        self.plot_sz_cross_section(ax2)
+        self.csl.plot_csl(ax2)

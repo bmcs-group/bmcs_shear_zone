@@ -6,6 +6,7 @@ import os
 import numpy as np
 import pandas as pd
 from bmcs_shear.beam_design import RCBeamDesign
+from bmcs_shear.matmod import CrackBridgeAdv
 
 def convert_to_bool(str_bool):
     '''helper method for the parsing of input file with boalean values
@@ -24,10 +25,6 @@ class DICGrid(bu.Model):
 
     tree = ['sz_bd']
 
-    sz_bd = tr.Instance(RCBeamDesign ,())
-    '''Beam design object provides geometrical data and material data.
-    '''
-
     name = 'DIC grid history'
 
     dir_name = bu.Str('<unnamed>', ALG=True)
@@ -36,6 +33,39 @@ class DICGrid(bu.Model):
         self._set_grid_params()
 
     grid_param_file_name = bu.Str('grid_params.txt', ALG=True)
+
+    beam_param_file_name = bu.Str('beam_params.txt', ALG=True)
+
+    beam_param_types = {'L' : float,
+                        'B' : float,
+                        'H' : float,
+                        'n_s' : float,
+                        'y_s' : float,
+                        'd_s' : float}
+
+    beam_param_file = tr.Property
+    '''File containing the parameters of the beam'''
+    def _get_beam_param_file(self):
+        return join(self.data_dir, self.beam_param_file_name)
+
+    sz_bd = tr.Property(bu.Instance(RCBeamDesign), depends_on='dir_name')
+    '''Beam design object provides geometrical data and material data.
+    '''
+    @tr.cached_property
+    def _get_sz_bd(self):
+        params_str = {}
+        f = open(self.beam_param_file)
+        data = f.readlines()
+        for line in data:
+            key, value = line.split(":")
+            params_str[key.strip()] = value.strip()
+        f.close()
+        # convert the strings to the paramater types specified in the param_types table
+        params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
+        sz_bd = RCBeamDesign(**{key: params[key] for key in ['H', 'B', 'L']})
+        sz_bd.Rectangle = True
+        sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
+        return sz_bd
 
     n_x = tr.Property(bu.Int, depends_on='state_changed')
     @tr.cached_property
@@ -126,12 +156,12 @@ class DICGrid(bu.Model):
     def _get_grid_param_file(self):
         return join(self.dic_data_dir, self.grid_param_file_name)
 
-    param_types = {'n_x' : int,
-                   'n_y' : int,
-                   'd_x' : int,
-                   'd_y' : int,
-                   'column_first_enum' : convert_to_bool,
-                   'top_down_enum' : convert_to_bool}
+    grid_param_types = {'n_x' : int,
+                       'n_y' : int,
+                       'd_x' : int,
+                       'd_y' : int,
+                       'column_first_enum' : convert_to_bool,
+                       'top_down_enum' : convert_to_bool}
 
     grid_params = tr.Property(depends_on='dir_name')
     def _get_grid_params(self):
@@ -144,7 +174,7 @@ class DICGrid(bu.Model):
             params_str[key.strip()] = value.strip()
         f.close()
         # convert the strings to the paramater types specified in the param_types table
-        params = { key : type_(params_str[key]) for key, type_ in self.param_types.items()  }
+        params = { key : type_(params_str[key]) for key, type_ in self.grid_param_types.items()  }
         return params
 
     files = tr.Property(depends_on='state_changed')
@@ -305,7 +335,6 @@ class DICGrid(bu.Model):
 
         # show the current load marker
         F_idx = self.end_t
-        print('dig_grid: end_t', self.end_t)
         F_level = self.load_levels[F_idx]
         if F_idx < argmax_F_dic_idx:
             w_level = np.interp(F_level, F[:argmax_F_idx], w[:argmax_F_idx])

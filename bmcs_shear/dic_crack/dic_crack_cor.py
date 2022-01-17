@@ -26,7 +26,7 @@ class DICCrackCOR(bu.Model):
     def _get_dic_grid(self):
         return self.dsf.dic_grid
 
-    # tree = ['dic_crack']
+    tree = ['dic_crack']
 
     M0 = tr.Property(bu.Int, depends_on='state_changed')
     '''Horizontal index defining the y_axis position
@@ -68,6 +68,7 @@ class DICCrackCOR(bu.Model):
         bu.Item('show_init'),
         bu.Item('show_xu'),
         bu.Item('show_xw'),
+        bu.Item('step_N_COR'),
         time_editor=bu.HistoryEditor(
             var='t'
         )
@@ -270,14 +271,20 @@ class DICCrackCOR(bu.Model):
 
     ################################################################################
 
+    step_N_COR = bu.Int(2, ALG=True)
+    '''Vertical index distance between the markers included in the COR calculation
+    '''
+
     X_cor_pa_sol = tr.Property(depends_on='state_changed')
     '''Center of rotation determined for each patch point separately
     '''
     @tr.cached_property
     def _get_X_cor_pa_sol(self):
         xu_mid_mNa, w_ref_mNa = self.xu_mid_w_ref_mNa
-        xu_mid_mNa = xu_mid_mNa#[:, self.dic_crack.N_tip]
-        w_ref_mNa = w_ref_mNa#[:, self.dic_crack.N_tip]
+        upper_N = self.dic_crack.N_tip
+        cor_slice = slice(None, upper_N, self.step_N_COR)
+        xu_mid_mNa = xu_mid_mNa[cor_slice]
+        w_ref_mNa = w_ref_mNa[cor_slice]
         xu_mid_pa = xu_mid_mNa.reshape(-1, 2)
         w_ref_pa = w_ref_mNa.reshape(-1, 2)
 
@@ -332,24 +339,12 @@ class DICCrackCOR(bu.Model):
         ax_w_0 = fig.add_subplot(gs[1, 2])
         return ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0
 
-    def update_plot(self, axes):
-        ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0 = axes
-
-        self.dic_grid.plot_bounding_box(ax_cl)
-        self.dic_grid.plot_box_annotate(ax_cl)
-        self.cl.plot_detected_cracks(ax_cl, self.fig)
-
-        self.dic_grid.plot_load_deflection(ax_FU)
-        self.dic_crack.plot_x_Na(ax_x)
-        self.dic_crack.plot_u_Nib(ax_x)
-        self.dic_crack.plot_u_Na(ax_u_0)
-        self.dic_crack.plot_u_Nb(ax_w_0)
-
+    def plot_cor_markers(self, ax_x):
         if self.show_init:
             X0_aMN = np.einsum('MNa->aMN', self.X0_MNa)
-            ax_x.scatter(*X0_aMN.reshape(2,-1), s=15, marker='o', color='darkgray')
+            ax_x.scatter(*X0_aMN.reshape(2, -1), s=15, marker='o', color='darkgray')
             X_aMN = np.einsum('MNa->aMN', self.X_MNa)
-            ax_x.scatter(*X_aMN.reshape(2,-1), s=15, marker='o', color='blue')
+            ax_x.scatter(*X_aMN.reshape(2, -1), s=15, marker='o', color='blue')
 
         xu_ref_anp_scaled, xw_ref_anp_scaled = self.displ_grids_scaled
 
@@ -360,9 +355,22 @@ class DICCrackCOR(bu.Model):
         if self.show_xw:
             ax_x.plot(*xw_ref_anp_scaled, color='green', linewidth=0.5);
 
+    def plot_ref_frame(self, ax_x):
         N0a = self.x_ref_MNa_scaled[self.M0, :self.N0_max]
         ax_x.scatter(*N0a.T, s=20, color='green')
+
+    def update_plot(self, axes):
+        ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0 = axes
+        self.dic_grid.plot_bounding_box(ax_cl)
+        self.dic_grid.plot_box_annotate(ax_cl)
+        self.cl.plot_detected_cracks(ax_cl, self.fig)
+        self.dic_grid.plot_load_deflection(ax_FU)
         self.dic_crack.plot_x_Na(ax_x)
+        self.dic_crack.plot_u_Nib(ax_x)
+        self.dic_crack.plot_u_Na(ax_u_0)
+        self.dic_crack.plot_u_Nb(ax_w_0)
+        self.plot_cor_markers(ax_x)
+        self.plot_ref_frame(ax_x)
         self.plot_COR(ax_x)
         ax_x.axis('equal');
 
