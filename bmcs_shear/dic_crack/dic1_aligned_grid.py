@@ -1,6 +1,6 @@
 
 from .dic_grid import DICGrid
-from .dic_strain_grid import DICStrainGrid
+from .dic1_strain_grid import DICStrainGrid
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np

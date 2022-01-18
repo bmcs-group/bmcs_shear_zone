@@ -54,6 +54,8 @@ class DICCrack(bu.Model):
 
     cl = tr.WeakRef
 
+    bd = tr.DelegatesTo('cl')
+
     C = bu.Int(0, ALG=True)
 
     x_N = tr.Array(np.float_)
@@ -120,52 +122,52 @@ class DICCrack(bu.Model):
     def _get_H_ligament(self):
         return self.dic_grid.L_y
 
-    n_N_cracked = tr.Property(depends_on='state_changed')
+    n_N_crc = tr.Property(depends_on='state_changed')
     '''Resolution of the spline approximation over the height of the cracked
     '''
     @tr.cached_property
-    def _get_n_N_cracked(self):
+    def _get_n_N_crc(self):
         _, y_tip = self.X_tip_a
         return int(y_tip / self.H_ligament * self.n_N_ligament)
 
-    n_N_uncracked = tr.Property(depends_on='state_changed')
+    n_N_unc = tr.Property(depends_on='state_changed')
     '''Resolution of the spline approximation over the whole height of the uncracked section
     '''
     @tr.cached_property
-    def _get_n_N_uncracked(self):
+    def _get_n_N_unc(self):
         _, y_tip = self.X_tip_a
         return int((self.H_ligament - y_tip) / self.H_ligament * self.n_N_ligament)
 
-    x_C_Na = tr.Property(depends_on='state_changed')
+    X_crc_Na = tr.Property(depends_on='state_changed')
     '''Cracked ligament points
     '''
     @tr.cached_property
-    def _get_x_C_Na(self):
+    def _get_X_crc_Na(self):
         y_N = self.y_N
         _, y_tip = self.X_tip_a
-        y_cracked_range = np.linspace(y_N[0], y_tip, self.n_N_cracked)
-        cracked_range = np.array([self.C_cubic_spline(y_cracked_range), y_cracked_range], dtype=np.float_).T
+        y_crc_range = np.linspace(y_N[0], y_tip, self.n_N_crc)
+        cracked_range = np.array([self.C_cubic_spline(y_crc_range), y_crc_range], dtype=np.float_).T
         return cracked_range
 
-    x_U_Na = tr.Property(depends_on='state_changed')
+    X_unc_Na = tr.Property(depends_on='state_changed')
     '''Uncracked ligament points
     '''
     @tr.cached_property
-    def _get_x_U_Na(self):
+    def _get_X_unc_Na(self):
         y_N = self.y_N
         _, y_tip = self.X_tip_a
-        y_uncracked_range = np.linspace(y_tip, y_N[-1], self.n_N_uncracked)
-        uncracked_range = np.array([
-            np.ones_like(y_uncracked_range)*self.C_cubic_spline(y_tip),
-            y_uncracked_range], dtype=np.float_).T
-        return uncracked_range
+        y_unc_range = np.linspace(y_tip, y_N[-1], self.n_N_unc)
+        unc_range = np.array([
+            np.ones_like(y_unc_range)*self.C_cubic_spline(y_tip),
+            y_unc_range], dtype=np.float_).T
+        return unc_range
 
     x_Na = tr.Property(depends_on='state_changed')
     '''All ligament points.
     '''
     @tr.cached_property
     def _get_x_Na(self):
-        return np.vstack([self.x_C_Na, self.x_U_Na])
+        return np.vstack([self.X_crc_Na, self.X_unc_Na])
 
     T_Nab = tr.Property(depends_on='state_changed')
     '''Smoothed crack profile
@@ -174,11 +176,11 @@ class DICCrack(bu.Model):
     def _get_T_Nab(self):
         f_prime = self.C_cubic_spline.derivative()
         # cracked part
-        d_C_x = -f_prime(self.x_C_Na[:, 1])
+        d_C_x = -f_prime(self.X_crc_Na[:, 1])
         e_C_Na = np.array([d_C_x, np.ones_like(d_C_x)]).T
         T_C_Nab = get_T_Lab(e_C_Na)
         # uncracked part
-        e_U_Na = np.array([0, 1])[np.newaxis,:] * np.ones((len(self.x_U_Na),), np.float_)[:,np.newaxis]
+        e_U_Na = np.array([0, 1])[np.newaxis,:] * np.ones((len(self.X_unc_Na),), np.float_)[:,np.newaxis]
         T_U_Nab = get_T_Lab(e_U_Na)
         return np.vstack([T_C_Nab, T_U_Nab])
 

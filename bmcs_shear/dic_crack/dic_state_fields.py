@@ -23,6 +23,8 @@ class DICStateFields(ib.TStepBC):
 
     dic_grid = bu.Instance(DICGrid)
 
+    bd = tr.DelegatesTo('dic_grid', 'sz_bd')
+
     tmodel = bu.EitherType(options=[('miproplane_mdm', ib.MATS2DMplDamageEEQ),
                                     ('scalar_damage', ib.MATS2DScalarDamage)])
 

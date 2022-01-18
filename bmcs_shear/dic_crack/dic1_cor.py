@@ -1,5 +1,5 @@
 
-from .dic_aligned_grid import DICAlignedGrid
+from .dic1_aligned_grid import DICAlignedGrid
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
