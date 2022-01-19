@@ -238,8 +238,8 @@ class DICGrid(bu.Model):
     @tr.cached_property
     def _get_X_ija(self):
         n_x, n_y = self.n_x, self.n_y
-        x_range = np.arange(n_x)[::-1] * self.d_x
-        y_range = np.arange(n_y) * self.d_y
+        x_range = np.arange(n_x)[::-1] * self.d_x + self.x_offset
+        y_range = np.arange(n_y) * self.d_y + self.y_offset
         y_ij, x_ij = np.meshgrid(y_range, x_range)
         X_aij = np.array([x_ij, y_ij])
         X_ija = np.einsum('aij->ija', X_aij)
