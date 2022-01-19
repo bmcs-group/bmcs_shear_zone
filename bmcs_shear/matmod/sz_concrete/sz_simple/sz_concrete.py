@@ -44,7 +44,6 @@ class ConcreteMaterialModelSymbExpr(SymbExpr):
 
     d_sig_eps = sig_eps.diff(eps)
 
-
     #=========================================================================
     # Crack opening law
     #=========================================================================
@@ -267,58 +266,3 @@ class ConcreteMaterialModel(ConcreteMatMod):
         self.plot_d_sig_w(ax1)
         self.plot_tau_s(ax2)
         self.plot_d_tau_s(ax2)
-
-    # =========================================================================
-    # Aggregate-Interlock Mechanism
-    # =========================================================================
-
-    # ipw_view = View(
-    #     Item('f_t', minmax=(1, 10), latex='f_\mathrm{t}', ),
-    #     Item('f_c', minmax=(10, 180), latex='f_\mathrm{c}', ),
-    #     Item('E_c', minmax=(10000, 60000), latex='E_\mathrm{c}', ),
-    #     Item('G_f', minmax=(0.01, 1.0), latex='G_\mathrm{f}'),
-    #     Item('L_fps', minmax=(1, 200), latex='L_\mathrm{fps}', ),
-    #     Item('d_a', latex=r'd_a', minmax=(1, 30), ),
-    # )
-    #
-    # get_tau_ag = tr.Property(depends_on='+MAT')
-    #
-    # @tr.cached_property
-    # def _get_get_tau_ag(self):
-    #     return sp.lambdify((w, s), tau_ag.subs(self.co_law_data), 'numpy')
-    #
-    #
-    # get_sigma_ag = tr.Property(depends_on='+MAT')
-    #
-    # @tr.cached_property
-    # def _get_get_sigma_ag(self):
-    #     return sp.lambdify((w, s), sigma_ag.subs(self.co_law_data), 'numpy')
-    #
-    # def plot_tau_ag(self, ax1):
-    #     s_max = float(s_3.subs(self.bond_law_data))
-    #     w =0.5
-    #     s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100)
-    #     ax1.plot(s_data, self.get_tau_ag(w, s_data), lw=2, color='blue')
-    #     ax1.fill_between(
-    #         s_data, self.get_tau_ag(w, s_data), color='blue', alpha=0.2
-    #     )
-    #     ax1.set_xlabel(r'$s\;\;\mathrm{[mm]}$')
-    #     ax1.set_ylabel(r'$\tau\;\;\mathrm{[MPa]}$')
-    #     ax1.set_title('aggregate interlock law')
-    #
-    #
-    # def plot_sigma_ag(self, ax3):
-    #     w = 0.5
-    #     s_max = float(s_3.subs(self.bond_law_data))
-    #     s_data = np.linspace(-1.1*s_max, 1.1*s_max, 100)
-    #     ax3.plot(s_data, self.get_sigma_ag(w, s_data), color='orange')
-    #
-    # def subplots(self, fig):
-    #     return fig.subplots(1,2)
-    #
-    # def update_plot(self, axes):
-    #     ax1, ax2 = axes
-    #     self.plot_sig_w(ax1)
-    #     self.plot_d_sig_w(ax1)
-    #     self.plot_tau_ag(ax2)
-    #     self.plot_sigma_ag(ax2)

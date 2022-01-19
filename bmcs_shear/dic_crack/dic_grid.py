@@ -77,15 +77,25 @@ class DICGrid(bu.Model):
     def _get_n_y(self):
         return self.grid_params['n_y']
 
-    d_x = tr.Property(bu.Int, depends_on='state_changed')
+    d_x = tr.Property(bu.Float, depends_on='state_changed')
     @tr.cached_property
     def _get_d_x(self):
         return self.grid_params['d_x']
 
-    d_y = tr.Property(bu.Int, depends_on='state_changed')
+    d_y = tr.Property(bu.Float, depends_on='state_changed')
     @tr.cached_property
     def _get_d_y(self):
         return self.grid_params['d_y']
+
+    x_offset = tr.Property(bu.Float, depends_on='state_changed')
+    @tr.cached_property
+    def _get_x_offset(self):
+        return self.grid_params['x_offset']
+
+    y_offset = tr.Property(bu.Float, depends_on='state_changed')
+    @tr.cached_property
+    def _get_y_offset(self):
+        return self.grid_params['y_offset']
 
     column_first_enum = tr.Property(bu.Bool, depends_on='state_changed')
     @tr.cached_property
@@ -111,10 +121,12 @@ class DICGrid(bu.Model):
         self.end_t = int( (self.n_t-1) * (self.t + d_t/2))
 
     ipw_view = bu.View(
-        bu.Item('n_x'),
-        bu.Item('n_y'),
-        bu.Item('d_x'),
-        bu.Item('d_y'),
+        bu.Item('n_x', readonly=True),
+        bu.Item('n_y', readonly=True),
+        bu.Item('d_x', readonly=True),
+        bu.Item('d_y', readonly=True),
+        bu.Item('x_offset', readonly=True),
+        bu.Item('y_offset', readonly=True),
         bu.Item('end_t', readonly=True),
         bu.Item('U_factor'),
         bu.Item('column_first_enum'),
@@ -158,8 +170,10 @@ class DICGrid(bu.Model):
 
     grid_param_types = {'n_x' : int,
                        'n_y' : int,
-                       'd_x' : int,
-                       'd_y' : int,
+                       'd_x' : float,
+                       'd_y' : float,
+                       'x_offset' : float,
+                       'y_offset' : float,
                        'column_first_enum' : convert_to_bool,
                        'top_down_enum' : convert_to_bool}
 

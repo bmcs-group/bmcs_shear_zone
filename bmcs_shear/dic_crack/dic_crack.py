@@ -42,6 +42,14 @@ def get_T_Lab(line_vec_La):
     T_Lab = np.einsum('bLa->Lab', T_bLa)
     return T_Lab
 
+class IDICCrack(tr.Interface):
+    '''DIC Crack interface
+    '''
+    x_Na = tr.Array(np.float)
+    u_Na = tr.Array(np.float)
+    u_Nb = tr.Array(np.float)
+
+@tr.provides(IDICCrack)
 class DICCrack(bu.Model):
     '''
     Model of a shear crack with the representation of the kinematics

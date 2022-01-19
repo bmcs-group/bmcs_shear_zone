@@ -5,14 +5,15 @@ from bmcs_utils.api import Model, View, Item, mpl_align_xaxis
 #     SZDeformedState
 from scipy.interpolate import interp1d
 from bmcs_utils.api import View, Bool, Item, Float, FloatRangeEditor
-from .dic_crack import DICCrack
+from .dic_crack import IDICCrack
+import matplotlib.gridspec as gridspec
 
 class DICStressProfile(Model):
     '''Stress profile calculation in an intermediate state
     '''
     name = "Profiles"
 
-    dic_crack = tr.Instance(DICCrack, ())
+    dic_crack = tr.Instance(IDICCrack, ())
 
     bd = tr.Property
     '''Beam design
@@ -22,7 +23,7 @@ class DICStressProfile(Model):
 
     # bd = tr.DelegatesTo('dic_crack')
     #
-    tree = ['dic_crack']
+    tree = ['dic_crack', 'bd']
 
     show_stress = Bool(True)
     show_force = Bool(False)
@@ -61,9 +62,8 @@ class DICStressProfile(Model):
     def _get_S_Lb(self):
         u_Lb = self.u_Lb
         cmm = self.bd.matrix_
-        B = self.bd.B
         sig_La = cmm.get_sig_a(u_Lb)
-        return sig_La * B
+        return sig_La
 
     S_La = tr.Property(depends_on='state_changed')
     '''Transposed stresses'''
@@ -153,7 +153,7 @@ class DICStressProfile(Model):
         idx = np.argmax(self.u_La[:,0] < 0) - 1
         x_1, x_2 = self.X_La[(idx, idx + 1), 1]
         u_1, u_2 = self.u_La[(idx, idx + 1), 0]
-        d_x = (x_2 - x_1) / (u_2 - u_1) * u_1
+        d_x = -(x_2 - x_1) / (u_2 - u_1) * u_1
         y_neutral = x_1 + d_x
         x_neutral = self.X_La[idx + 1, 0]
         return np.array([x_neutral, y_neutral])
@@ -235,14 +235,17 @@ class DICStressProfile(Model):
 
     neg_F_y = tr.Property
     def _get_neg_F_y(self):
-        #F_L0 = self.F_La[:, 0]
-        F_L0 = self.S_La[:, 0]
-        neg_range = F_L0 < 0
-        return self.get_stress_resultant_and_position(neg_range)
+        y_neutral = self.X_neutral_a[1]
+        irange = np.where(self.X_La[:, 1] > y_neutral)[0]
+        neg_S_L = np.hstack([[0], self.S_La[irange, 0]])
+        neg_y_L = np.hstack([[y_neutral], self.X_La[irange, 1]])
+        neg_int_S = np.trapz(neg_S_L, neg_y_L)
+        neg_normed_S_L = neg_S_L / neg_int_S
+        neg_y_cg = np.trapz(neg_normed_S_L * neg_y_L)
+        return neg_int_S * self.bd.B, neg_y_cg
 
     pos_F_y = tr.Property
     def _get_pos_F_y(self):
-        #F_L0 = self.F_La[:, 0]
         F_L0 = self.S_La[:, 0]
         pos_range = F_L0 > 0
         return self.get_stress_resultant_and_position(pos_range)
@@ -259,90 +262,71 @@ class DICStressProfile(Model):
         ax.plot(u_Lc[:, idx], x_La[:, 1], color=color, label=label)
         ax.fill_betweenx(x_La[:, 1], u_Lc[:, idx], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
-        ax.legend(loc='lower left')
 
-    # def plot_hlines(self, ax, h_min, h_max):
-    #     y_tip = self.sz_cp.sz_ctr.x_tip_1n
-    #     y_rot = self.sz_cp.sz_ctr.x_rot_1k
-    #     z_fps = self.sz_cp.sz_ctr.x_fps_ak[1]
-    #     ax.plot([h_min, h_max], [y_tip, y_tip],
-    #             color='black', linestyle=':')
-    #     ax.plot([h_min, h_max], [y_rot, y_rot],
-    #             color='black', linestyle='--')
-    #     ax.plot([h_min, h_max], [z_fps, z_fps],
-    #             color='black', linestyle='-.')
-
-    def plot_u_La(self, ax_w, ax_s, vot=1):
+    def plot_u_La(self, ax_w, vot=1):
         '''Plot the displacement along the crack (w and s) in global coordinates
         '''
         self.plot_u_Lc(ax_w, self.u_La, 0, label=r'$u_x$ [mm]', color='blue')
-        ax_w.set_xlabel(r'$u_x$ [mm]', fontsize=10)
-        self.plot_u_Lc(ax_s, self.u_La, 1, label=r'$u_z$ [mm]', color='green')
-        ax_s.set_xlabel(r'$u_z$ [mm]', fontsize=10)
-        mpl_align_xaxis(ax_w, ax_s)
+        self.plot_u_Lc(ax_w, self.u_La, 1, label=r'$u_z$ [mm]', color='green')
+        ax_w.legend(loc='lower left')
+        ax_w.set_xlabel(r'$u_x, u_y$ [mm]', fontsize=10)
+        ax_w.set_ylim(0, self.bd.H )
 
-    def plot_u_Lb(self, ax_w, ax_s, vot=1):
+    def plot_u_Lb(self, ax_w):
         '''Plot the displacement (u_x, u_y) in local crack coordinates
         '''
-        # plot the critical displacement
-        # sz_ctr = self.sz_cp.sz_ctr
-        # x_tip_1k = sz_ctr.x_tip_ak[1,0]
-        # w = sz_ctr.w
-        # ax_w.plot([0, w],[x_tip_1k, x_tip_1k], '-o', lw=2, color='red')
         self.plot_u_Lc(ax_w, self.u_Lb, 0, label=r'$w$ [mm]', color='blue')
-        ax_w.set_xlabel(r'opening $w$ [mm]', fontsize=10)
-        self.plot_u_Lc(ax_s, self.u_Lb, 1, label=r'$s$ [mm]', color='green')
-        ax_s.set_xlabel(r'sliding $s$ [mm]', fontsize=10)
-        mpl_align_xaxis(ax_w, ax_s)
+        self.plot_u_Lc(ax_w, self.u_Lb, 1, label=r'$s$ [mm]', color='green')
+        ax_w.set_xlabel(r'sliding $w, s$ [mm]', fontsize=10)
+        ax_w.legend(loc='lower left')
+        ax_w.set_ylim(0, self.bd.H )
 
-    def plot_S_Lb(self, ax_sig, ax_tau, vot=1):
+    def plot_S_Lb(self, ax_sig):
         '''Plot the stress components (sig, tau) in local crack coordinates
         '''
         # plot the critical displacement
         bd = self.bd
-        cmm = bd.matrix_
-        # sz_ctr = self.sz_cp.sz_ctr
-        # x_tip_1k = sz_ctr.x_tip_ak[1,0]
-        # S_t = cmm.f_t * bd.B
-        # ax_sig.plot([0, S_t],[x_tip_1k, x_tip_1k], '-o', lw=2, color='red')
         self.plot_u_Lc(ax_sig, self.S_Lb, 0, label=r'$\sigma_\mathrm{N}$ [N/mm]', color='blue')
-        ax_sig.set_xlabel(r'normal stress $\sigma_\mathrm{N}$ [N/mm]', fontsize=10)
-        self.plot_u_Lc(ax_tau, self.S_Lb, 1, label=r'$\sigma_\mathrm{T}$ [N/mm]', color='green')
-        ax_tau.set_xlabel(r'shear stress $\sigma_\mathrm{T}$ [N/mm]', fontsize=10)
-        mpl_align_xaxis(ax_sig, ax_tau)
-
-    def plot_S_La(self, ax_sig, ax_tau, vot=1):
-        if self.show_stress:
-            self.plot_u_Lc(ax_sig, self.S_La, 0, label=r'$f_x$ [N/mm]', color='blue')
-            ax_sig.set_xlabel(r'horizontal stress $f_x$ [N/mm]', fontsize=10)
-            self.plot_u_Lc(ax_tau, self.S_La, 1, label=r'$f_z$ [N/mm]', color='green')
-            ax_tau.set_xlabel(r'vertical stress $f_z$ [N/mm]', fontsize=10)
-            mpl_align_xaxis(ax_sig, ax_tau)
-        if self.show_force:
-            neg_F, neg_y = self.neg_F_y
-            ax_sig.arrow(neg_F, neg_y, -neg_F, 0, color='red')
-            pos_F, pos_y = self.pos_F_y
-            ax_sig.arrow(pos_F, pos_y, -pos_F, 0, color='red')
+        self.plot_u_Lc(ax_sig, self.S_Lb, 1, label=r'$\sigma_\mathrm{T}$ [N/mm]', color='green')
+        ax_sig.set_xlabel(r'stress $\sigma_\mathrm{N,T}$ [N/mm]', fontsize=10)
         ax_sig.set_ylim(0, self.bd.H )
 
-    def plot_N_a(self, ax_N):
-        z_N = self.z_N
+    def plot_S_La(self, ax_sig):
+        if self.show_stress:
+            self.plot_u_Lc(ax_sig, self.S_La, 0, label=r'$f_x$ [MPa]', color='blue')
+            self.plot_u_Lc(ax_sig, self.S_La, 1, label=r'$f_z$ [MPa]', color='green')
+            ax_sig.set_xlabel(r'stress $\sigma_{xx}, \sigma_{xy}$ [MPa]', fontsize=10)
+            mpl_align_xaxis(ax_sig, ax_sig)
+        ax_sig.set_ylim(0, self.bd.H )
+
+    def plot_F_a(self, ax_F_a):
+        # x_range = self.X_La[:,0]
+        # y_range = self.X_La[:,1]
+        # ax_F_a.plot(x_range, y_range)
+        ax_F_a.plot(*self.X_La.T, color='black')
+        neg_F, neg_y = self.neg_F_y
+        ax_F_a.arrow(neg_F, neg_y, -neg_F, 0, color='red')
+        pos_F, pos_y = self.pos_F_y
+        ax_F_a.arrow(pos_F, pos_y, -pos_F, 0, color='red')
+        # reinforcement
+        y_N = self.z_N
         F_N0 = self.F_Na[:,0]
         F_N = np.zeros_like(F_N0)
-        ax_N.plot(np.array([F_N, F_N0]), np.array(([z_N, z_N])), color='green')
+        ax_F_a.plot(np.array([F_N, F_N0]), np.array(([y_N, y_N])), color='green')
 
     def subplots(self, fig):
-        ax_u_0, ax_w_0, ax_S_0, ax_F_0 = fig.subplots(1 ,4)
-        ax_u_1 = ax_u_0.twiny()
-        ax_w_1 = ax_w_0.twiny()
-        ax_S_1 = ax_S_0.twiny()
-        ax_F_1 = ax_F_0.twiny()
-        return ax_u_0, ax_w_0, ax_S_0, ax_F_0, ax_u_1, ax_w_1, ax_S_1, ax_F_1
+        gs = gridspec.GridSpec(2, 4)
+        ax_u_0 = fig.add_subplot(gs[0, 0])
+        ax_w_0 = fig.add_subplot(gs[0, 1])
+        ax_S_Lb = fig.add_subplot(gs[0, 2])
+        ax_S_La = fig.add_subplot(gs[0, 3])
+        ax_F_a = fig.add_subplot(gs[1, 3])
+        return ax_u_0, ax_w_0, ax_S_Lb, ax_S_La, ax_F_a
 
     def update_plot(self, axes):
-        ax_u_0, ax_w_0, ax_S_0, ax_F_0, ax_u_1, ax_w_1, ax_S_1, ax_F_1 = axes
-        self.plot_u_La(ax_u_0, ax_u_1)
-        self.plot_u_Lb(ax_w_0, ax_w_1)
-        self.plot_S_Lb(ax_S_0, ax_S_1)
-        self.plot_S_La(ax_F_0, ax_F_1)
-        self.plot_N_a(ax_S_0)
+        ax_u_0, ax_w_0, ax_S_Lb, ax_S_La, ax_F_a = axes
+        self.plot_u_La(ax_u_0)
+        self.plot_u_Lb(ax_w_0)
+        self.plot_S_Lb(ax_S_Lb)
+        self.plot_S_La(ax_S_La)
+        self.plot_F_a(ax_F_a)
