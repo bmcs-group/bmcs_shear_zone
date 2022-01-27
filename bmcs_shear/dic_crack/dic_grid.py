@@ -226,7 +226,6 @@ class DICGrid(bu.Model):
         else:
             return U_tija
 
-
     n_t = tr.Property(depends_on='state_changed')
     '''Read the displacement data from the individual csv files'''
     @tr.cached_property

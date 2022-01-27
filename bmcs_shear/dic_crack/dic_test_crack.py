@@ -24,11 +24,14 @@ class DICTestCrack(bu.Model):
     u_y_bot = bu.Float(0.0, ALG=True)
     u_y_top = bu.Float(0.0, ALG=True)
 
+    n_N = bu.Int(4, ALG=True)
+
     ipw_view = bu.View(
         bu.Item('u_x_bot'),
         bu.Item('u_x_top'),
         bu.Item('u_y_bot'),
-        bu.Item('u_y_top')
+        bu.Item('u_y_top'),
+        bu.Item('n_N')
     )
 
     X_tip_a = tr.Array(value=[0, 50])
@@ -38,12 +41,16 @@ class DICTestCrack(bu.Model):
     '''
     @tr.cached_property
     def _get_x_Na(self):
-        return np.array([[0, 0],[0, self.bd.H]], dtype=np.float_)
+        x_0 = np.zeros((self.n_N,), dtype=np.float_)
+        x_1 = np.linspace(0, self.bd.H, self.n_N)
+        return np.array([x_0, x_1], dtype=np.float_).T
 
     u_Na = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_u_Na(self):
-        return np.array([[self.u_x_bot, self.u_y_bot],[self.u_x_top, self.u_y_top]], dtype=np.float_)
+        u_x_range = np.linspace(self.u_x_bot, self.u_x_top, self.n_N)
+        u_y_range = np.linspace(self.u_y_bot, self.u_y_top, self.n_N)
+        return np.array([u_x_range,u_y_range], dtype=np.float_).T
 
     T_Nab = tr.Property(depends_on='state_changed')
     '''Smoothed crack profile
@@ -51,6 +58,7 @@ class DICTestCrack(bu.Model):
     @tr.cached_property
     def _get_T_Nab(self):
         line_vec_La = self.x_Na[1:,:] - self.x_Na[:-1,:]
+        line_vec_La = np.vstack([line_vec_La, line_vec_La[-1:]])
         return get_T_Lab(line_vec_La)
 
     u_Nb = tr.Property(depends_on='state_changed')
@@ -75,7 +83,7 @@ class DICTestCrack(bu.Model):
 
     def _plot_u(self, ax, u_Na, idx=0, color='black', label=r'$w$ [mm]'):
         x_Na = self.x_Na
-        ax.plot(u_Na[:, idx], x_Na[:, 1], color=color, label=label)
+        ax.plot(u_Na[:, idx], x_Na[:, 1], 'o-', color=color, label=label)
         ax.fill_betweenx(x_Na[:, 1], u_Na[:, idx], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')

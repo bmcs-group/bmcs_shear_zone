@@ -7,6 +7,7 @@ from scipy.interpolate import interp1d
 from bmcs_utils.api import View, Bool, Item, Float, FloatRangeEditor
 from .dic_crack import IDICCrack
 import matplotlib.gridspec as gridspec
+import sympy as sp
 
 class DICStressProfile(Model):
     '''Stress profile calculation in an intermediate state
@@ -233,22 +234,46 @@ class DICStressProfile(Model):
         # x1 = self.x_La[:, 1][irange]
         return int_F_L0, np.sum(range_normed_F_L0 * range_x_L0)
 
+    get_SY = tr.Property
+    @tr.cached_property
+    def _get_get_SY(self):
+        y, S1, S2, y1, y2 = sp.symbols('y, S1, S2, y1, y2')
+        S = sp.integrate(S1 + (S2 - S1) / (y2 - y1) * (y - y1), (y, y1, y2))
+        SY = sp.integrate((S1 + (S2 - S1) / (y2 - y1) * (y - y1)) * y, (y, y1, y2))
+        Y = SY / S
+        get_Y = sp.lambdify((S1, S2, y1, y2), Y)
+        get_S = sp.lambdify((S1, S2, y1, y2), S)
+        return get_S, get_Y
+
     neg_F_y = tr.Property
     def _get_neg_F_y(self):
         y_neutral = self.X_neutral_a[1]
+        S_La = self.S_La
         irange = np.where(self.X_La[:, 1] > y_neutral)[0]
-        neg_S_L = np.hstack([[0], self.S_La[irange, 0]])
-        neg_y_L = np.hstack([[y_neutral], self.X_La[irange, 1]])
-        neg_int_S = np.trapz(neg_S_L, neg_y_L)
-        neg_normed_S_L = neg_S_L / neg_int_S
-        neg_y_cg = np.trapz(neg_normed_S_L * neg_y_L)
-        return neg_int_S * self.bd.B, neg_y_cg
+        S_ = np.hstack([[0], S_La[irange, 0]])
+        y_ = np.hstack([[y_neutral], self.X_La[irange, 1]]) - y_neutral
+        get_S, get_Y = self.get_SY
+        y_L = get_Y(S_[:-1], S_[1:], y_[:-1], y_[1:])
+        S_L = get_S(S_[:-1], S_[1:], y_[:-1], y_[1:])
+        sum_S = np.sum(S_L)
+        sum_Sy = np.sum(S_L * y_L)
+        cg_y = sum_Sy / sum_S
+        return sum_S * self.bd.B, cg_y + y_neutral
 
     pos_F_y = tr.Property
     def _get_pos_F_y(self):
-        F_L0 = self.S_La[:, 0]
-        pos_range = F_L0 > 0
-        return self.get_stress_resultant_and_position(pos_range)
+        y_neutral = self.X_neutral_a[1]
+        S_La = self.S_La
+        irange = np.where(self.X_La[:, 1] < y_neutral)[0][::-1]
+        S_ = np.hstack([[0], S_La[irange, 0]])
+        y_ = np.hstack([[y_neutral], self.X_La[irange, 1]]) - y_neutral
+        get_S, get_Y = self.get_SY
+        y_L = get_Y(S_[:-1], S_[1:], y_[:-1], y_[1:])
+        S_L = get_S(S_[:-1], S_[1:], y_[:-1], y_[1:])
+        sum_S = np.sum(S_L)
+        sum_Sy = np.sum(S_L * y_L)
+        cg_y = sum_Sy / sum_S
+        return -sum_S * self.bd.B, cg_y + y_neutral
 
     # =========================================================================
     # Plotting methods
@@ -300,19 +325,35 @@ class DICStressProfile(Model):
         ax_sig.set_ylim(0, self.bd.H )
 
     def plot_F_a(self, ax_F_a):
-        # x_range = self.X_La[:,0]
-        # y_range = self.X_La[:,1]
-        # ax_F_a.plot(x_range, y_range)
         ax_F_a.plot(*self.X_La.T, color='black')
+        # compression zone
         neg_F, neg_y = self.neg_F_y
-        ax_F_a.arrow(neg_F, neg_y, -neg_F, 0, color='red')
+        neg_F_kN = neg_F / 1000
+        head_length = np.fabs(neg_F_kN * 0.2)
+        head_width = 10
+        # ax_F_a.arrow(neg_F_kN, neg_y, -neg_F_kN, 0, color='red',
+        #              length_includes_head=True, head_length=head_length,
+        #              head_width=head_width)
+        ax_F_a.annotate("",
+                    xy=(0, neg_y), xycoords='data',
+                    xytext=(neg_F_kN, neg_y), textcoords='data',
+                    arrowprops=dict(arrowstyle="->",
+                                    connectionstyle="arc3"),
+                    )
+        # tensile zone
         pos_F, pos_y = self.pos_F_y
-        ax_F_a.arrow(pos_F, pos_y, -pos_F, 0, color='red')
+        pos_F_kN = pos_F / 1000
+        ax_F_a.arrow(pos_F_kN, pos_y, -pos_F_kN, 0, color='red',
+                     length_includes_head=True, head_length=head_length,
+                     head_width=head_width)
         # reinforcement
         y_N = self.z_N
         F_N0 = self.F_Na[:,0]
         F_N = np.zeros_like(F_N0)
         ax_F_a.plot(np.array([F_N, F_N0]), np.array(([y_N, y_N])), color='green')
+        ax_F_a.set_xlabel(r'$F$ [kN]')
+        ax_F_a.set_ylabel(r'$y$ [mm]')
+        ax_F_a.set_xlim(neg_F_kN, pos_F_kN )
 
     def subplots(self, fig):
         gs = gridspec.GridSpec(2, 4)
