@@ -301,17 +301,6 @@ class DICStateFields(ib.TStepBC):
         cd_field_irn_MN[cd_field_irn_MN < 0.2] = 0
         return xx_MN, yy_MN, cd_field_irn_MN
 
-    primary_cracks = tr.Property(depends_on='MESH')
-    '''Get the cracks at the near-failure load level
-    '''
-    def _get_primary_cracks(self):
-        # spatial coordinates
-        t_eta_idx = self.dic_grid.get_F_eta_dic_idx(0.95)
-        self.dic_grid.end_t = t_eta_idx
-        xx_MN, yy_MN, cd_field_irn_MN = self.crack_detection_field
-        xx_NC, yy_NC, crack_tip_y, M_NC = self.detect_cracks(xx_MN, yy_MN, cd_field_irn_MN)
-        return xx_NC, yy_NC, crack_tip_y, M_NC
-
     # plot parameters - get them from the state evaluation
     max_sig = bu.Float(5)
     max_eps = bu.Float(0.02)

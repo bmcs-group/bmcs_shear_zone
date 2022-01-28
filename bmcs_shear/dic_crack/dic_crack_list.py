@@ -43,10 +43,25 @@ class DICCrackList(bu.ModelList):
         time_editor=bu.HistoryEditor(var='t')
     )
 
-    def detect_cracks(self, M_C, xx_MN, yy_MN, omega_MN):
+    def detect_cracks(self, M_C, xx_MN, yy_MN, cdf_MN):
+        '''
+        paramters:
+        M_C: horizontal indexes of the starting cracks
+        xx_MN: horizontal coordinates of the grid points (M, N)
+        yy_MN: vertical coordinates of the grid points (M, N)
+        cdf_MN: values of the crack detection field in the grid points (M, N)
+                This field is scalar, with values representing the "proneness" to
+                cracking. Either maximum principal tensile strain or damage
+                are the choices at this place.
+        returns:
+        xx_NC: horizontal coordinates of N-th segment of C-th crack ligament
+        yy_NC: vertical coordinates of N-th segment of C-th crack ligament
+        N_tip_C: vertical index of the crack tip of the C-th ligament
+        M_NC: horizontal indexes N of C-th ligament
+        '''
         N_range = np.arange(yy_MN.shape[1])
-        omega_NM = omega_MN.T
-        n_N, n_M = omega_NM.shape
+        cdf_NM = cdf_MN.T
+        n_N, n_M = cdf_NM.shape
         # smooth the landscape
         if len(M_C) == 0:
             return np.zeros((n_N, 0)), np.zeros((n_N, 0)), np.zeros((0, )), np.zeros((n_N, 0))
@@ -66,7 +81,7 @@ class DICCrackList(bu.ModelList):
             intervals_Cp = np.vstack([M_C_left_, M_C_right_]).T
             # index distance from the right boundary of the crack interval
             M_C_shift = np.array([
-                np.argmax(omega_NM[N1, interval_p[-1]:interval_p[0]:-1])
+                np.argmax(cdf_NM[N1, interval_p[-1]:interval_p[0]:-1])
                 for interval_p in intervals_Cp
             ])
             # cracks, for which the next point could be identified
@@ -92,8 +107,8 @@ class DICCrackList(bu.ModelList):
     @tr.cached_property
     def _get_primary_cracks(self):
         # spatial coordinates
-        # t_eta_idx = self.dsf.dic_grid.get_F_eta_dic_idx(0.95)
-        # self.dsf.dic_grid.end_t = t_eta_idx
+        t_eta_idx = self.dsf.dic_grid.get_F_eta_dic_idx(0.95)
+        self.dsf.dic_grid.end_t = t_eta_idx
         xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_field
         # initial crack positions at the bottom of the zone
         M_C = argrelextrema(cd_field_irn_MN.T[0, :], np.greater)[0]
