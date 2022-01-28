@@ -284,7 +284,7 @@ class DICCrack(bu.Model):
         ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0 = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         self.dic_grid.plot_box_annotate(ax_cl)
-        self.cl.plot_detected_cracks(ax_cl, self.fig)
+        self.cl.plot_primary_cracks(ax_cl, self.fig)
         self.dic_grid.plot_load_deflection(ax_FU)
         self.plot_x_Na(ax_x)
         self.plot_u_Nib(ax_x)
