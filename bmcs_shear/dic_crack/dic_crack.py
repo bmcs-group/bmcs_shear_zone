@@ -91,14 +91,14 @@ class DICCrack(bu.Model):
     def _get_dic_grid(self):
         return self.cl.dsf.dic_grid
 
-    t = bu.Float(1, ALG=True)
+    t = bu.Float(1, TIME=True)
     def _t_changed(self):
-        n_t = self.dic_grid.n_t
-        d_t = (1 / n_t)
-        self.dic_grid.end_t = int((n_t - 1) * (self.t + d_t / 2))
-        self.t_idx = self.dic_grid.end_t
+        self.dic_grid.t = self.t
 
-    t_idx = bu.Int(1)
+    t_idx = tr.Property(bu.Int, depends_on='+TIME')
+    @tr.cached_property
+    def _get_t_idx(self):
+        return self.dic_grid.end_t
 
     C_cubic_spline = tr.Property(depends_on='state_changed')
     '''Smoothed crack profile
@@ -284,7 +284,8 @@ class DICCrack(bu.Model):
         ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0 = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         self.dic_grid.plot_box_annotate(ax_cl)
-        self.cl.plot_primary_cracks(ax_cl, self.fig)
+        self.cl.plot_crack_detection_field(ax_cl, self.fig)
+        self.cl.plot_primary_cracks(ax_cl)
         self.dic_grid.plot_load_deflection(ax_FU)
         self.plot_x_Na(ax_x)
         self.plot_u_Nib(ax_x)

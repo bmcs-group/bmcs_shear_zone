@@ -36,7 +36,11 @@ class DICStateFields(ib.TStepBC):
     def _get_xmodel(self):
         n_x, n_y = self.dic_grid.n_x, self.dic_grid.n_y
         L_x, L_y = self.dic_grid.L_x, self.dic_grid.L_y
-        return ib.XDomainFEGrid(coord_min=(L_x, 0), coord_max=(0, L_y),
+        y_offset, x_offset = self.dic_grid.x_offset, self.dic_grid.y_offset
+        X_min, X_max = x_offset, L_x + x_offset
+        Y_min, Y_max = y_offset, L_y + y_offset
+        print(X_min, X_max, Y_min, Y_max)
+        return ib.XDomainFEGrid(coord_min=(X_max, X_min), coord_max=(Y_min, Y_max),
                                 integ_factor=1, shape=(n_x - 1, n_y - 1),  # number of elements!
                                 fets=ib.FETS2D4Q());
 
@@ -79,15 +83,15 @@ class DICStateFields(ib.TStepBC):
     n_y = bu.Int(28, ALG=True)
     '''Number of interpolation points in y direction'''
 
-    t = bu.Float(ALG=True)
+    t = bu.Float(0, TIME=True)
 
     def _t_changed(self):
-        n_t = self.dic_grid.n_t
-        d_t = (1 / n_t)
-        self.dic_grid.end_t = int((n_t - 1) * (self.t + d_t / 2))
-        self.t_idx = self.dic_grid.end_t
+        self.dic_grid.t = self.t
 
-    t_idx = bu.Int(1)
+    t_idx = tr.Property(bu.Int, depends_on='+TIME')
+    @tr.cached_property
+    def _get_t_idx(self):
+        return self.dic_grid.end_t
 
     ipw_view = bu.View(
         bu.Item('R'),
@@ -326,19 +330,6 @@ class DICStateFields(ib.TStepBC):
         ax_sig_eps.set_xlabel(r'$\varepsilon$ [-]')
         ax_sig_eps.set_ylabel(r'$\sigma$ [MPa]')
 
-    def plot_detected_cracks(self, ax_cracks, fig):
-        xx_MN, yy_MN, cd_field_irn_MN = self.crack_detection_field
-        xx_NC, yy_NC, crack_tip_y, _ = self.primary_cracks
-        cs = ax_cracks.contour(xx_MN, yy_MN, cd_field_irn_MN, cmap=cm.coolwarm, antialiased=False)
-        cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
-                                   ax=ax_cracks, ticks=np.linspace(0, 1, 6),
-                                   orientation='horizontal')
-        cbar_cracks.set_label(r'$\omega = 1 - \min(\phi_I)$')
-        for C, y_tip in enumerate(crack_tip_y):
-            ax_cracks.plot(xx_NC[:y_tip, C], yy_NC[:y_tip, C], color='black', linewidth=1);
-        ax_cracks.axis('equal')
-        ax_cracks.axis('off');
-
     def subplots(self, fig):
         self.fig = fig
         return fig.subplots(3, 2)
@@ -355,8 +346,6 @@ class DICStateFields(ib.TStepBC):
         sig_Emab, sig_MNab, sig_MNa, max_sig_MN = self.sig_fields
         # damage field
         omega_MN = self.omega_MN
-        # crack detection
-        xx_NC, yy_NC, crack_tip_y, _ = self.primary_cracks
         # plot
         cs_eps = ax_eps.contourf(X_aMN[0], X_aMN[1], max_eps_MN, cmap='BuPu',
                                  vmin=0, vmax=self.max_eps)
@@ -388,7 +377,6 @@ class DICStateFields(ib.TStepBC):
         self.plot_sig_eps(ax_sig_eps)
         ax_sig_eps.legend()
 
-        self.plot_detected_cracks(ax_cracks, fig)
         self.dic_grid.plot_bounding_box(ax_cracks)
         self.dic_grid.plot_box_annotate(ax_cracks)
 

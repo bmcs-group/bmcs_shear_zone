@@ -108,6 +108,7 @@ class DICGrid(bu.Model):
         return self.grid_params['top_down_enum']
 
     end_t = bu.Int(-1, ALG=True)
+
     start_t = bu.Int(0, ALG=True)
 
     U_factor = bu.Float(100, ALG=True)
@@ -348,6 +349,7 @@ class DICGrid(bu.Model):
 
         # show the current load marker
         F_idx = self.end_t
+        print(F_idx)
         F_level = self.load_levels[F_idx]
         if F_idx < argmax_F_dic_idx:
             w_level = np.interp(F_level, F[:argmax_F_idx], w[:argmax_F_idx])

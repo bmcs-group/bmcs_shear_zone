@@ -24,14 +24,22 @@ class DICCrackList(bu.ModelList):
         dic_cracks = [DICCrack(cl=self, C=C, x_N=x_N, y_N=y_N, N_tip=N_tip, M_N=M_N)
             for C, (x_N, y_N, N_tip, M_N) in enumerate(zip(x_NC.T, y_NC.T, N_tip_C, M_NC.T))
         ]
+        return dic_cracks
         #return [ DICCrackCOR(dic_crack=dic_crack) for dic_crack in dic_cracks ]
-        return [ DICStressProfile(dic_crack=dic_crack) for dic_crack in dic_cracks ]
+        #return [ DICStressProfile(dic_crack=dic_crack) for dic_crack in dic_cracks ]
 
-    t_idx = bu.Int(0, TIME=True)
+    t = bu.Float(0, TIME=True)
+    def _t_changed(self):
+        self.dsf.dic_grid.t = self.t
+
+    t_idx = tr.Property(bu.Int, depends_on='+TIME')
+    @tr.cached_property
+    def _get_t_idx(self):
+        return self.dsf.dic_grid.end_t
 
     ipw_view = bu.View(
         bu.Item('t_idx', read_only=True),
-#        time_editor=bu.HistoryEditor(var='t')
+        time_editor=bu.HistoryEditor(var='t')
     )
 
     def detect_cracks(self, M_C, xx_MN, yy_MN, cdf_MN):
@@ -92,11 +100,12 @@ class DICCrackList(bu.ModelList):
         yy_NC = yy_MN[M_NC, N_NC]
         return xx_NC, yy_NC, crack_tip_y, M_NC
 
-    primary_cracks = tr.Property(depends_on='state_changed')
+    primary_cracks = tr.Property(depends_on='MESH, ALG')
     '''Get the cracks at the near-failure load level
     '''
     @tr.cached_property
     def _get_primary_cracks(self):
+        print('primary cracks')
         # spatial coordinates
         t_eta_idx = self.dsf.dic_grid.get_F_eta_dic_idx(0.95)
         self.dsf.dic_grid.end_t = t_eta_idx
@@ -131,13 +140,13 @@ class DICCrackList(bu.ModelList):
         N_tip_Ct = np.zeros((len(N_tip_C), t_eta_idx+1), np.int_)
         M_tip_Ct = np.zeros_like(N_tip_Ct)
         print('t_idx: ', end='')
-        for t_idx in range(t_eta_idx, -1, -1):
+        for t_idx in range(t_eta_idx, 0, -1):
             N_tip_C = np.copy(N_tip_C)
             N_tip_Ct[:, t_idx] = np.copy(N_tip_C)
             M_tip_Ct[:, t_idx] = M_NC[N_tip_C, np.arange(len(N_tip_C))]
             print(t_idx, end=' ')
-            # get the crack detection field for the current time index
-            self.dsf.dic_grid.end_t = t_idx
+            # get the crack detection field for the next time index
+            self.dsf.dic_grid.end_t = t_idx - 1
             _, _, cdf_MN = self.dsf.crack_detection_field
             # for each crack get the indexes starting from the current tip
             N_tip_CN = [np.arange(N_tip, -1, -1) for N_tip in N_tip_C]
@@ -156,6 +165,9 @@ class DICCrackList(bu.ModelList):
 
     def plot_crack_detection_field(self, ax_cracks, fig):
         xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_field
+        if np.sum(cd_field_irn_MN) == 0:
+            # return without warning if there is no damage or strain
+            return
         cs = ax_cracks.contour(xx_MN, yy_MN, cd_field_irn_MN,
                                cmap=cm.coolwarm, antialiased=False)
         cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
@@ -196,5 +208,4 @@ class DICCrackList(bu.ModelList):
         self.dsf.dic_grid.plot_box_annotate(ax_dsf)
         self.plot_crack_detection_field(ax_dsf, self.fig)
         self.plot_cracking_hist(ax_dsf)
-        # self.plot_primary_cracks(ax_dsf)
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
