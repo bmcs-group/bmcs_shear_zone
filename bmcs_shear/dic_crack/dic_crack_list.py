@@ -2,7 +2,6 @@
 import bmcs_utils.api as bu
 from .dic_crack import DICCrack
 from .dic_crack_cor import DICCrackCOR
-from .dic_stress_profile import DICStressProfile
 from .dic_state_fields import DICStateFields
 import traits.api as tr
 from scipy.signal import argrelextrema
@@ -25,8 +24,6 @@ class DICCrackList(bu.ModelList):
             for C, (x_N, y_N, N_tip, M_N) in enumerate(zip(x_NC.T, y_NC.T, N_tip_C, M_NC.T))
         ]
         return dic_cracks
-        #return [ DICCrackCOR(dic_crack=dic_crack) for dic_crack in dic_cracks ]
-        #return [ DICStressProfile(dic_crack=dic_crack) for dic_crack in dic_cracks ]
 
     t = bu.Float(0, TIME=True)
     def _t_changed(self):

@@ -254,10 +254,27 @@ class DICStateFields(ib.TStepBC):
         return xx_MN, yy_MN, cd_field_irn_MN
 
     #######################################################################
-    xomega_TMN = tr.Property(depends_on='state_changed')
+
+    f_U_ipl_txy = tr.Property(depends_on='state_changed')
+    '''Interpolator over the time and spatial domains
+    '''
+    @tr.cached_property
+    def _get_f_U_ipl_txy(self):
+        n_dic_T = self.dic_grid.n_dic_T
+        dic_T = np.arange(n_dic_T)
+        X_IJa = self.dic_grid.X_IJa
+        U_TIJa = self.dic_grid.U_TIJa[:n_dic_T, ...]
+        x_IJ, y_IJ = np.einsum('IJa->aIJ', X_IJa)
+        dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
+        txy = (dic_t, x_IJ[::-1, 0], y_IJ[0, :])
+        return RegularGridInterpolator(txy, U_TIJa[:, ::-1, :, :])
+
+    #######################################################################
+
+    omega_TMN = tr.Property(depends_on='state_changed')
 
     @tr.cached_property
-    def _get_xomega_TMN(self):
+    def _get_omega_TMN(self):
         # state variables
         omega_MN_list = []
         for T in range(self.dic_grid.n_dic_T):
@@ -274,12 +291,11 @@ class DICStateFields(ib.TStepBC):
     f_omega_ipl_TMN = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_f_omega_ipl_TMN(self):
-        omega_TMN = self.xomega_TMN
         dic_T = np.arange(self.dic_grid.n_dic_T)
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
         dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
         args = (dic_t, x_MN[::-1, 0], y_MN[0, :])
-        return RegularGridInterpolator(args, omega_TMN[:, ::-1, :])
+        return RegularGridInterpolator(args, self.omega_TMN[:, ::-1, :])
 
     #######################################################################
 

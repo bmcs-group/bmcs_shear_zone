@@ -5,11 +5,12 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from bmcs_shear.shear_crack.crack_path import get_T_Lab
 import matplotlib.gridspec as gridspec
-
+from .dic_stress_profile import DICStressProfile
+from .i_dic_crack import IDICCrack
 
 def get_f_ironed_weighted(x_, y_, r=10):
-    '''Averaging of a function using a bell-shaped ironing function
-    '''
+    """Averaging of a function using a bell-shaped ironing function
+    """
     x = np.hstack([x_, 2 * x_[-1] - x_[::-1]])
     y = np.hstack([y_, 2 * y_[-1] - y_[::-1]])
     RR = r
@@ -30,10 +31,9 @@ Z = np.array([0, 0, 1], dtype=np.float_)
 
 
 def get_T_Lab(line_vec_La):
-    '''
-    Given a sequence of nodes, I with the coordinates a return
+    """Given a sequence of nodes, I with the coordinates a return
     the transformation matrices into the local coordinates of the lines.
-    '''
+    """
     norm_line_vec_L = np.sqrt(np.einsum('...a,...a->...',
                                         line_vec_La, line_vec_La))
     normed_line_vec_La = np.einsum('...a,...->...a',
@@ -44,21 +44,12 @@ def get_T_Lab(line_vec_La):
     T_Lab = np.einsum('bLa->Lab', T_bLa)
     return T_Lab
 
-
-class IDICCrack(tr.Interface):
-    '''DIC Crack interface
-    '''
-    x_Na = tr.Array(np.float)
-    u_Na = tr.Array(np.float)
-    u_Nb = tr.Array(np.float)
-
-
 @tr.provides(IDICCrack)
 class DICCrack(bu.Model):
-    '''
+    """
     Model of a shear crack with the representation of the kinematics
     evaluating the opening and sliding displacmeent
-    '''
+    """
     name = tr.Property(depends_on='C')
 
     @tr.cached_property
@@ -72,6 +63,13 @@ class DICCrack(bu.Model):
     bd = tr.DelegatesTo('cl')
     '''Access to the beam design available through crack list
     '''
+
+    sp = bu.Instance(DICStressProfile)
+
+    def _sp_default(self):
+        return DICStressProfile(dic_crack=self)
+
+    tree = ['sp']
 
     C = bu.Int(0, ALG=True)
     '''Crack index within the crack list
@@ -147,29 +145,22 @@ class DICCrack(bu.Model):
     def _get_H_ligament(self):
         return self.dic_grid.L_y
 
-    # BEGIN Parameterize from here on - make it a single function
-    # parameterized with N_ligament, N_K_ligament, X_tip_a, C_spline
-
-    n_K_crc = tr.Property(depends_on='state_changed')
-    '''Resolution of the spline approximation over the height of the cracked
-    '''
-
-    @tr.cached_property
-    def _get_n_K_crc(self):
-        _, y_tip = self.X_tip_a
-        return int(y_tip / self.H_ligament * self.n_K_ligament)
+    # Return the ligament discretization given the crack tip X_tip_a
 
     def get_crack_ligament(self, X_tip_a):
         """Discretize the crack path along the identified spline
-        up to y_tip and complete it with the vertical ligament
+        up to X_tip_a and complete it with the vertical ligament
+        returns:
+        N_ligament, N_K_ligament, X_tip_a, C_spline
         """
         _, y_tip = X_tip_a
-        n_K_crc = int(y_tip / self.H_ligament * self.n_K_ligament)
+        d_y = y_tip / self.H_ligament
+        n_K_crc = int(d_y * self.n_K_ligament)
         n_K_unc = int((self.H_ligament - y_tip) / self.H_ligament * self.n_K_ligament)
         y_N = self.y_N
         y_crc_range = np.linspace(y_N[0], y_tip, n_K_crc)
         X_crc_Ka = np.array([self.C_cubic_spline(y_crc_range), y_crc_range], dtype=np.float_).T
-        y_unc_range = np.linspace(y_tip, y_N[-1], n_K_unc)
+        y_unc_range = np.linspace(y_tip + d_y, y_N[-1], n_K_unc)
         X_unc_Ka = np.array([
             np.ones_like(y_unc_range) * self.C_cubic_spline(y_tip),
             y_unc_range], dtype=np.float_).T
@@ -249,17 +240,31 @@ class DICCrack(bu.Model):
     '''Distance between the points across the crack to evaluate sliding and opening
     '''
 
+    def get_U_Ka(self, t, X_Ka):
+        d_x = self.d_x / 2
+        x_N, y_N = X_Ka.T
+        t_N = np.ones_like(x_N) * t
+        X_right = np.array([t_N, x_N + d_x, y_N], dtype=np.float_).T
+        X_left = np.array([t_N, x_N - d_x, y_N], dtype=np.float_).T
+        return self.cl.dsf.f_U_ipl_txy(X_right) - self.cl.dsf.f_U_ipl_txy(X_left)
+
+    #        return self.cl.dsf.interp_U(X_right) - self.cl.dsf.interp_U(X_left)
+
+    U_Ka = tr.Property(depends_on='state_changed')
+    '''Global relative displacement of points along the crack at the ultimate state
+    '''
+
+    @tr.cached_property
+    def _get_U_Ka(self):
+        return self.get_U_Ka(1, self.X_Ka)
+
     U1_Ka = tr.Property(depends_on='state_changed')
-    '''Global relative displacement of points along the crack
+    '''Global relative displacement of points along the crack at an intermediate state
     '''
 
     @tr.cached_property
     def _get_U1_Ka(self):
-        d_x = self.d_x / 2
-        x_N, y_N = self.X1_Ka.T
-        X_right = np.array([x_N + d_x, y_N], dtype=np.float_).T
-        X_left = np.array([x_N - d_x, y_N], dtype=np.float_).T
-        return self.cl.dsf.interp_U(X_right) - self.cl.dsf.interp_U(X_left)
+        return self.get_U_Ka(self.t, self.X1_Ka)
 
     U1_Kb = tr.Property(depends_on='state_changed')
     '''Local relative displacement of points along the crack
@@ -343,17 +348,19 @@ class DICCrack(bu.Model):
         ax.fill_betweenx(X1_Ka[:, 1], U1_Ka[:, idx], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
+        ax.set_xlim(np.min(self.U_Ka) * 1.04, np.max(self.U_Ka) * 1.04)
 
-    def plot_U1_Ka(self, ax_w):
+    def plot_U1_Ka(self, ax):
         """Plot the displacement along the crack (w and s) in global coordinates
         """
-        self._plot_U1(ax_w, self.U1_Ka, 0, label=r'$u_x$ [mm]', color='blue')
-        ax_w.set_xlabel(r'$u_x, u_y$ [mm]', fontsize=10)
-        ax_w.plot([0], [self.X1_tip_a[1]], 'o', color='magenta')
-        self._plot_U1(ax_w, self.U1_Ka, 1, label=r'$u_y$ [mm]', color='green')
-        ax_w.set_title(r'displacement jump')
-        ax_w.legend()
-        ax_w.set_ylim(self.y_N[0], self.y_N[-1])
+        self._plot_U1(ax, self.U1_Ka, 0, label=r'$u_x$ [mm]', color='blue')
+        ax.set_xlabel(r'$u_x, u_y$ [mm]', fontsize=10)
+        ax.plot([0], [self.X1_tip_a[1]], 'o', color='magenta')
+        self._plot_U1(ax, self.U1_Ka, 1, label=r'$u_y$ [mm]', color='green')
+        ax.set_title(r'displacement jump')
+        ax.legend()
+        ax.set_ylim(self.y_N[0], self.y_N[-1])
+        ax.set_xlim(np.min(self.U_Ka) * 1.04, np.max(self.U_Ka) * 1.04)
 
     def plot_U1_Kb(self, ax_w):
         """Plot the displacement (u_x, u_y) in local crack coordinates

@@ -24,89 +24,89 @@ class DICTestCrack(bu.Model):
     u_y_bot = bu.Float(0.0, ALG=True)
     u_y_top = bu.Float(0.0, ALG=True)
 
-    n_N = bu.Int(4, ALG=True)
+    U_K = bu.Int(4, ALG=True)
 
     ipw_view = bu.View(
         bu.Item('u_x_bot'),
         bu.Item('u_x_top'),
         bu.Item('u_y_bot'),
         bu.Item('u_y_top'),
-        bu.Item('n_N')
+        bu.Item('U_K')
     )
 
     X_tip_a = tr.Array(value=[0, 50])
 
-    x_Na = tr.Property(tr.Array, depends_on='state_changed')
+    X1_Ka = tr.Property(tr.Array, depends_on='state_changed')
     '''All ligament points.
     '''
     @tr.cached_property
-    def _get_x_Na(self):
-        x_0 = np.zeros((self.n_N,), dtype=np.float_)
-        x_1 = np.linspace(0, self.bd.H, self.n_N)
+    def _get_X1_Ka(self):
+        x_0 = np.zeros((self.U_K,), dtype=np.float_)
+        x_1 = np.linspace(0, self.bd.H, self.U_K)
         return np.array([x_0, x_1], dtype=np.float_).T
 
-    u_Na = tr.Property(depends_on='state_changed')
+    U1_Ka = tr.Property(depends_on='state_changed')
     @tr.cached_property
-    def _get_u_Na(self):
-        u_x_range = np.linspace(self.u_x_bot, self.u_x_top, self.n_N)
-        u_y_range = np.linspace(self.u_y_bot, self.u_y_top, self.n_N)
+    def _get_U1_Ka(self):
+        u_x_range = np.linspace(self.u_x_bot, self.u_x_top, self.U_K)
+        u_y_range = np.linspace(self.u_y_bot, self.u_y_top, self.U_K)
         return np.array([u_x_range,u_y_range], dtype=np.float_).T
 
-    T_Nab = tr.Property(depends_on='state_changed')
+    T1_Kab = tr.Property(depends_on='state_changed')
     '''Smoothed crack profile
     '''
     @tr.cached_property
-    def _get_T_Nab(self):
-        line_vec_La = self.x_Na[1:,:] - self.x_Na[:-1,:]
+    def _get_T1_Kab(self):
+        line_vec_La = self.X1_Ka[1:,:] - self.X1_Ka[:-1,:]
         line_vec_La = np.vstack([line_vec_La, line_vec_La[-1:]])
         return get_T_Lab(line_vec_La)
 
-    u_Nb = tr.Property(depends_on='state_changed')
+    U1_Kb = tr.Property(depends_on='state_changed')
     '''Local relative displacement of points along the crack'''
     @tr.cached_property
-    def _get_u_Nb(self):
-        u_Nb = np.einsum('...ab,...b->...a', self.T_Nab, self.u_Na)
-        return u_Nb
+    def _get_U1_Kb(self):
+        U1_Kb = np.einsum('...ab,...b->...a', self.T1_Kab, self.U1_Ka)
+        return U1_Kb
 
     X_neutral_a = tr.Property(depends_on='state_changed')
     '''Vertical position of the neutral axis
     '''
     @tr.cached_property
     def _get_X_neutral_a(self):
-        idx = np.argmax(self.u_Na[:,0] < 0) - 1
-        x_1, x_2 = self.x_Na[(idx, idx + 1), 1]
-        u_1, u_2 = self.u_Na[(idx, idx + 1), 0]
+        idx = np.argmax(self.U1_Ka[:,0] < 0) - 1
+        x_1, x_2 = self.X1_Ka[(idx, idx + 1), 1]
+        u_1, u_2 = self.U1_Ka[(idx, idx + 1), 0]
         d_x = -(x_2 - x_1) / (u_2 - u_1) * u_1
         y_neutral = x_1 + d_x
-        x_neutral = self.x_Na[idx + 1, 0]
+        x_neutral = self.X1_Ka[idx + 1, 0]
         return np.array([x_neutral, y_neutral])
 
-    def _plot_u(self, ax, u_Na, idx=0, color='black', label=r'$w$ [mm]'):
-        x_Na = self.x_Na
-        ax.plot(u_Na[:, idx], x_Na[:, 1], 'o-', color=color, label=label)
-        ax.fill_betweenx(x_Na[:, 1], u_Na[:, idx], 0, color=color, alpha=0.1)
+    def _plot_u(self, ax, U1_Ka, idx=0, color='black', label=r'$w$ [mm]'):
+        X1_Ka = self.X1_Ka
+        ax.plot(U1_Ka[:, idx], X1_Ka[:, 1], 'o-', color=color, label=label)
+        ax.fill_betweenx(X1_Ka[:, 1], U1_Ka[:, idx], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
 
-    def plot_u_Na(self, ax_w):
+    def plot_U1_Ka(self, ax_w):
         '''Plot the displacement along the crack (w and s) in global coordinates
         '''
-        self._plot_u(ax_w, self.u_Na, 0, label=r'$u_x$ [mm]', color='blue')
+        self._plot_u(ax_w, self.U1_Ka, 0, label=r'$u_x$ [mm]', color='blue')
         ax_w.set_xlabel(r'$u_x, u_y$ [mm]', fontsize=10)
         ax_w.plot([0], [self.X_neutral_a[1]], 'o', color='black')
         ax_w.plot([0], [self.X_tip_a[1]], 'o', color='red')
-        self._plot_u(ax_w, self.u_Na, 1, label=r'$u_y$ [mm]', color='green')
+        self._plot_u(ax_w, self.U1_Ka, 1, label=r'$u_y$ [mm]', color='green')
         ax_w.set_title(r'displacement jump')
         ax_w.legend()
 
-    def plot_u_Nb(self, ax_w):
+    def plot_U1_Kb(self, ax_w):
         '''Plot the displacement (u_x, u_y) in local crack coordinates
         '''
-        self._plot_u(ax_w, self.u_Nb, 0, label=r'$w$ [mm]', color='blue')
+        self._plot_u(ax_w, self.U1_Kb, 0, label=r'$w$ [mm]', color='blue')
         ax_w.plot([0], [self.X_neutral_a[1]], 'o', color='black')
         ax_w.plot([0], [self.X_tip_a[1]], 'o', color='red')
         ax_w.set_xlabel(r'$w, s$ [mm]', fontsize=10)
-        self._plot_u(ax_w, self.u_Nb, 1, label=r'$s$ [mm]', color='green')
+        self._plot_u(ax_w, self.U1_Kb, 1, label=r'$s$ [mm]', color='green')
         ax_w.set_title(r'opening and sliding')
         ax_w.legend()
 
@@ -118,5 +118,5 @@ class DICTestCrack(bu.Model):
 
     def update_plot(self, axes):
         ax_u_0, ax_w_0 = axes
-        self.plot_u_Na(ax_u_0)
-        self.plot_u_Nb(ax_w_0)
+        self.plot_U1_Ka(ax_u_0)
+        self.plot_U1_Kb(ax_w_0)
