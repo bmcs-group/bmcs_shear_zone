@@ -12,7 +12,7 @@ from tvtk.api import tvtk
 import numpy as np
 import copy
 from scipy.interpolate import interp2d, LinearNDInterpolator
-from scipy.signal import argrelextrema
+from scipy.interpolate import RegularGridInterpolator
 
 
 class DICStateFields(ib.TStepBC):
@@ -31,17 +31,12 @@ class DICStateFields(ib.TStepBC):
     xmodel = tr.Property(depends_on='dic_grid')
     '''Finite element discretization of the monotored grid field
     '''
-
     @tr.cached_property
     def _get_xmodel(self):
-        n_x, n_y = self.dic_grid.n_x, self.dic_grid.n_y
-        L_x, L_y = self.dic_grid.L_x, self.dic_grid.L_y
-        y_offset, x_offset = self.dic_grid.x_offset, self.dic_grid.y_offset
-        X_min, X_max = x_offset, L_x + x_offset
-        Y_min, Y_max = y_offset, L_y + y_offset
-        print(X_min, X_max, Y_min, Y_max)
+        n_E, n_F = self.n_EF
+        X_min, Y_min, X_max, Y_max = self.dic_grid.X_frame
         return ib.XDomainFEGrid(coord_min=(X_max, X_min), coord_max=(Y_min, Y_max),
-                                integ_factor=1, shape=(n_x - 1, n_y - 1),  # number of elements!
+                                integ_factor=1, shape=(n_E, n_F),  # number of elements!
                                 fets=ib.FETS2D4Q());
 
     domains = tr.Property(depends_on='state_changed')
@@ -59,16 +54,15 @@ class DICStateFields(ib.TStepBC):
         '''
         self.hist.init_state()
         self.fe_domain[0].state_k = copy.deepcopy(self.fe_domain[0].state_n)
-        for n in range(0, self.dic_grid.n_t):
-            self.t_n1 = n
-            U_ija = self.dic_grid.U_tija[n]
-            U_Ia = U_ija.reshape(-1, 2)
+        for T in range(0, self.dic_grid.n_dic_T):
+            self.t_n1 = T
+            U_IJa = self.dic_grid.U_TIJa[T]
+            U_Ia = U_IJa.reshape(-1, 2)
             U_o = U_Ia.flatten()  # array of displacements corresponding to the DOF enumeration
             eps_Emab = self.xmodel.map_U_to_field(U_o)
             self.tmodel_.get_corr_pred(eps_Emab, 1, **self.fe_domain[0].state_k)
             self.U_k[:] = U_o[:]
             self.U_n[:] = self.U_k[:]
-            #            self.fe_domain[0].record_state()
             states = [self.fe_domain[0].state_k]
             self.hist.record_timestep(self.t_n1, self.U_k, self.F_k, states)
             self.t_n = self.t_n1
@@ -77,10 +71,10 @@ class DICStateFields(ib.TStepBC):
     R = bu.Float(8, ALG=True)
     '''Averaging radius'''
 
-    n_x = bu.Int(116, ALG=True)
+    n_M = bu.Int(116, ALG=True)
     '''Number of interpolation points in x direction'''
 
-    n_y = bu.Int(28, ALG=True)
+    n_N = bu.Int(28, ALG=True)
     '''Number of interpolation points in y direction'''
 
     t = bu.Float(0, TIME=True)
@@ -88,23 +82,23 @@ class DICStateFields(ib.TStepBC):
     def _t_changed(self):
         self.dic_grid.t = self.t
 
-    t_idx = tr.Property(bu.Int, depends_on='+TIME')
+    T1 = tr.Property(bu.Int, depends_on='+TIME')
     @tr.cached_property
-    def _get_t_idx(self):
-        return self.dic_grid.end_t
+    def _get_T1(self):
+        return self.dic_grid.T1
 
     ipw_view = bu.View(
         bu.Item('R'),
-        bu.Item('n_x'),
-        bu.Item('n_y'),
-        bu.Item('t_idx', read_only=True),
+        bu.Item('n_M'),
+        bu.Item('n_N'),
+        bu.Item('T1', readonly=True),
         time_editor=bu.HistoryEditor(var='t')
     )
 
     n_EF = tr.Property
 
     def _get_n_EF(self):
-        return self.dic_grid.n_x - 1, self.dic_grid.n_y - 1
+        return self.dic_grid.n_I - 1, self.dic_grid.n_J - 1
 
     def transform_mesh_to_grid(self, field_Em):
         '''Map the field from a mesh to a regular grid
@@ -139,27 +133,14 @@ class DICStateFields(ib.TStepBC):
         z_MN = np.trapz(np.trapz(z_MNJK, x_JK[:, 0], axis=2), y_JK[0, :], axis=2)
         return z_MN
 
-    xf_interp_U = tr.Property(depends_on='state_changed')
-    '''Construct an interpolator over the domain
-    '''
-    @tr.cached_property
-    def _get_xf_interp_U(self):
-        x_IJa = self.dic_grid.X_ija
-        U_IJa = self.dic_grid.U_ija
-        x_IJ, y_IJ = np.einsum('...a->a...', x_IJa)
-        x_I, x_J = x_IJ[:, 0], y_IJ[0, :]
-        f_U0 = interp2d(x_I, x_J, U_IJa[..., 0].T, kind='cubic')
-        f_U1 = interp2d(x_I, x_J, U_IJa[..., 1].T, kind='cubic')
-        return f_U0, f_U1
-
     f_interp_U = tr.Property(depends_on='state_changed')
     '''Construct an interpolator over the domain
     '''
     @tr.cached_property
     def _get_f_interp_U(self):
 
-        xy = self.dic_grid.X_ija.reshape(-1, 2)
-        u = self.dic_grid.U_ija.reshape(-1, 2)
+        xy = self.dic_grid.X_IJa.reshape(-1, 2)
+        u = self.dic_grid.U_IJa.reshape(-1, 2)
         return LinearNDInterpolator(xy, u)
 
     def interp_U(self, X_Pa):
@@ -171,11 +152,11 @@ class DICStateFields(ib.TStepBC):
     '''
     @tr.cached_property
     def _get_X_ipl_MNa(self):
-        n_x, n_y = self.n_x, self.n_y
+        n_M, n_N = self.n_M, self.n_N
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
         x_M, x_N = x_MN[:, 0], y_MN[0, :]
-        xx_M = np.linspace(x_M[-1], x_M[0], n_x)
-        yy_N = np.linspace(x_N[0], x_N[-1], n_y)
+        xx_M = np.linspace(x_M[-1], x_M[0], n_M)
+        yy_N = np.linspace(x_N[0], x_N[-1], n_N)
         xx_NM, yy_NM = np.meshgrid(xx_M, yy_N)
         X_aNM = np.array([xx_NM, yy_NM])
         X_MNa = np.einsum('aNM->MNa', X_aNM)
@@ -188,63 +169,31 @@ class DICStateFields(ib.TStepBC):
     def _get_U_ipl_MNa(self):
         return self.f_interp_U(self.X_ipl_MNa)
 
+    f_interp_cdf = tr.Property(depends_on='state_changed')
+    '''Construct an interpolator over the domain
+    '''
+    @tr.cached_property
+    def _get_f_interp_cdf(self):
+
+        U_TIJa = self.dic_grid.U_TIJa
+        n_T, n_I, n_J, _ = U_TIJa.shape
+        T_range = self.dic_grid.load_levels
+        xy = self.dic_grid.X_IJa.reshape(-1, 2)
+        u = self.dic_grid.U_IJa.reshape(-1, 2)
+        return LinearNDInterpolator(xy, u)
+
     def interp_omega(self, x_MN, y_MN, omega_MN):
-        '''Damage field interpolated on an n_x, n_y grid.
+        '''Damage field interpolated on an n_M, n_N grid.
         '''
-        n_x, n_y = self.n_x, self.n_y
+        n_M, n_N = self.n_M, self.n_N
         x_M, x_N = x_MN[:, 0], y_MN[0, :]
         f_omega = interp2d(x_M, x_N, omega_MN.T, kind='cubic')
-        xx_M = np.linspace(x_M[-1], x_M[0], n_x)
-        yy_N = np.linspace(x_N[0], x_N[-1], n_y)
+        xx_M = np.linspace(x_M[-1], x_M[0], n_M)
+        yy_N = np.linspace(x_N[0], x_N[-1], n_N)
         xx_NM, yy_NM = np.meshgrid(xx_M, yy_N)
         omega_ipl_NM = f_omega(xx_M, yy_N)
         omega_ipl_NM[omega_ipl_NM < 0] = 0
         return xx_NM, yy_NM, omega_ipl_NM
-
-    def detect_cracks(self, xx_MN, yy_MN, omega_MN):
-        N_range = np.arange(yy_MN.shape[1])
-        omega_NM = omega_MN.T
-        n_N, n_M = omega_NM.shape
-        # smooth the landscape
-        # initial crack positions at the bottom of the zone
-        M_C = argrelextrema(omega_NM[0, :], np.greater)[0]
-        if len(M_C) == 0:
-            return np.zeros((n_N, 0)), np.zeros((n_N, 0))
-        # distance between right interval boundary and crack position
-        M_NC_shift_ = []
-        # list of crack horizontal indexes for each horizontal slice
-        M_NC_ = [np.copy(M_C)]
-        # crack tip N
-        crack_tip_y = np.zeros_like(M_C, dtype=np.int_)
-        C_fixed = np.zeros_like(M_C, dtype=np.bool_)
-        for N1 in N_range[1:]:
-            # horizontal indexes of midpoints between cracks
-            M_C_left_ = M_C - 5
-            M_C_left_[M_C_left_ < 0] = 0
-            M_C_right_ = M_C + 3
-            # array of intervals - first index - crack, second index (left, right)
-            intervals_Cp = np.vstack([M_C_left_, M_C_right_]).T
-            # index distance from the right boundary of the crack interval
-            M_C_shift = np.array([
-                np.argmax(omega_NM[N1, interval_p[-1]:interval_p[0]:-1])
-                for interval_p in intervals_Cp
-            ])
-            # cracks, for which the next point could be identified
-            C_shift = ((M_C_shift > 0) & np.logical_not(C_fixed))
-            C_fixed = np.logical_not(C_shift)
-            # crack tips
-            crack_tip_y[C_shift] = N1
-            # next index position of the crack
-            M_C[C_shift] = intervals_Cp[C_shift, -1] - M_C_shift[C_shift]
-            M_NC_.append(np.copy(M_C))
-            M_NC_shift_.append(M_C_shift)
-        M_NC = np.array(M_NC_)
-        n_C = M_NC.shape[1]
-        N_C = np.arange(n_N)
-        N_NC = np.repeat(N_C, n_C).reshape(n_N, -1)
-        xx_NC = xx_MN[M_NC, N_NC]
-        yy_NC = yy_MN[M_NC, N_NC]
-        return xx_NC, yy_NC, crack_tip_y, M_NC
 
     X_MNa = tr.Property(depends_on='state_changed')
 
@@ -256,7 +205,7 @@ class DICStateFields(ib.TStepBC):
 
     @tr.cached_property
     def _get_eps_fields(self):
-        U_o = self.hist.U_t[self.dic_grid.end_t]
+        U_o = self.hist.U_t[self.dic_grid.T1]
         eps_Emab = self.xmodel.map_U_to_field(U_o)
         eps_MNab = self.transform_mesh_to_grid(eps_Emab)
         eps_MNa, _ = np.linalg.eig(eps_MNab)
@@ -268,7 +217,7 @@ class DICStateFields(ib.TStepBC):
 
     @tr.cached_property
     def _get_sig_fields(self):
-        state_vars = self.hist.state_vars[self.dic_grid.end_t][0]
+        state_vars = self.hist.state_vars[self.dic_grid.T1][0]
         eps_Emab, _, _, _ = self.eps_fields
         sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, **state_vars)
         sig_MNab = self.transform_mesh_to_grid(sig_Emab)
@@ -282,10 +231,9 @@ class DICStateFields(ib.TStepBC):
     @tr.cached_property
     def _get_omega_MN(self):
         # state variables
-        kappa_Emr = self.hist.state_vars[self.dic_grid.end_t][0]['kappa']
+        kappa_Emr = self.hist.state_vars[self.dic_grid.T1][0]['kappa']
         phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
         phi_MNab = self.transform_mesh_to_grid(phi_Emab)
-        omega_MNab = np.identity(2) - phi_MNab
         phi_MNa, _ = np.linalg.eig(phi_MNab)
         min_phi_MN = np.min(phi_MNa, axis=-1)
         omega_MN = 1 - min_phi_MN
@@ -304,6 +252,36 @@ class DICStateFields(ib.TStepBC):
         cd_field_irn_MN = self.get_z_MN_ironed(xx_MN, yy_MN, cd_field_ipl_MN)
         cd_field_irn_MN[cd_field_irn_MN < 0.2] = 0
         return xx_MN, yy_MN, cd_field_irn_MN
+
+    #######################################################################
+    xomega_TMN = tr.Property(depends_on='state_changed')
+
+    @tr.cached_property
+    def _get_xomega_TMN(self):
+        # state variables
+        omega_MN_list = []
+        for T in range(self.dic_grid.n_dic_T):
+            kappa_Emr = self.hist.state_vars[T][0]['kappa']
+            phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
+            phi_MNab = self.transform_mesh_to_grid(phi_Emab)
+            phi_MNa, _ = np.linalg.eig(phi_MNab)
+            min_phi_MN = np.min(phi_MNa, axis=-1)
+            omega_MN = 1 - min_phi_MN
+            omega_MN[omega_MN < 0.2] = 0
+            omega_MN_list.append(np.copy(omega_MN))
+        return np.array(omega_MN_list, dtype=np.float_)
+
+    f_omega_ipl_TMN = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_f_omega_ipl_TMN(self):
+        omega_TMN = self.xomega_TMN
+        dic_T = np.arange(self.dic_grid.n_dic_T)
+        x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
+        dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
+        args = (dic_t, x_MN[::-1, 0], y_MN[0, :])
+        return RegularGridInterpolator(args, omega_TMN[:, ::-1, :])
+
+    #######################################################################
 
     # plot parameters - get them from the state evaluation
     max_sig = bu.Float(5)
