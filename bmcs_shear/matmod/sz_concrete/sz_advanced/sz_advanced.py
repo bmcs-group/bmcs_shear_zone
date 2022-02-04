@@ -20,7 +20,6 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     a, b = sp.symbols(r'a, b', nonnegative = True)
     xi = sp.Symbol(r'\xi', nonnegative = True)
     sigma_z = sp.Symbol(r'\sigma_z', nonnegative = True)
-    L_dic = sp.Symbol(r'L_dic', nonnegative = True)
 
     G_f = 0.028 * f_c ** 0.18 * d_a ** 0.32
 
@@ -74,12 +73,13 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     f_w = f_t * sp.exp(-f_t * (w - w_cr) / G_f)
 
     sig_w = sp.Piecewise(
-        (-f_c, E_c * w / L_dic < - f_c / E_c * L_dic),
-        (E_c * w / L_dic, w <= 0),
+        (-f_c, w <= - f_c / E_c),
+        (E_c * w, w <= 0),
         (E_c * w / L_c, w <= w_cr),
-        #(f_w, w > w_cr)
-        (f_w, sp.And(w > w_cr, w <= w_x)), #+ sigma_ag
-        (sigma_ag, w > w_x)  #f_w == 0
+        (f_w, w <= w_x),
+        (sigma_ag, True)
+        # (f_w, sp.And(w > w_cr, w <= w_x)), #+ sigma_ag
+        # (sigma_ag, w > w_x)  #f_w == 0
     )
 
     d_sig_w = sig_w.diff(w)
@@ -94,7 +94,7 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
 
     #sigma = sig_w + sigma_ag
 
-    symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c', 'L_dic'] #'mu', 'chi' , 'a', 'b'
+    symb_model_params = ['d_a', 'E_c', 'f_t', 'c_1', 'c_2', 'f_c'] #'mu', 'chi' , 'a', 'b'
 
     symb_expressions = [('sig_w', ('w', 's',)),
                         ('tau_s', ('w', 's',)),
@@ -115,7 +115,6 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     c_2 = Float(6.93, MAT=True)
     f_c = Float(33.3, MAT=True)
     L_fps = Float(50, MAT=True)
-    L_dic = Float(30, MAT=True)
     a = Float(1.038, MAT=True)
     b = Float(0.245, MAT=True)
     interlock_factor = Float(1, MAT=True)
@@ -128,7 +127,6 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         Item('c_1', latex=r'c_1'),
         Item('c_2', latex=r'c_2'),
         Item('L_fps', latex=r'L_\mathrm{fps}'),
-        Item('L_dic', latex=r'L_\mathrm{dic}'),
         Item('a', latex = r'a'),
         Item('b', latex = r'b'),
         Item('interlock_factor', latex = r'\gamma_\mathrm{ag}', editor=FloatRangeEditor(low=0,high=1)),
@@ -174,7 +172,12 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         return np.einsum('b...->...b', np.array([sig_w, tau_s], dtype=np.float_)) #, tau_s
 
     def get_sig_w(self,w, s):
-        return self.symb.get_sig_w(w, s)
+        print('before sig call', w[...,-5:])
+        sig_w = self.symb.get_sig_w(w, s)
+        print('aftersig call', sig_w[...,-5:])
+        print('f_c', self.f_c)
+        print('E_c', self.E_c, self.f_c / self.E_c)
+        return sig_w
 
     def get_tau_s(self, w, s):
         return self.symb.get_tau_s(w, s) * self.interlock_factor

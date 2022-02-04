@@ -173,7 +173,7 @@ class DICCrack(bu.Model):
         e_U_Na = np.array([0, 1])[np.newaxis, :] * np.ones((len(X_unc_Ka),), np.float_)[:, np.newaxis]
         T_U_Nab = get_T_Lab(e_U_Na)
         T_Kab = np.vstack([T_C_Nab, T_U_Nab])
-        return X_Ka, T_Kab
+        return X_Ka, T_Kab, X_unc_Ka, X_crc_Ka, T_Kab[:n_K_crc]
 
     crack_ligament = tr.Property(depends_on='state_changed')
     '''Crack ligament nodes and transformation matrixes X_Ka, T_Kab
@@ -201,7 +201,7 @@ class DICCrack(bu.Model):
 
     @tr.cached_property
     def _get_X_Ka(self):
-        X_Ka, _ = self.crack_ligament
+        X_Ka, _, _, _, _ = self.crack_ligament
         return X_Ka
 
     T_Kab = tr.Property(depends_on='state_changed')
@@ -210,7 +210,7 @@ class DICCrack(bu.Model):
 
     @tr.cached_property
     def _get_T_Kab(self):
-        _, T_Kab = self.crack_ligament
+        _, T_Kab, _, _, _ = self.crack_ligament
         return T_Kab
 
     # Crack ligament at an intermediate state T1
@@ -221,7 +221,7 @@ class DICCrack(bu.Model):
 
     @tr.cached_property
     def _get_X1_Ka(self):
-        X1_Ka, _ = self.crack_ligament_T1
+        X1_Ka, _, _, _, _ = self.crack_ligament_T1
         return X1_Ka
 
     T1_Kab = tr.Property(depends_on='state_changed')
@@ -230,7 +230,7 @@ class DICCrack(bu.Model):
 
     @tr.cached_property
     def _get_T1_Kab(self):
-        _, T1_Kab = self.crack_ligament_T1
+        _, T1_Kab, _, _, _ = self.crack_ligament_T1
         return T1_Kab
 
     # Displacement jump evaluation
@@ -239,15 +239,23 @@ class DICCrack(bu.Model):
     '''Distance between the points across the crack to evaluate sliding and opening
     '''
 
-    def get_U_Ka(self, t, X_Ka):
+    def get_U_Ka(self, t, X_Ka, X_tip_a):
         d_x = self.d_x / 2
-        x_N, y_N = X_Ka.T
-        t_N = np.ones_like(x_N) * t
-        X_right = np.array([t_N, x_N + d_x, y_N], dtype=np.float_).T
-        X_left = np.array([t_N, x_N - d_x, y_N], dtype=np.float_).T
-        return self.cl.dsf.f_U_ipl_txy(X_right) - self.cl.dsf.f_U_ipl_txy(X_left)
+        x_K, y_K = X_Ka.T
+        t_K = np.ones_like(x_K) * t
+        tX_right_K = np.array([t_K, x_K + d_x, y_K], dtype=np.float_).T
+        tX_left_K = np.array([t_K, x_K - d_x, y_K], dtype=np.float_).T
+        U_Ka = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
 
-    #        return self.cl.dsf.interp_U(X_right) - self.cl.dsf.interp_U(X_left)
+        tX_mid_K = np.array([t_K, x_K, y_K], dtype=np.float_).T
+        eps_Kab = self.cl.dsf.f_eps_ipl_txy(tX_mid_K)
+
+        _, y_tip = X_tip_a
+        y_tip_ratio = y_tip / self.H_ligament
+        n_K_crc = int(y_tip_ratio * self.n_K_ligament)
+        U_Ka[n_K_crc:,0] = eps_Kab[n_K_crc:, 0, 0]
+        U_Ka[n_K_crc:,1] = eps_Kab[n_K_crc:, 0, 1]
+        return U_Ka
 
     U_Ka = tr.Property(depends_on='state_changed')
     '''Global relative displacement of points along the crack at the ultimate state
@@ -255,7 +263,7 @@ class DICCrack(bu.Model):
 
     @tr.cached_property
     def _get_U_Ka(self):
-        return self.get_U_Ka(1, self.X_Ka)
+        return self.get_U_Ka(1, self.X_Ka, self.X_tip_a)
 
     U1_Ka = tr.Property(depends_on='state_changed')
     '''Global relative displacement of points along the crack at an intermediate state
@@ -263,7 +271,7 @@ class DICCrack(bu.Model):
 
     @tr.cached_property
     def _get_U1_Ka(self):
-        return self.get_U_Ka(self.dic_grid.t, self.X1_Ka)
+        return self.get_U_Ka(self.dic_grid.t, self.X1_Ka, self.X1_tip_a)
 
     U1_Kb = tr.Property(depends_on='state_changed')
     '''Local relative displacement of points along the crack
@@ -404,17 +412,18 @@ class DICCrack(bu.Model):
         ax_cl = fig.add_subplot(gs[0, :2])
         ax_FU = fig.add_subplot(gs[0, 2])
         ax_x = fig.add_subplot(gs[1, 0])
-        ax_u_0 = fig.add_subplot(gs[1, 1])
-        ax_w_0 = fig.add_subplot(gs[1, 2])
-        return ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0
+        ax_u = fig.add_subplot(gs[1, 1])
+        ax_F = fig.add_subplot(gs[1, 2])
+        ax_sig = ax_F.twiny()
+        return ax_cl, ax_FU, ax_x, ax_u, ax_F, ax_sig
 
     def update_plot(self, axes):
-        print('update-plot', self.dic_grid.t)
-        ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0 = axes
+        ax_cl, ax_FU, ax_x, ax_u, ax_F, ax_sig = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         self.dic_grid.plot_box_annotate(ax_cl)
         self.cl.plot_crack_detection_field(ax_cl, self.fig)
         self.cl.plot_primary_cracks(ax_cl)
+        self.plot_omega1_Ni(ax_cl)
         self.dic_grid.plot_load_deflection(ax_FU)
         self.plot_X_Ka(ax_x)
         self.plot_X1_Ka(ax_x)
@@ -425,5 +434,7 @@ class DICCrack(bu.Model):
         ax_x.set_ylim(self.y_N[0], self.y_N[-1])
         # self.plot_U1_Nib(ax_x)
         self.plot_omega1_Ni(ax_x)
-        self.plot_U1_Ka(ax_u_0)
-        self.plot_U1_Kb(ax_w_0)
+        self.plot_U1_Ka(ax_u)
+        self.sp.plot_S_La(ax_sig)
+        self.sp.plot_F_a(ax_F)
+        #self.plot_U1_Kb(ax_sig_0)

@@ -208,6 +208,30 @@ class DICStateFields(ib.TStepBC):
         max_eps_MN[max_eps_MN < 0] = 0
         return eps_Emab, eps_MNab, eps_MNa, max_eps_MN
 
+
+    eps_TMNab = tr.Property(depends_on='state_changed')
+
+    @tr.cached_property
+    def _get_eps_TMNab(self):
+        # state variables
+        eps_MNab_list = []
+        for T in range(self.dic_grid.n_dic_T):
+            U_o = self.hist.U_t[T]
+            eps_Emab = self.xmodel.map_U_to_field(U_o)
+            eps_MNab = self.transform_mesh_to_grid(eps_Emab)
+            eps_MNab_list.append(np.copy(eps_MNab))
+        return np.array(eps_MNab_list, dtype=np.float_)
+
+    f_eps_ipl_txy = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_f_eps_ipl_txy(self):
+        dic_T = np.arange(self.dic_grid.n_dic_T)
+        x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
+        dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
+        args = (dic_t, x_MN[::-1, 0], y_MN[0, :])
+        return RegularGridInterpolator(args, self.eps_TMNab[:, ::-1, :])
+
+
     sig_fields = tr.Property(depends_on='state_changed')
 
     @tr.cached_property
