@@ -77,13 +77,8 @@ class DICStateFields(ib.TStepBC):
     n_N = bu.Int(28, ALG=True)
     '''Number of interpolation points in y direction'''
 
-    t = bu.Float(0, TIME=True)
+    T1 = tr.Property(bu.Int)
 
-    def _t_changed(self):
-        self.dic_grid.t = self.t
-
-    T1 = tr.Property(bu.Int, depends_on='+TIME')
-    @tr.cached_property
     def _get_T1(self):
         return self.dic_grid.T1
 
@@ -92,7 +87,7 @@ class DICStateFields(ib.TStepBC):
         bu.Item('n_M'),
         bu.Item('n_N'),
         bu.Item('T1', readonly=True),
-        time_editor=bu.HistoryEditor(var='t')
+        time_editor=bu.HistoryEditor(var='dic_grid.t')
     )
 
     n_EF = tr.Property

@@ -69,7 +69,12 @@ class DICCrack(bu.Model):
     def _sp_default(self):
         return DICStressProfile(dic_crack=self)
 
-    tree = ['sp']
+    dic_grid = tr.Property()
+    @tr.cached_property
+    def _get_dic_grid(self):
+        return self.cl.dsf.dic_grid
+
+    tree = ['sp', 'dic_grid']
 
     C = bu.Int(0, ALG=True)
     '''Crack index within the crack list
@@ -93,7 +98,7 @@ class DICCrack(bu.Model):
         bu.Item('w_H_plot_ratio'),
         bu.Item('plot_grid_markers'),
         bu.Item('T1', readonly=True),
-        time_editor=bu.HistoryEditor(var='t')
+        time_editor=bu.HistoryEditor(var='dic_grid.t')
     )
 
     dic_grid = tr.Property
@@ -101,14 +106,8 @@ class DICCrack(bu.Model):
     def _get_dic_grid(self):
         return self.cl.dsf.dic_grid
 
-    t = bu.Float(1, TIME=True)
+    T1 = tr.Property(bu.Int)
 
-    def _t_changed(self):
-        self.dic_grid.t = self.t
-
-    T1 = tr.Property(bu.Int, depends_on='+TIME')
-
-    @tr.cached_property
     def _get_T1(self):
         return self.dic_grid.T1
 
@@ -264,7 +263,7 @@ class DICCrack(bu.Model):
 
     @tr.cached_property
     def _get_U1_Ka(self):
-        return self.get_U_Ka(self.t, self.X1_Ka)
+        return self.get_U_Ka(self.dic_grid.t, self.X1_Ka)
 
     U1_Kb = tr.Property(depends_on='state_changed')
     '''Local relative displacement of points along the crack
@@ -321,6 +320,7 @@ class DICCrack(bu.Model):
 
     @tr.cached_property
     def _get_omega1_N(self):
+        print('updating omega', self.dic_grid.t)
         return self.omega_TK[self.dic_grid.T1]
 
     # ----------------------------------------------------------
@@ -409,6 +409,7 @@ class DICCrack(bu.Model):
         return ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0
 
     def update_plot(self, axes):
+        print('update-plot', self.dic_grid.t)
         ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0 = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         self.dic_grid.plot_box_annotate(ax_cl)

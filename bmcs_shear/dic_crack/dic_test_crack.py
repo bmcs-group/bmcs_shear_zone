@@ -5,6 +5,7 @@ import numpy as np
 from bmcs_shear.beam_design import RCBeamDesign
 from .dic_crack import IDICCrack, get_T_Lab
 import matplotlib.gridspec as gridspec
+from .dic_stress_profile import DICStressProfile
 
 @tr.provides(IDICCrack)
 class DICTestCrack(bu.Model):
@@ -16,8 +17,16 @@ class DICTestCrack(bu.Model):
 
     bd = bu.Instance(RCBeamDesign, ())
 
-    ipw_view = bu.View(
-    )
+    sp = bu.Instance(DICStressProfile)
+
+    def _sp_default(self):
+        return DICStressProfile(dic_crack=self)
+
+    @tr.on_trait_change('+ALG')
+    def _sp_state_change(self, event):
+        self.sp.state_changed = True
+
+    tree = ['sp']
 
     u_x_bot = bu.Float(0.03, ALG=True)
     u_x_top = bu.Float(-0.03, ALG=True)
@@ -36,11 +45,11 @@ class DICTestCrack(bu.Model):
 
     X_tip_a = tr.Array(value=[0, 50])
 
-    X1_Ka = tr.Property(tr.Array, depends_on='state_changed')
+    X_Ka = tr.Property(tr.Array, depends_on='state_changed')
     '''All ligament points.
     '''
     @tr.cached_property
-    def _get_X1_Ka(self):
+    def _get_X_Ka(self):
         x_0 = np.zeros((self.U_K,), dtype=np.float_)
         x_1 = np.linspace(0, self.bd.H, self.U_K)
         return np.array([x_0, x_1], dtype=np.float_).T
@@ -57,7 +66,7 @@ class DICTestCrack(bu.Model):
     '''
     @tr.cached_property
     def _get_T1_Kab(self):
-        line_vec_La = self.X1_Ka[1:,:] - self.X1_Ka[:-1,:]
+        line_vec_La = self.X_Ka[1:,:] - self.X_Ka[:-1,:]
         line_vec_La = np.vstack([line_vec_La, line_vec_La[-1:]])
         return get_T_Lab(line_vec_La)
 
@@ -74,17 +83,17 @@ class DICTestCrack(bu.Model):
     @tr.cached_property
     def _get_X_neutral_a(self):
         idx = np.argmax(self.U1_Ka[:,0] < 0) - 1
-        x_1, x_2 = self.X1_Ka[(idx, idx + 1), 1]
+        x_1, x_2 = self.X_Ka[(idx, idx + 1), 1]
         u_1, u_2 = self.U1_Ka[(idx, idx + 1), 0]
         d_x = -(x_2 - x_1) / (u_2 - u_1) * u_1
         y_neutral = x_1 + d_x
-        x_neutral = self.X1_Ka[idx + 1, 0]
+        x_neutral = self.X_Ka[idx + 1, 0]
         return np.array([x_neutral, y_neutral])
 
     def _plot_u(self, ax, U1_Ka, idx=0, color='black', label=r'$w$ [mm]'):
-        X1_Ka = self.X1_Ka
-        ax.plot(U1_Ka[:, idx], X1_Ka[:, 1], 'o-', color=color, label=label)
-        ax.fill_betweenx(X1_Ka[:, 1], U1_Ka[:, idx], 0, color=color, alpha=0.1)
+        X_Ka = self.X_Ka
+        ax.plot(U1_Ka[:, idx], X_Ka[:, 1], 'o-', color=color, label=label)
+        ax.fill_betweenx(X_Ka[:, 1], U1_Ka[:, idx], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
 

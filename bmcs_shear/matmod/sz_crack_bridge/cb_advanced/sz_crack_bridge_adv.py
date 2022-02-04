@@ -77,7 +77,7 @@ class CrackBridgeAdv(ReinfLayer, bu.InjectSymbExpr):
     '''Perimeter'''
     @tr.cached_property
     def _get_p(self):
-        return (self.d_s) * np.pi
+        return self.n * (self.d_s) * np.pi
 
     ipw_view = View(
         Item('f_c', latex=r'f_c'),

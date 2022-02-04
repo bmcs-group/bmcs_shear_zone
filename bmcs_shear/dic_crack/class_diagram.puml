@@ -3,11 +3,15 @@
 
 
 class DICGrid {
-  U_tija
+  U_TIJa
+  t
+  T0
+  T1
 }
 
 class DICStateFields{
-
+  U_TMNa
+  omega_TMN
 }
 
 DICStateFields --> DICGrid
@@ -19,6 +23,12 @@ class DICCrack {
 DICCrackList --> DICStateFields
 
 DICCrackList *--> DICCrack
+
+DICCrack --> DICGrid
+
+DICCrack --> DICStressProfile
+
+DICStressProfile --> DICGrid
 
 class DICAlign{
 }

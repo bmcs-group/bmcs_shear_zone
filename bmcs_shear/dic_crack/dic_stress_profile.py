@@ -1,14 +1,14 @@
 import traits.api as tr
 import numpy as np
-from bmcs_utils.api import Model, View, Item, mpl_align_xaxis
+from bmcs_utils.api import View, Item, mpl_align_xaxis
 from scipy.interpolate import interp1d
 from bmcs_utils.api import View, Bool, Item, Float, FloatRangeEditor
 from .i_dic_crack import IDICCrack
 import matplotlib.gridspec as gridspec
 import sympy as sp
+import bmcs_utils.api as bu
 
-
-class DICStressProfile(Model):
+class DICStressProfile(bu.Model):
     """Stress profile calculation in an intermediate state
     """
     name = "Profiles"
@@ -22,12 +22,20 @@ class DICStressProfile(Model):
     def _get_bd(self):
         return self.dic_crack.bd
 
+    dic_grid = tr.Property()
+    @tr.cached_property
+    def _get_dic_grid(self):
+        return self.dic_crack.dic_grid
+
+    tree = ['dic_grid']
+
     show_stress = Bool(True)
     show_force = Bool(False)
 
     ipw_view = View(
         Item('show_stress'),
-        Item('show_force')
+        Item('show_force'),
+        time_editor=bu.HistoryEditor(var='dic_crack.dic_grid.t')
     )
 
     X_La = tr.Property(depends_on='state_changed')
@@ -42,6 +50,7 @@ class DICStressProfile(Model):
 
     @tr.cached_property
     def _get_u_La(self):
+        print('get_U1_Ka')
         return self.dic_crack.U1_Ka
 
     u_Lb = tr.Property(depends_on='state_changed')
@@ -339,35 +348,58 @@ class DICStressProfile(Model):
         ax_sig.set_ylim(0, self.bd.H)
 
     def plot_F_a(self, ax_F_a):
-        ax_F_a.plot(*self.X_La.T, color='black')
+        #ax_F_a.plot(*self.X_La.T, color='black')
+        ax_F_a.plot([0, 0], [0, self.bd.H], color='black', linewidth=0.4)
         # compression zone
         neg_F, neg_y = self.neg_F_y
         neg_F_kN = neg_F / 1000
         head_length = np.fabs(neg_F_kN * 0.2)
         head_width = 10
-        # ax_F_a.arrow(neg_F_kN, neg_y, -neg_F_kN, 0, color='red',
-        #              length_includes_head=True, head_length=head_length,
-        #              head_width=head_width)
-        ax_F_a.annotate("",
-                        xy=(0, neg_y), xycoords='data',
-                        xytext=(neg_F_kN, neg_y), textcoords='data',
-                        arrowprops=dict(arrowstyle="->",
-                                        connectionstyle="arc3"),
-                        )
+        if neg_F_kN != 0:
+            print('number {0:.3g}'.format(neg_F_kN))
+            ax_F_a.annotate('{0:.3g} kN'.format(neg_F_kN),
+                            xy=(0, neg_y), xycoords='data',
+                            xytext=(neg_F_kN, neg_y), textcoords='data',
+                            horizontalalignment='left',
+                            verticalalignment='bottom',
+                            # arrowprops=dict(arrowstyle="->",
+                            #                 connectionstyle="arc3"),
+                            )
         # tensile zone
         pos_F, pos_y = self.pos_F_y
         pos_F_kN = pos_F / 1000
-        ax_F_a.arrow(pos_F_kN, pos_y, -pos_F_kN, 0, color='red',
-                     length_includes_head=True, head_length=head_length,
-                     head_width=head_width)
+        if pos_F_kN != 0:
+            ax_F_a.annotate('{0:.3g} kN'.format(pos_F_kN),
+                            xy=(0, pos_y), xycoords='data',
+                            xytext=(pos_F_kN, pos_y), textcoords='data',
+                            horizontalalignment='left',
+                            verticalalignment='bottom',
+                            # arrowprops=dict(arrowstyle="->",
+                            #                 connectionstyle="arc3"),
+                            )
         # reinforcement
-        y_N = self.z_N
-        F_N0 = self.F_Na[:, 0]
-        F_N = np.zeros_like(F_N0)
-        ax_F_a.plot(np.array([F_N, F_N0]), np.array(([y_N, y_N])), color='green')
+        y_N0 = self.z_N
+        F_N0_kN = self.F_Na[:, 0] / 1000
+        for F0_kN, y in zip(F_N0_kN, y_N0):
+            ax_F_a.annotate("{0:.3g} kN".format(F0_kN),
+                            xy=(0, float(y)), xycoords='data',
+                            xytext=(float(F0_kN), float(y)), textcoords='data',
+                            horizontalalignment='center',
+                            verticalalignment='top',
+                            # arrowprops=dict(arrowstyle="->",
+                            #                 connectionstyle="arc3"),
+                            )
+
+        x = np.hstack([[neg_F_kN, pos_F_kN], F_N0_kN])
+        y = np.hstack([[neg_y, pos_y], (y_N0)])
+        x1 = np.hstack([[0, 0], np.zeros_like(F_N0_kN)])
+        y1 = np.hstack([[neg_y, pos_y], (y_N0)])
+        ax_F_a.quiver(x, y, x1 - x, y1 - y, scale=1, scale_units='x')
+
         ax_F_a.set_xlabel(r'$F$ [kN]')
         ax_F_a.set_ylabel(r'$y$ [mm]')
-        ax_F_a.set_xlim(neg_F_kN, pos_F_kN)
+        max_F_N0_kN = np.max(F_N0_kN)
+        ax_F_a.set_xlim(neg_F_kN * 1.3, np.max([pos_F_kN, max_F_N0_kN]) * 1.3)
 
     def subplots(self, fig):
         gs = gridspec.GridSpec(2, 4)

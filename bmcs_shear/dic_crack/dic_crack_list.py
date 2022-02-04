@@ -1,4 +1,3 @@
-
 import bmcs_utils.api as bu
 from .dic_crack import DICCrack
 from .dic_crack_cor import DICCrackCOR
@@ -9,6 +8,7 @@ import numpy as np
 import matplotlib.gridspec as gridspec
 from matplotlib import cm
 
+
 class DICCrackList(bu.ModelList):
     name = 'crack list'
 
@@ -16,27 +16,25 @@ class DICCrackList(bu.ModelList):
 
     bd = tr.DelegatesTo('dsf')
 
-    items = tr.Property(bu.List(DICCrackCOR), depends_on='state_changed')
+    items = tr.Property(bu.List(DICCrack))
+
     @tr.cached_property
     def _get_items(self):
+        print('Creating cracks')
         x_NC, y_NC, N_tip_C, M_NC = self.primary_cracks
         dic_cracks = [DICCrack(cl=self, C=C, x_N=x_N, y_N=y_N, N_tip=N_tip, M_N=M_N)
-            for C, (x_N, y_N, N_tip, M_N) in enumerate(zip(x_NC.T, y_NC.T, N_tip_C, M_NC.T))
-        ]
+                      for C, (x_N, y_N, N_tip, M_N) in enumerate(zip(x_NC.T, y_NC.T, N_tip_C, M_NC.T))
+                      ]
         return dic_cracks
 
-    t = bu.Float(0, TIME=True)
-    def _t_changed(self):
-        self.dsf.dic_grid.t = self.t
+    T1 = tr.Property(bu.Int)
 
-    T1 = tr.Property(bu.Int, depends_on='+TIME')
-    @tr.cached_property
     def _get_T1(self):
-        return self.dsf.dic_grid.T1
+        return self.dic_grid.T1
 
     ipw_view = bu.View(
         bu.Item('T1', readonly=True),
-        time_editor=bu.HistoryEditor(var='t')
+        time_editor=bu.HistoryEditor(var='dsf.dic_grid.t')
     )
 
     def detect_cracks(self, M_C, xx_MN, yy_MN, cdf_MN):
@@ -60,7 +58,7 @@ class DICCrackList(bu.ModelList):
         n_N, n_M = cdf_NM.shape
         # smooth the landscape
         if len(M_C) == 0:
-            return np.zeros((n_N, 0)), np.zeros((n_N, 0)), np.zeros((0, )), np.zeros((n_N, 0))
+            return np.zeros((n_N, 0)), np.zeros((n_N, 0)), np.zeros((0,)), np.zeros((n_N, 0))
         # distance between right interval boundary and crack position
         M_NC_shift_ = []
         # list of crack horizontal indexes for each horizontal slice
@@ -100,6 +98,7 @@ class DICCrackList(bu.ModelList):
     primary_cracks = tr.Property(depends_on='MESH, ALG')
     '''Get the cracks at the near-failure load level
     '''
+
     @tr.cached_property
     def _get_primary_cracks(self):
         # spatial coordinates
@@ -125,6 +124,7 @@ class DICCrackList(bu.ModelList):
     cracks_T = tr.Property(depends_on='MESH, ALG')
     '''Get the crack history starting with the critical
     '''
+
     @tr.cached_property
     def _get_cracks_T(self):
         # identify the near feilure crack pattern
@@ -132,7 +132,7 @@ class DICCrackList(bu.ModelList):
         self.dsf.dic_grid.T1 = T_eta
         xx_NC, yy_NC, N_tip_C, M_NC = self.primary_cracks
         # prepare the list of crack tip states as a funciton of t
-        N_tip_CT = np.zeros((len(N_tip_C), T_eta+1), np.int_)
+        N_tip_CT = np.zeros((len(N_tip_C), T_eta + 1), np.int_)
         M_tip_CT = np.zeros_like(N_tip_CT)
         print('T: ', end='')
         for T1 in range(T_eta, 0, -1):

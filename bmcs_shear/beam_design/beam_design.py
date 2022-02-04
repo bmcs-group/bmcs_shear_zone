@@ -85,15 +85,10 @@ class RCBeamDesign(BeamDesign):
     def _set_B(self,value):
         self.cross_section_shape_.B = value
 
-    # # Only for visualization to delimit the plotted area
-    # # @todo [FS] - this should be obtained from the design classes.
-    # B = Float(100, GEO=True)
-
     ipw_view = View(
         Item('matrix'),
         Item('H', latex=r'H'),
         Item('B', latex=r'B'),
-        Item('L', latex=r'L'),
     )
 
     C_Li = tr.Array(value=[[0, 1, 2, 3], [1, 2, 3, 0]], dtype=np.int_)
