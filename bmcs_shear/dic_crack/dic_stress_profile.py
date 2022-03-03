@@ -1,5 +1,6 @@
 import traits.api as tr
 import numpy as np
+import ibvpy.api as ib
 from bmcs_utils.api import View, Item, mpl_align_xaxis
 from scipy.interpolate import interp1d
 from bmcs_utils.api import View, Bool, Item, Float, FloatRangeEditor
@@ -27,6 +28,8 @@ class DICStressProfile(bu.Model):
     def _get_dic_grid(self):
         return self.dic_crack.dic_grid
 
+    smeared_matmod = bu.Instance(ib.MATS2DMplDamageEEQ, ())
+
     tree = ['dic_grid']
 
     show_stress = Bool(True)
@@ -43,26 +46,52 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_X_La(self):
-        return self.dic_crack.X_Ka
+        X_Ka = self.dic_crack.X_Ka
+        x_top = X_Ka[-1, 0]
+        # add the top point
+        return np.vstack([self.dic_crack.X_Ka, [[x_top, self.bd.H]]])
 
     u_La = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
 
     @tr.cached_property
     def _get_u_La(self):
-        print('get_U1_Ka')
-        return self.dic_crack.U1_Ka
+        U1_Ka = self.dic_crack.U1_Ka
+        U1_top_a = U1_Ka[-1, :]
+        return np.vstack([U1_Ka, [U1_top_a]])
 
     u_Lb = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
 
     @tr.cached_property
     def _get_u_Lb(self):
-        return self.dic_crack.U1_Kb
+        U1_Kb = self.dic_crack.U1_Kb
+        U1_top_b = U1_Kb[-1, :]
+        return np.vstack([U1_Kb, [U1_top_b]])
 
     # =========================================================================
     # Stress transformation and integration
     # =========================================================================
+
+    sig1_Lab = tr.Property(depends_on='state_changed')
+    '''Stress returned by the material model
+    '''
+
+    @tr.cached_property
+    def _get_sig1_Lab(self):
+        eps1_Kab, _ = self.dic_crack.eps1_Kab
+        cmm = self.bd.matrix_
+        mdm = self.smeared_matmod
+        mdm.trait_set(E = cmm.E_c, nu=0.2)
+        n_K, _, _ = eps1_Kab.shape
+        Eps = {
+            name: np.zeros( (n_K,) + shape)
+            for name, shape in mdm.state_var_shapes.items()
+        }
+        sig1_Kab, _ = mdm.get_corr_pred(eps1_Kab, 1, **Eps)
+        sig1_top_ab = sig1_Kab[-1, ...]
+        return np.vstack([sig1_Kab, [sig1_top_ab]])
+
 
     S_Lb = tr.Property(depends_on='state_changed')
     '''Stress returned by the material model
@@ -70,10 +99,12 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_S_Lb(self):
+        U1_Kb = self.dic_crack.U1_Kb
         u_Lb = self.u_Lb
         cmm = self.bd.matrix_
-        sig_La = cmm.get_sig_a(u_Lb)
-        return sig_La
+        sig1_Kb = cmm.get_sig_a(U1_Kb)
+        sig1_top_b = sig1_Kb[-1, :]
+        return np.vstack([sig1_Kb, [sig1_top_b]])
 
     S_La = tr.Property(depends_on='state_changed')
     '''Transposed stresses'''
@@ -81,7 +112,9 @@ class DICStressProfile(bu.Model):
     @tr.cached_property
     def _get_S_La(self):
         S_Lb = self.S_Lb
-        S_La = np.einsum('Lb,Lab->La', S_Lb, self.dic_crack.T1_Kab)
+        T1_Kab = self.dic_crack.T1_Kab
+        T1_Kab = np.vstack([T1_Kab, [T1_Kab[-1,...]]])
+        S_La = np.einsum('Lb,Lab->La', S_Lb, T1_Kab)
         return S_La
 
     # =========================================================================

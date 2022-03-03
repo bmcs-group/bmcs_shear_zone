@@ -124,12 +124,12 @@ class RCBeamDesign(BeamDesign):
         X_aiL = np.einsum('Lia->aiL', X_Lia)
         ax.plot(*X_aiL, color='black', lw=0.5)
         X_La = np.sum(X_Lia, axis=1) / 2
-        x, y = X_La[2, :]
+        x, y = X_La[0, :]
         ax.annotate(f'{L} mm',
-                    xy=(x, y), xytext=(0, 1), xycoords='data',
+                    xy=(x, y), xytext=(0, -1), xycoords='data',
                     textcoords='offset pixels',
                     horizontalalignment='center',
-                    verticalalignment='bottom',
+                    verticalalignment='top',
                     rotation=0
                     )
         x, y = X_La[3, :]

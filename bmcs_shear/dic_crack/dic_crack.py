@@ -235,6 +235,35 @@ class DICCrack(bu.Model):
 
     # Displacement jump evaluation
 
+    def get_eps_Kab(self, t, X_Ka):
+        d_x = self.d_x / 2
+        x_K, y_K = X_Ka.T
+        t_K = np.ones_like(x_K) * t
+        tX_mid_K = np.array([t_K, x_K, y_K], dtype=np.float_).T
+        eps_Kab = self.cl.dsf.f_eps_ipl_txy(tX_mid_K)
+        eps_Ka, _ = np.linalg.eig(eps_Kab)
+        max_eps_K = np.max(eps_Ka, axis=-1)
+        K_eps = max_eps_K < self.bd.matrix_.eps_cr
+        return eps_Kab, K_eps
+
+    eps1_Kab = tr.Property(depends_on='state_changed')
+    '''Global strain displacement of points along the crack at an intermediate state
+    '''
+
+    @tr.cached_property
+    def _get_eps1_Kab(self):
+        return self.get_eps_Kab(self.dic_grid.t, self.X1_Ka)
+
+    eps1_Kcd = tr.Property(depends_on='state_changed')
+    '''Local strain of points along the crack
+    '''
+
+    @tr.cached_property
+    def _get_eps1_Kcd(self):
+        return np.einsum('...ca,...ab,...bd->...cd',
+                         self.T1_Kab, self.eps1_Kab, self.T1_Kab)
+
+
     d_x = bu.Float(30, ALG=True)
     '''Distance between the points across the crack to evaluate sliding and opening
     '''
@@ -247,14 +276,9 @@ class DICCrack(bu.Model):
         tX_left_K = np.array([t_K, x_K - d_x, y_K], dtype=np.float_).T
         U_Ka = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
 
-        tX_mid_K = np.array([t_K, x_K, y_K], dtype=np.float_).T
-        eps_Kab = self.cl.dsf.f_eps_ipl_txy(tX_mid_K)
-
-        _, y_tip = X_tip_a
-        y_tip_ratio = y_tip / self.H_ligament
-        n_K_crc = int(y_tip_ratio * self.n_K_ligament)
-        U_Ka[n_K_crc:,0] = eps_Kab[n_K_crc:, 0, 0]
-        U_Ka[n_K_crc:,1] = eps_Kab[n_K_crc:, 0, 1]
+        eps_Kab, K_eps = self.get_eps_Kab(t, X_Ka)
+        U_Ka[K_eps,0] = eps_Kab[K_eps, 0, 0] * self.bd.matrix_.L_cr
+        U_Ka[K_eps,1] = eps_Kab[K_eps, 0, 1] * self.bd.matrix_.L_cr
         return U_Ka
 
     U_Ka = tr.Property(depends_on='state_changed')
@@ -421,6 +445,7 @@ class DICCrack(bu.Model):
         ax_cl, ax_FU, ax_x, ax_u, ax_F, ax_sig = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         self.dic_grid.plot_box_annotate(ax_cl)
+        self.bd.plot_sz_bd(ax_cl)
         self.cl.plot_crack_detection_field(ax_cl, self.fig)
         self.cl.plot_primary_cracks(ax_cl)
         self.plot_omega1_Ni(ax_cl)
