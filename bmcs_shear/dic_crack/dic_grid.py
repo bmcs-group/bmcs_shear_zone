@@ -212,7 +212,7 @@ class DICGrid(bu.Model):
             key, value = line.split(":")
             params_str[key.strip()] = value.strip()
         f.close()
-        # convert the strings to the paramater types specified in the param_types table
+        # convert the strings to the parameter types specified in the param_types table
         params = { key : type_(params_str[key]) for key, type_ in self.grid_param_types.items()  }
         return params
 

@@ -395,6 +395,7 @@ class DICStressProfile(bu.Model):
                             xytext=(neg_F_kN, neg_y), textcoords='data',
                             horizontalalignment='left',
                             verticalalignment='bottom',
+                            color='blue',
                             # arrowprops=dict(arrowstyle="->",
                             #                 connectionstyle="arc3"),
                             )
@@ -450,3 +451,4 @@ class DICStressProfile(bu.Model):
         self.plot_S_Lb(ax_S_Lb)
         self.plot_S_La(ax_S_La)
         self.plot_F_a(ax_F_a)
+

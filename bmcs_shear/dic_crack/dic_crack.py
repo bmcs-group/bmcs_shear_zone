@@ -97,6 +97,7 @@ class DICCrack(bu.Model):
         bu.Item('n_K_ligament'),
         bu.Item('w_H_plot_ratio'),
         bu.Item('plot_grid_markers'),
+        bu.Item('plot_field'),
         bu.Item('T1', readonly=True),
         time_editor=bu.HistoryEditor(var='dic_grid.t')
     )
@@ -441,12 +442,20 @@ class DICCrack(bu.Model):
         ax_sig = ax_F.twiny()
         return ax_cl, ax_FU, ax_x, ax_u, ax_F, ax_sig
 
+    plot_field = bu.Enum(options=['damage','strain','stress','--'])
+
     def update_plot(self, axes):
         ax_cl, ax_FU, ax_x, ax_u, ax_F, ax_sig = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         self.dic_grid.plot_box_annotate(ax_cl)
         self.bd.plot_sz_bd(ax_cl)
-        self.cl.plot_crack_detection_field(ax_cl, self.fig)
+        if self.plot_field == 'damage':
+            self.cl.plot_crack_detection_field(ax_cl, self.fig)
+        elif self.plot_field == 'stress':
+            self.cl.dsf.plot_sig_field(ax_cl, self.fig)
+        elif self.plot_field == 'strain':
+            self.cl.dsf.plot_eps_field(ax_cl, self.fig)
+
         self.cl.plot_primary_cracks(ax_cl)
         self.plot_omega1_Ni(ax_cl)
         self.dic_grid.plot_load_deflection(ax_FU)
@@ -462,4 +471,6 @@ class DICCrack(bu.Model):
         self.plot_U1_Ka(ax_u)
         self.sp.plot_S_La(ax_sig)
         self.sp.plot_F_a(ax_F)
+        bu.mpl_align_xaxis(ax_sig, ax_F)
+
         #self.plot_U1_Kb(ax_sig_0)

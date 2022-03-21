@@ -343,6 +343,32 @@ class DICStateFields(ib.TStepBC):
         ax_sig_eps.set_xlabel(r'$\varepsilon$ [-]')
         ax_sig_eps.set_ylabel(r'$\sigma$ [MPa]')
 
+    def plot_eps_field(self, ax_eps, fig):
+        eps_Emab, eps_MNab, eps_MNa, max_eps_MN = self.eps_fields
+        X_MNa = self.X_MNa
+        X_aMN = np.einsum('MNa->aMN', X_MNa)
+        cs_eps = ax_eps.contourf(X_aMN[0], X_aMN[1], max_eps_MN, cmap='BuPu',
+                                 vmin=0, vmax=self.max_eps)
+        cbar_eps = fig.colorbar(cm.ScalarMappable(norm=cs_eps.norm, cmap=cs_eps.cmap),
+                                ax=ax_eps, ticks=np.arange(0, self.max_eps * 1.01, 0.005),
+                                orientation='horizontal')
+        cbar_eps.set_label(r'$\max(\varepsilon_I) > 0$')
+        ax_eps.axis('equal')
+        ax_eps.axis('off')
+
+    def plot_sig_field(self, ax_sig, fig):
+        sig_Emab, sig_MNab, sig_MNa, max_sig_MN = self.sig_fields
+        X_MNa = self.X_MNa
+        X_aMN = np.einsum('MNa->aMN', X_MNa)
+        cs_sig = ax_sig.contourf(X_aMN[0], X_aMN[1], max_sig_MN, cmap='Reds',
+                                 vmin=0, vmax=self.max_sig)
+        cbar_sig = fig.colorbar(cm.ScalarMappable(norm=cs_sig.norm, cmap=cs_sig.cmap),
+                                ax=ax_sig, ticks=np.arange(0, self.max_sig * 1.01, 0.5),
+                                orientation='horizontal')
+        cbar_sig.set_label(r'$\max(\sigma_I) > 0$')
+        ax_sig.axis('equal')
+        ax_sig.axis('off')
+
     def subplots(self, fig):
         self.fig = fig
         return fig.subplots(3, 2)
@@ -360,22 +386,10 @@ class DICStateFields(ib.TStepBC):
         # damage field
         omega_MN = self.omega_MN
         # plot
-        cs_eps = ax_eps.contourf(X_aMN[0], X_aMN[1], max_eps_MN, cmap='BuPu',
-                                 vmin=0, vmax=self.max_eps)
-        cbar_eps = fig.colorbar(cm.ScalarMappable(norm=cs_eps.norm, cmap=cs_eps.cmap),
-                                ax=ax_eps, ticks=np.arange(0, self.max_eps * 1.01, 0.005),
-                                orientation='horizontal')
-        cbar_eps.set_label(r'$\max(\varepsilon_I) > 0$')
-        ax_eps.axis('equal')
-        ax_eps.axis('off')
-        cs_sig = ax_sig.contourf(X_aMN[0], X_aMN[1], max_sig_MN, cmap='Reds',
-                                 vmin=0, vmax=self.max_sig)
-        cbar_sig = fig.colorbar(cm.ScalarMappable(norm=cs_sig.norm, cmap=cs_sig.cmap),
-                                ax=ax_sig, ticks=np.arange(0, self.max_sig * 1.01, 0.5),
-                                orientation='horizontal')
-        cbar_sig.set_label(r'$\max(\sigma_I) > 0$')
-        ax_sig.axis('equal')
-        ax_sig.axis('off')
+        self.plot_eps_field(ax_sig, fig)
+
+        self.plot_sig_field(ax_sig, fig)
+
         cs = ax_omega.contourf(X_aMN[0], X_aMN[1], omega_MN, cmap='BuPu', vmin=0, vmax=1)
         cbar_omega = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
                                   ax=ax_omega, ticks=np.arange(0, 1.1, 0.2),
