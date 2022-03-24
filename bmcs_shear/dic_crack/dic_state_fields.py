@@ -319,7 +319,7 @@ class DICStateFields(ib.TStepBC):
     #######################################################################
 
     # plot parameters - get them from the state evaluation
-    max_sig = bu.Float(5)
+    # max_sig = bu.Float(5)
     max_eps = bu.Float(0.02)
 
     def plot_sig_eps(self, ax_sig_eps, color='white'):
@@ -347,10 +347,11 @@ class DICStateFields(ib.TStepBC):
         eps_Emab, eps_MNab, eps_MNa, max_eps_MN = self.eps_fields
         X_MNa = self.X_MNa
         X_aMN = np.einsum('MNa->aMN', X_MNa)
+        max_eps = np.max(max_eps_MN)
         cs_eps = ax_eps.contourf(X_aMN[0], X_aMN[1], max_eps_MN, cmap='BuPu',
-                                 vmin=0, vmax=self.max_eps)
+                                 vmin=0, vmax=max_eps)
         cbar_eps = fig.colorbar(cm.ScalarMappable(norm=cs_eps.norm, cmap=cs_eps.cmap),
-                                ax=ax_eps, ticks=np.arange(0, self.max_eps * 1.01, 0.005),
+                                ax=ax_eps, ticks=np.arange(0, max_eps * 1.01, 0.005),
                                 orientation='horizontal')
         cbar_eps.set_label(r'$\max(\varepsilon_I) > 0$')
         ax_eps.axis('equal')
@@ -360,10 +361,11 @@ class DICStateFields(ib.TStepBC):
         sig_Emab, sig_MNab, sig_MNa, max_sig_MN = self.sig_fields
         X_MNa = self.X_MNa
         X_aMN = np.einsum('MNa->aMN', X_MNa)
+        max_sig = np.max(max_sig_MN)
         cs_sig = ax_sig.contourf(X_aMN[0], X_aMN[1], max_sig_MN, cmap='Reds',
-                                 vmin=0, vmax=self.max_sig)
+                                 vmin=0, vmax=max_sig)
         cbar_sig = fig.colorbar(cm.ScalarMappable(norm=cs_sig.norm, cmap=cs_sig.cmap),
-                                ax=ax_sig, ticks=np.arange(0, self.max_sig * 1.01, 0.5),
+                                ax=ax_sig, ticks=np.arange(0, max_sig * 1.01, 0.5),
                                 orientation='horizontal')
         cbar_sig.set_label(r'$\max(\sigma_I) > 0$')
         ax_sig.axis('equal')
@@ -386,7 +388,7 @@ class DICStateFields(ib.TStepBC):
         # damage field
         omega_MN = self.omega_MN
         # plot
-        self.plot_eps_field(ax_sig, fig)
+        self.plot_eps_field(ax_eps, fig)
 
         self.plot_sig_field(ax_sig, fig)
 

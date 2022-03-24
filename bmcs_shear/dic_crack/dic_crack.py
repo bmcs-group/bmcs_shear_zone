@@ -48,7 +48,7 @@ def get_T_Lab(line_vec_La):
 class DICCrack(bu.Model):
     """
     Model of a shear crack with the representation of the kinematics
-    evaluating the opening and sliding displacmeent
+    evaluating the opening and sliding displacement.
     """
     name = tr.Property(depends_on='C')
 
@@ -81,12 +81,38 @@ class DICCrack(bu.Model):
     '''
 
     x_N = tr.Array(np.float_)
+    '''Horizontal coordinates of the crack path points
+    '''
+
     y_N = tr.Array(np.float_)
+    '''Vertical coordinates of the crack path points
+    '''
+
     N_tip = tr.Int(ALG=True)
+    '''Vertical index of the crack tip near failure load
+    To obtain the vertical coordinate of the crack tip
+    we can write 
+    self.y_N[self.N_tip]
+    '''
+
     M_N = tr.Array(np.int_)
+    '''Horizontal indexes of grid nodes corresponding 
+    to the crack path
+    '''
 
     R = bu.Float(20, ALG=True)
-    tip_delta_N = bu.Int(3, ALG=True)
+    '''Ironing radius used to smoothen the crack path
+    before constructing its spline representation.
+    '''
+
+    n_K_ligament = bu.Int(50, ALG=True)
+    '''Resolution of the ligament points over the height
+    '''
+
+    d_x = bu.Float(30, ALG=True)
+    '''Distance between the points across the crack to evaluate sliding and opening
+    '''
+
     w_H_plot_ratio = bu.Float(0.3, ALG=True)
     plot_grid_markers = bu.Bool(False, ALG=True)
 
@@ -103,55 +129,53 @@ class DICCrack(bu.Model):
     )
 
     dic_grid = tr.Property
-
+    '''Source grid
+    '''
     def _get_dic_grid(self):
         return self.cl.dsf.dic_grid
 
     T1 = tr.Property(bu.Int)
-
+    '''Current time index
+    '''
     def _get_T1(self):
         return self.dic_grid.T1
 
     C_cubic_spline = tr.Property(depends_on='state_changed')
     '''Smoothed crack profile
     '''
-
     @tr.cached_property
     def _get_C_cubic_spline(self):
         x_N, y_N = self.x_N, self.y_N
         x_U_N, y_U_N = x_N[:self.N_tip + 1], y_N[:self.N_tip + 1]
+        # Iron the shape of the crack
         x_U_N_irn = get_f_ironed_weighted(y_U_N, x_U_N, self.R)
         return CubicSpline(y_U_N, x_U_N_irn, bc_type='natural')
 
     X_tip_a = tr.Property(depends_on='state_changed')
-    '''Resolution of the spline approximation over the whole height of the uncracked section
+    '''Coordinates of the crack tip near failure load
     '''
-
     @tr.cached_property
     def _get_X_tip_a(self):
         x_N, y_N = self.x_N, self.y_N
         return np.array([x_N[self.N_tip], y_N[self.N_tip]], dtype=np.float_)
 
-    n_K_ligament = bu.Int(50, ALG=True)
-    '''Resolution of the ligament points over the height
-    '''
-
     H_ligament = tr.Property(depends_on='state_changed')
     '''Height of the ligament - information about positioning of the ligament
     within the cross section needed!
     '''
-
     @tr.cached_property
     def _get_H_ligament(self):
         return self.dic_grid.L_y
-
-    # Return the ligament discretization given the crack tip X_tip_a
 
     def get_crack_ligament(self, X_tip_a):
         """Discretize the crack path along the identified spline
         up to X_tip_a and complete it with the vertical ligament
         returns:
-        N_ligament, N_K_ligament, X_tip_a, C_spline
+        X_Ka
+        T_Kab
+        X_unc_Ka
+        X_crc_Ka
+        T_Kab[:n_K_crc]
         """
         _, y_tip = X_tip_a
         d_y = y_tip / self.H_ligament
@@ -263,11 +287,6 @@ class DICCrack(bu.Model):
     def _get_eps1_Kcd(self):
         return np.einsum('...ca,...ab,...bd->...cd',
                          self.T1_Kab, self.eps1_Kab, self.T1_Kab)
-
-
-    d_x = bu.Float(30, ALG=True)
-    '''Distance between the points across the crack to evaluate sliding and opening
-    '''
 
     def get_U_Ka(self, t, X_Ka, X_tip_a):
         d_x = self.d_x / 2
