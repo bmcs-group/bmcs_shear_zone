@@ -1,5 +1,5 @@
 
-from .dic_crack import DICCrack
+from .i_dic_crack import IDICCrack
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
@@ -14,17 +14,19 @@ class DICCrackCOR(bu.Model):
     def _get_name(self):
         return self.dic_crack.name
 
-    dic_crack = bu.Instance(DICCrack, ())
+    dic_crack = tr.WeakRef(IDICCrack)
 
     cl = tr.DelegatesTo('dic_crack')
 
     dsf = tr.Property
+    @tr.cached_property
     def _get_dsf(self):
         return self.dic_crack.cl.dsf
 
-    dic_grid = tr.Property
+    dic_grid = tr.Property()
+    @tr.cached_property
     def _get_dic_grid(self):
-        return self.dsf.dic_grid
+        return self.dic_crack.dic_grid
 
     tree = ['dic_crack']
 
@@ -54,14 +56,6 @@ class DICCrackCOR(bu.Model):
     show_xu = bu.Bool(True, ALG=True)
     show_xw = bu.Bool(False, ALG=True)
 
-    t = bu.Float(1, ALG=True)
-    '''Slider over the time history
-    '''
-    def _t_changed(self):
-        n_t = self.dic_grid.n_t
-        d_t = (1 / n_t)
-        self.dic_grid.end_t = int((n_t - 1) * (self.t + d_t / 2))
-
     ipw_view = bu.View(
         bu.Item('M0'),
         bu.Item('N0_max'),
@@ -69,9 +63,7 @@ class DICCrackCOR(bu.Model):
         bu.Item('show_xu'),
         bu.Item('show_xw'),
         bu.Item('step_N_COR'),
-        time_editor=bu.HistoryEditor(
-            var='t'
-        )
+        time_editor=bu.HistoryEditor(var='dic_crack.dic_grid.t')
     )
 
     X_MNa = tr.Property(depends_on='state_changed')
@@ -363,12 +355,11 @@ class DICCrackCOR(bu.Model):
         ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0 = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         self.dic_grid.plot_box_annotate(ax_cl)
-        self.cl.plot_detected_cracks(ax_cl, self.fig)
+        self.cl.plot_primary_cracks(ax_cl)
         self.dic_grid.plot_load_deflection(ax_FU)
-        self.dic_crack.plot_x_Na(ax_x)
-        self.dic_crack.plot_u_Nib(ax_x)
-        self.dic_crack.plot_u_Na(ax_u_0)
-        self.dic_crack.plot_u_Nb(ax_w_0)
+        self.dic_crack.plot_X_Ka(ax_x)
+        self.dic_crack.plot_X1_Ka(ax_x)
+        self.dic_crack.plot_U1_Ka(ax_u_0)
         self.plot_cor_markers(ax_x)
         self.plot_ref_frame(ax_x)
         self.plot_COR(ax_x)

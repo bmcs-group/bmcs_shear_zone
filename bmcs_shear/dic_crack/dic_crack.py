@@ -6,6 +6,7 @@ from scipy.interpolate import CubicSpline
 from bmcs_shear.shear_crack.crack_path import get_T_Lab
 import matplotlib.gridspec as gridspec
 from .dic_stress_profile import DICStressProfile
+from .dic_crack_cor import DICCrackCOR
 from .i_dic_crack import IDICCrack
 
 def get_f_ironed_weighted(x_, y_, r=10):
@@ -68,6 +69,11 @@ class DICCrack(bu.Model):
 
     def _sp_default(self):
         return DICStressProfile(dic_crack=self)
+
+    cor = bu.Instance(DICCrackCOR)
+
+    def _cor_default(self):
+        return DICCrackCOR(dic_crack=self)
 
     dic_grid = tr.Property()
     @tr.cached_property
@@ -178,17 +184,27 @@ class DICCrack(bu.Model):
         T_Kab[:n_K_crc]
         """
         _, y_tip = X_tip_a
+        # Cracked fraction of cross section
         d_y = y_tip / self.H_ligament
+        # number of discretization nodes in the cracked part
         n_K_crc = int(d_y * self.n_K_ligament)
+        # number of discretization nodes in the uncracked part
         n_K_unc = int((self.H_ligament - y_tip) / self.H_ligament * self.n_K_ligament)
+        # vertical coordinates of the whole ligament
         y_N = self.y_N
+        # discretize the ligament from the bottom to the crack tip
         y_crc_range = np.linspace(y_N[0], y_tip, n_K_crc)
+        # horizontal coordinates of the ligament nodes cracked
         X_crc_Ka = np.array([self.C_cubic_spline(y_crc_range), y_crc_range], dtype=np.float_).T
+        # discretize the ligament from the crack tip to the top
         y_unc_range = np.linspace(y_tip + d_y, y_N[-1], n_K_unc)
+        # horizontal coordinates of the ligament nodes uncracked
         X_unc_Ka = np.array([
             np.ones_like(y_unc_range) * self.C_cubic_spline(y_tip),
             y_unc_range], dtype=np.float_).T
+        # horizontal coordinates of the whole ligament
         X_Ka = np.vstack([X_crc_Ka, X_unc_Ka])
+        # derivative of the crack spline representation
         f_prime = self.C_cubic_spline.derivative()
         # cracked part
         d_C_x = -f_prime(X_crc_Ka[:, 1])
