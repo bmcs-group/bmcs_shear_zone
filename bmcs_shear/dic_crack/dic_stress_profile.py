@@ -9,6 +9,7 @@ import matplotlib.gridspec as gridspec
 import sympy as sp
 import bmcs_utils.api as bu
 
+
 class DICStressProfile(bu.Model):
     """Stress profile calculation in an intermediate state
     """
@@ -24,6 +25,7 @@ class DICStressProfile(bu.Model):
         return self.dic_crack.bd
 
     dic_grid = tr.Property()
+
     @tr.cached_property
     def _get_dic_grid(self):
         return self.dic_crack.dic_grid
@@ -51,71 +53,108 @@ class DICStressProfile(bu.Model):
         # add the top point
         return np.vstack([self.dic_crack.X_Ka, [[x_top, self.bd.H]]])
 
+    X1_unc_La = tr.Property(depends_on='state_changed')
+    '''Displacement of the segment midpoints '''
+
+    @tr.cached_property
+    def _get_X1_unc_La(self):
+        # To correctly reflect the stress state, shift the
+        # grid points by the offsets within the beam
+        # X_min, Y_min, X_max, Y_max = self.dic_grid.X_frame
+        X1_unc_Ka = np.copy(self.dic_crack.X1_unc_Ka)
+        # add the top point
+        x_top = X1_unc_Ka[-1, 0]
+        return np.vstack([X1_unc_Ka, [[x_top, self.bd.H]]])
+
+    X1_crc_La = tr.Property(depends_on='state_changed')
+    '''Displacement of the segment midpoints '''
+
+    @tr.cached_property
+    def _get_X1_crc_La(self):
+        # To correctly reflect the stress state, shift the
+        # grid points by the offsets within the beam
+        # X_min, Y_min, X_max, Y_max = self.dic_grid.X_frame
+        X1_crc_Ka = np.copy(self.dic_crack.X1_crc_Ka)
+        return X1_crc_Ka
+
+    eps1_unc_Lab = tr.Property(depends_on='state_changed')
+    '''Strain tensor along the compression zone'''
+
+    @tr.cached_property
+    def _get_eps1_unc_Lab(self):
+        eps1_Kab = self.dic_crack.eps1_Kab
+        # Add the upper point by copying the top most measured strain tensor
+        # This is a simplification an extrapolation of strain should be used
+        # instead or a local strain controlled IBVP along the ligament
+        X_unc_Ka = self.dic_crack.X1_unc_Ka
+        y_1 = X_unc_Ka[-1, 1]
+        y_0 = X_unc_Ka[0, 1]
+        y_top = self.bd.H
+        eps_0 = eps1_Kab[0, 0, 0]
+        eps_1 = eps1_Kab[-1, 0, 0]
+        eps_top = eps_1 + (eps_1 - eps_0) / (y_1 - y_0) * (y_top - y_1)
+        eps1_top_ab = np.zeros((2,2), dtype=np.float_)
+        eps1_top_ab[0, 0] = eps_top
+        return np.vstack([eps1_Kab, [eps1_top_ab]])
+
     u_La = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
 
     @tr.cached_property
     def _get_u_La(self):
-        U1_Ka = self.dic_crack.U1_Ka
-        U1_top_a = U1_Ka[-1, :]
-        return np.vstack([U1_Ka, [U1_top_a]])
+        return self.dic_crack.U1_Ka
 
     u_Lb = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
 
     @tr.cached_property
     def _get_u_Lb(self):
-        U1_Kb = self.dic_crack.U1_Kb
-        U1_top_b = U1_Kb[-1, :]
-        return np.vstack([U1_Kb, [U1_top_b]])
+        return self.dic_crack.U1_Kb
 
     # =========================================================================
     # Stress transformation and integration
     # =========================================================================
 
-    sig1_Lab = tr.Property(depends_on='state_changed')
+    sig1_unc_Lab = tr.Property(depends_on='state_changed')
     '''Stress returned by the material model
     '''
 
     @tr.cached_property
-    def _get_sig1_Lab(self):
-        eps1_Kab, _ = self.dic_crack.eps1_Kab
+    def _get_sig1_unc_Lab(self):
+        eps1_unc_Lab = self.eps1_unc_Lab
         cmm = self.bd.matrix_
         mdm = self.smeared_matmod
-        mdm.trait_set(E = cmm.E_c, nu=0.2)
-        n_K, _, _ = eps1_Kab.shape
+        mdm.trait_set(E=cmm.E_c, nu=0.2)
+        n_K, _, _ = eps1_unc_Lab.shape
         Eps = {
-            name: np.zeros( (n_K,) + shape)
+            name: np.zeros((n_K,) + shape)
             for name, shape in mdm.state_var_shapes.items()
         }
-        sig1_Kab, _ = mdm.get_corr_pred(eps1_Kab, 1, **Eps)
-        sig1_top_ab = sig1_Kab[-1, ...]
-        return np.vstack([sig1_Kab, [sig1_top_ab]])
+        sig1_unc_Lab, _ = mdm.get_corr_pred(eps1_unc_Lab, 1, **Eps)
+        return sig1_unc_Lab
 
-
-    S_Lb = tr.Property(depends_on='state_changed')
+    sig1_crc_Lb = tr.Property(depends_on='state_changed')
     '''Stress returned by the material model
     '''
 
     @tr.cached_property
-    def _get_S_Lb(self):
+    def _get_sig1_crc_Lb(self):
         U1_Kb = self.dic_crack.U1_Kb
-        u_Lb = self.u_Lb
         cmm = self.bd.matrix_
         sig1_Kb = cmm.get_sig_a(U1_Kb)
-        sig1_top_b = sig1_Kb[-1, :]
-        return np.vstack([sig1_Kb, [sig1_top_b]])
+        return sig1_Kb
+        # sig1_top_b = sig1_Kb[-1, :]
+        # return np.vstack([sig1_Kb, [sig1_top_b]])
 
-    S_La = tr.Property(depends_on='state_changed')
+    sig1_crc_La = tr.Property(depends_on='state_changed')
     '''Transposed stresses'''
 
     @tr.cached_property
-    def _get_S_La(self):
-        S_Lb = self.S_Lb
-        T1_Kab = self.dic_crack.T1_Kab
-        T1_Kab = np.vstack([T1_Kab, [T1_Kab[-1,...]]])
-        S_La = np.einsum('Lb,Lab->La', S_Lb, T1_Kab)
-        return S_La
+    def _get_sig1_crc_La(self):
+        sig1_crc_Lb = self.sig1_crc_Lb
+        T1_crc_Kab = self.dic_crack.T1_crc_Kab
+        sig1_crc_La = np.einsum('Lb,Lab->La', sig1_crc_Lb, T1_crc_Kab)
+        return sig1_crc_La
 
     # =========================================================================
     # Stress resultants
@@ -128,7 +167,7 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_get_w_N(self):
-        return interp1d(self.X_La[:, 1], self.u_Lb[:, 0],
+        return interp1d(self.X1_crc_La[:, 1], self.u_Lb[:, 0],
                         fill_value='extrapolate')
 
     get_s_N = tr.Property(depends_on='state_changed')
@@ -139,7 +178,7 @@ class DICStressProfile(bu.Model):
     @tr.cached_property
     def _get_get_s_N(self):
         # TODO - refine to handle the coordinate transformation correctly
-        return interp1d(self.X_La[:, 1], self.u_La[:, 1],
+        return interp1d(self.X1_crc_La[:, 1], self.u_La[:, 1],
                         fill_value='extrapolate')
 
     U_Na = tr.Property(depends_on='state_changed')
@@ -149,6 +188,9 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_U_Na(self):
+        # handle the case that the crack did not cross the reinforcement yet
+        z_tip = self.dic_crack.X1_tip_a[1]
+        self.z_N[z_tip < self.z_N] = z_tip
         w_N = self.get_w_N(self.z_N)
         s_N = self.get_s_N(self.z_N)
         return np.array([w_N, s_N], dtype=np.float_).T
@@ -177,7 +219,7 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_F_a(self):
-        sum_F_a = np.trapz(self.S_La, self.X_La[:, 0, np.newaxis], axis=0)
+        sum_F_a = np.trapz(self.sig1_crc_La, self.X_La[:, 0, np.newaxis], axis=0)
         F_Na = self.F_Na
         sum_F_Na = np.sum(F_Na, axis=0)
         return sum_F_a + sum_F_Na
@@ -223,8 +265,8 @@ class DICStressProfile(bu.Model):
         x_rot_0k, x_rot_1k = self.X_neutral_a
         # M_L_0 = (x_La[:, 1] - x_rot_1k) * F_La[:, 0]
         # M_L_1 = (x_La[:, 0] - x_rot_0k) * F_La[:, 1]
-        M_L_0 = np.trapz((x_La[:, 1] - x_rot_1k) * self.S_La[:, 0], self.X_La[:, 0])
-        M_L_1 = np.trapz((x_La[:, 0] - x_rot_0k) * self.S_La[:, 1], self.X_La[:, 1])
+        M_L_0 = np.trapz((x_La[:, 1] - x_rot_1k) * self.sig1_crc_La[:, 0], self.X_La[:, 0])
+        M_L_1 = np.trapz((x_La[:, 0] - x_rot_0k) * self.sig1_crc_La[:, 1], self.X_La[:, 1])
         M = np.sum(M_L_0, axis=0) + np.sum(M_L_1, axis=0)
         M_z = np.einsum('i,i', (self.z_N - x_rot_1k), self.F_Na[:, 0])
         # assuming that the horizontal position of the crack bridge
@@ -272,14 +314,14 @@ class DICStressProfile(bu.Model):
     @tr.cached_property
     def _get_get_sig_x_tip_0k(self):
         B = self.bd.B
-        return interp1d(self.sz_cp.x_Lb[:, 1], self.S_La[:, 0] / B,
+        return interp1d(self.sz_cp.x_Lb[:, 1], self.sig1_crc_La[:, 0] / B,
                         fill_value='extrapolate')
 
     def get_stress_resultant_and_position(self, irange):
         '''Helper function to determine the center of gravity of the force profile
         '''
         # F_L0 = self.F_La[:, 0]
-        F_L0 = self.S_La[:, 0]
+        F_L0 = self.sig1_crc_La[:, 0]
         range_F_L0 = F_L0[irange]
         range_x_L0 = self.X_La[irange, 1]
         int_F_L0 = np.trapz(range_F_L0, range_x_L0)
@@ -302,46 +344,46 @@ class DICStressProfile(bu.Model):
     neg_F_y = tr.Property
 
     def _get_neg_F_y(self):
-        y_neutral = self.X_neutral_a[1]
-        S_La = self.S_La
-        irange = np.where(self.X_La[:, 1] > y_neutral)[0]
-        S_ = np.hstack([[0], S_La[irange, 0]])
-        y_ = np.hstack([[y_neutral], self.X_La[irange, 1]]) - y_neutral
+        S_ = self.sig1_unc_Lab[:, 0, 0]
+        y_ = self.X1_unc_La[:, 1] - self.X1_unc_La[0, 1]
         get_S, get_Y = self.get_SY
         y_L = get_Y(S_[:-1], S_[1:], y_[:-1], y_[1:])
         S_L = get_S(S_[:-1], S_[1:], y_[:-1], y_[1:])
         sum_S = np.sum(S_L)
         sum_Sy = np.sum(S_L * y_L)
-        cg_y = sum_Sy / sum_S
-        return sum_S * self.bd.B, cg_y + y_neutral
+        if sum_S == 0:
+            cg_y = 0
+        else:
+            cg_y = sum_Sy / sum_S
+        return sum_S * self.bd.B, cg_y + self.X1_unc_La[0, 1]
 
     pos_F_y = tr.Property
 
     def _get_pos_F_y(self):
-        y_neutral = self.X_neutral_a[1]
-        S_La = self.S_La
-        irange = np.where(self.X_La[:, 1] < y_neutral)[0][::-1]
-        S_ = np.hstack([[0], S_La[irange, 0]])
-        y_ = np.hstack([[y_neutral], self.X_La[irange, 1]]) - y_neutral
+        S_ = self.sig1_crc_La[:, 0]
+        y_ = self.X1_crc_La[:, 1] - self.X1_unc_La[-1, 1]
         get_S, get_Y = self.get_SY
         y_L = get_Y(S_[:-1], S_[1:], y_[:-1], y_[1:])
         S_L = get_S(S_[:-1], S_[1:], y_[:-1], y_[1:])
         sum_S = np.sum(S_L)
         sum_Sy = np.sum(S_L * y_L)
-        cg_y = sum_Sy / sum_S
-        return -sum_S * self.bd.B, cg_y + y_neutral
+        if sum_S == 0:
+            cg_y = 0
+        else:
+            cg_y = sum_Sy / sum_S
+        return sum_S * self.bd.B, cg_y + self.X1_unc_La[-1, 1]
 
     # =========================================================================
     # Plotting methods
     # =========================================================================
 
     def plot_u_Lc(self, ax, u_Lc, idx=0, color='black', label=r'$w$ [mm]'):
-        x_La = self.X_La
+        x_crc_La = self.X1_crc_La
         u_Lb_min = np.min(u_Lc[:, idx])
         u_Lb_max = np.max(u_Lc[:, idx])
         #    self.plot_hlines(ax, u_Lb_min, u_Lb_max)
-        ax.plot(u_Lc[:, idx], x_La[:, 1], color=color, label=label)
-        ax.fill_betweenx(x_La[:, 1], u_Lc[:, idx], 0, color=color, alpha=0.1)
+        ax.plot(u_Lc[:, idx], x_crc_La[:, 1], color=color, label=label)
+        ax.fill_betweenx(x_crc_La[:, 1], u_Lc[:, idx], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
 
     def plot_u_La(self, ax_w, vot=1):
@@ -362,26 +404,41 @@ class DICStressProfile(bu.Model):
         ax_w.legend(loc='lower left')
         ax_w.set_ylim(0, self.bd.H)
 
-    def plot_S_Lb(self, ax_sig):
+    def _plot_unc_sig1(self, ax, sig1_Lab, a=0, b=0, color='black', label=r'$\sigma$ [MPa]'):
+        """Helper function for plotting the strain along the ligament
+        at an intermediate state.
+        """
+        X1_unc_La = self.X1_unc_La
+        ax.plot(sig1_Lab[:, a, b], X1_unc_La[:, 1], color=color, label=label)
+        ax.fill_betweenx(X1_unc_La[:, 1], sig1_Lab[:, a, b], 0, color=color, alpha=0.1)
+        ax.set_xlabel(label)
+        ax.legend(loc='lower left')
+
+    def plot_sig1_unc_Lab(self, ax_sig):
+        """Plot the displacement (u_x, u_y) in local crack coordinates
+        at an intermediate state.
+        """
+        self._plot_unc_sig1(ax_sig, self.sig1_unc_Lab, 0, 0, color='blue')
+        self._plot_unc_sig1(ax_sig, self.sig1_unc_Lab, 0, 1, color='green')
+        ax_sig.set_xlabel(r'$\sigma$ [-]', fontsize=10)
+
+    def plot_sig1_crc_Lb(self, ax_sig):
         '''Plot the stress components (sig, tau) in local crack coordinates
         '''
         # plot the critical displacement
         bd = self.bd
-        self.plot_u_Lc(ax_sig, self.S_Lb, 0, label=r'$\sigma_\mathrm{N}$ [N/mm]', color='blue')
-        self.plot_u_Lc(ax_sig, self.S_Lb, 1, label=r'$\sigma_\mathrm{T}$ [N/mm]', color='green')
+        self.plot_u_Lc(ax_sig, self.sig1_crc_Lb, 0, label=r'$\sigma_\mathrm{N}$ [N/mm]', color='blue')
+        self.plot_u_Lc(ax_sig, self.sig1_crc_Lb, 1, label=r'$\sigma_\mathrm{T}$ [N/mm]', color='green')
         ax_sig.set_xlabel(r'stress $\sigma_\mathrm{N,T}$ [N/mm]', fontsize=10)
         ax_sig.set_ylim(0, self.bd.H)
 
-    def plot_S_La(self, ax_sig):
-        if self.show_stress:
-            self.plot_u_Lc(ax_sig, self.S_La, 0, label=r'$f_x$ [MPa]', color='blue')
-            self.plot_u_Lc(ax_sig, self.S_La, 1, label=r'$f_z$ [MPa]', color='green')
-            ax_sig.set_xlabel(r'stress $\sigma_{xx}, \sigma_{xy}$ [MPa]', fontsize=10)
-            mpl_align_xaxis(ax_sig, ax_sig)
-        ax_sig.set_ylim(0, self.bd.H)
+    def plot_sig1_crc_La(self, ax_sig):
+        self.plot_u_Lc(ax_sig, self.sig1_crc_La, 0, label=r'$f_x$ [MPa]', color='blue')
+        self.plot_u_Lc(ax_sig, self.sig1_crc_La, 1, label=r'$f_z$ [MPa]', color='green')
+        ax_sig.set_xlabel(r'stress $\sigma_{xx}, \sigma_{xy}$ [MPa]', fontsize=10)
 
     def plot_F_a(self, ax_F_a):
-        #ax_F_a.plot(*self.X_La.T, color='black')
+        # ax_F_a.plot(*self.X_La.T, color='black')
         ax_F_a.plot([0, 0], [0, self.bd.H], color='black', linewidth=0.4)
         # compression zone
         neg_F, neg_y = self.neg_F_y
@@ -389,7 +446,6 @@ class DICStressProfile(bu.Model):
         head_length = np.fabs(neg_F_kN * 0.2)
         head_width = 10
         if neg_F_kN != 0:
-            print('number {0:.3g}'.format(neg_F_kN))
             ax_F_a.annotate('{0:.3g} kN'.format(neg_F_kN),
                             xy=(0, neg_y), xycoords='data',
                             xytext=(neg_F_kN, neg_y), textcoords='data',
@@ -436,19 +492,19 @@ class DICStressProfile(bu.Model):
         ax_F_a.set_xlim(neg_F_kN * 1.3, np.max([pos_F_kN, max_F_N0_kN]) * 1.3)
 
     def subplots(self, fig):
-        gs = gridspec.GridSpec(2, 4)
+        gs = gridspec.GridSpec(1, 4)
         ax_u_0 = fig.add_subplot(gs[0, 0])
         ax_w_0 = fig.add_subplot(gs[0, 1])
         ax_S_Lb = fig.add_subplot(gs[0, 2])
         ax_S_La = fig.add_subplot(gs[0, 3])
-        ax_F_a = fig.add_subplot(gs[1, 3])
-        return ax_u_0, ax_w_0, ax_S_Lb, ax_S_La, ax_F_a
+        return ax_u_0, ax_w_0, ax_S_Lb, ax_S_La
 
     def update_plot(self, axes):
-        ax_u_0, ax_w_0, ax_S_Lb, ax_S_La, ax_F_a = axes
+        ax_u_0, ax_w_0, ax_S_Lb, ax_S_La = axes
         self.plot_u_La(ax_u_0)
         self.plot_u_Lb(ax_w_0)
-        self.plot_S_Lb(ax_S_Lb)
-        self.plot_S_La(ax_S_La)
-        self.plot_F_a(ax_F_a)
-
+        self.plot_sig1_unc_Lab(ax_S_Lb)
+        self.plot_sig1_crc_Lb(ax_S_Lb)
+        self.plot_sig1_unc_Lab(ax_S_La)
+        self.plot_sig1_crc_La(ax_S_La)
+        # self.plot_F_a(ax_F_a)

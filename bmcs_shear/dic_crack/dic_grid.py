@@ -165,7 +165,7 @@ class DICGrid(bu.Model):
     '''Define the bottom left and top right corners'''
     def _get_X_frame(self):
         L_x, L_y = self.L_x, self.L_y
-        y_offset, x_offset = self.x_offset, self.y_offset
+        x_offset, y_offset = self.x_offset, self.y_offset
         X_min, X_max = x_offset, L_x + x_offset
         Y_min, Y_max = y_offset, L_y + y_offset
         return X_min, Y_min, X_max, Y_max
@@ -262,9 +262,10 @@ class DICGrid(bu.Model):
             U_TJIa = U_TPa.reshape(n_T, n_J, n_I, 2) # for numbering from bottom right to left
             U_TIJa = np.einsum('TJIa->TIJa', U_TJIa)
         if self.top_down_enum:
-            return U_TIJa[:,:,::-1,:]
+            return U_TIJa[:,::-1,::-1,:]
+#            return U_TIJa[:,:,::-1,:]
         else:
-            return U_TIJa
+            return U_TIJa[:,::-1,:,:]
 
     n_dic_T = tr.Property(depends_on='state_changed')
     '''Number of dic snapshots up to the maximum load'''
@@ -289,7 +290,8 @@ class DICGrid(bu.Model):
     @tr.cached_property
     def _get_X_IJa(self):
         n_I, n_J = self.n_I, self.n_J
-        x_range = np.arange(n_I)[::-1] * self.d_x + self.x_offset
+#        x_range = np.arange(n_I)[::-1] * self.d_x + self.x_offset
+        x_range = np.arange(n_I) * self.d_x + self.x_offset
         y_range = np.arange(n_J) * self.d_y + self.y_offset
         y_IJ, x_IJ = np.meshgrid(y_range, x_range)
         X_aIJ = np.array([x_IJ, y_IJ])

@@ -35,7 +35,7 @@ class DICStateFields(ib.TStepBC):
     def _get_xmodel(self):
         n_E, n_F = self.n_EF
         X_min, Y_min, X_max, Y_max = self.dic_grid.X_frame
-        return ib.XDomainFEGrid(coord_min=(X_max, X_min), coord_max=(Y_min, Y_max),
+        return ib.XDomainFEGrid(coord_min=(X_min, Y_min), coord_max=(X_max, Y_max),
                                 integ_factor=1, shape=(n_E, n_F),  # number of elements!
                                 fets=ib.FETS2D4Q());
 
@@ -150,7 +150,7 @@ class DICStateFields(ib.TStepBC):
         n_M, n_N = self.n_M, self.n_N
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
         x_M, x_N = x_MN[:, 0], y_MN[0, :]
-        xx_M = np.linspace(x_M[-1], x_M[0], n_M)
+        xx_M = np.linspace(x_M[0], x_M[-1], n_M)
         yy_N = np.linspace(x_N[0], x_N[-1], n_N)
         xx_NM, yy_NM = np.meshgrid(xx_M, yy_N)
         X_aNM = np.array([xx_NM, yy_NM])
@@ -183,7 +183,7 @@ class DICStateFields(ib.TStepBC):
         n_M, n_N = self.n_M, self.n_N
         x_M, x_N = x_MN[:, 0], y_MN[0, :]
         f_omega = interp2d(x_M, x_N, omega_MN.T, kind='cubic')
-        xx_M = np.linspace(x_M[-1], x_M[0], n_M)
+        xx_M = np.linspace(x_M[0], x_M[-1], n_M)
         yy_N = np.linspace(x_N[0], x_N[-1], n_N)
         xx_NM, yy_NM = np.meshgrid(xx_M, yy_N)
         omega_ipl_NM = f_omega(xx_M, yy_N)
@@ -228,8 +228,8 @@ class DICStateFields(ib.TStepBC):
         dic_T = np.arange(self.dic_grid.n_dic_T)
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
         dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
-        args = (dic_t, x_MN[::-1, 0], y_MN[0, :])
-        return RegularGridInterpolator(args, self.eps_TMNab[:, ::-1, :])
+        args = (dic_t, x_MN[:, 0], y_MN[0, :])
+        return RegularGridInterpolator(args, self.eps_TMNab[:, :, :])
 
 
     sig_fields = tr.Property(depends_on='state_changed')
@@ -285,8 +285,8 @@ class DICStateFields(ib.TStepBC):
         U_TIJa = self.dic_grid.U_TIJa[:n_dic_T, ...]
         x_IJ, y_IJ = np.einsum('IJa->aIJ', X_IJa)
         dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
-        txy = (dic_t, x_IJ[::-1, 0], y_IJ[0, :])
-        return RegularGridInterpolator(txy, U_TIJa[:, ::-1, :, :])
+        txy = (dic_t, x_IJ[:, 0], y_IJ[0, :])
+        return RegularGridInterpolator(txy, U_TIJa[:, :, :, :])
 
     #######################################################################
 
@@ -313,8 +313,8 @@ class DICStateFields(ib.TStepBC):
         dic_T = np.arange(self.dic_grid.n_dic_T)
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
         dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
-        args = (dic_t, x_MN[::-1, 0], y_MN[0, :])
-        return RegularGridInterpolator(args, self.omega_TMN[:, ::-1, :])
+        args = (dic_t, x_MN[:, 0], y_MN[0, :])
+        return RegularGridInterpolator(args, self.omega_TMN[:, :, :])
 
     #######################################################################
 
