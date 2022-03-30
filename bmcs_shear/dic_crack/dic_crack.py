@@ -68,16 +68,22 @@ class DICCrack(bu.Model):
     '''
 
     sp = bu.Instance(DICStressProfile)
+    '''Stress profile evaluating with evaluation of stress resultants.
+    '''
 
     def _sp_default(self):
         return DICStressProfile(dic_crack=self)
 
     cor = bu.Instance(DICCrackCOR)
+    '''Center of rotation evaluation.
+    '''
 
     def _cor_default(self):
         return DICCrackCOR(dic_crack=self)
 
     dic_grid = tr.Property()
+    '''Input data grid.
+    '''
 
     @tr.cached_property
     def _get_dic_grid(self):
@@ -137,12 +143,6 @@ class DICCrack(bu.Model):
         time_editor=bu.HistoryEditor(var='dic_grid.t')
     )
 
-    dic_grid = tr.Property
-    '''Source grid.
-    '''
-    def _get_dic_grid(self):
-        return self.cl.dsf.dic_grid
-
     T1 = tr.Property(bu.Int)
     '''Current time index.
     '''
@@ -160,11 +160,11 @@ class DICCrack(bu.Model):
         x_U_N_irn = get_f_ironed_weighted(y_U_N, x_U_N, self.R)
         return CubicSpline(y_U_N, x_U_N_irn, bc_type='natural')
 
-    X_tip_a = tr.Property(depends_on='state_changed')
+    x_1_tip_a = tr.Property(depends_on='state_changed')
     '''Coordinates of the crack tip near failure load.
     '''
     @tr.cached_property
-    def _get_X_tip_a(self):
+    def _get_x_1_tip_a(self):
         x_N, y_N = self.x_N, self.y_N
         return np.array([x_N[self.N_tip], y_N[self.N_tip]], dtype=np.float_)
 
@@ -176,7 +176,7 @@ class DICCrack(bu.Model):
     def _get_H_ligament(self):
         return self.dic_grid.L_y
 
-    def get_crack_ligament(self, X_tip_a):
+    def get_crack_ligament(self, x_tip_a):
         """Discretize the crack path along the identified spline
         up to X_tip_a and complete it with the vertical ligament
         returns:
@@ -186,7 +186,7 @@ class DICCrack(bu.Model):
         X_crc_Ka
         T_Kab[:n_K_crc]
         """
-        _, y_tip = X_tip_a
+        _, y_tip = x_tip_a
         # Cracked fraction of cross-section
         d_y = y_tip / self.H_ligament
         # number of discretization nodes in the cracked part
@@ -223,160 +223,160 @@ class DICCrack(bu.Model):
         T_Kab = np.vstack([T_crc_Nab, T_unc_Nab])
         return X_Ka, T_Kab, X_unc_Ka, X_crc_Ka, T_Kab[:n_K_crc]
 
-    crack_ligament = tr.Property(depends_on='state_changed')
-    '''Crack ligament nodes and transformation matrixes X_Ka, T_Kab
+    crack_ligament_1 = tr.Property(depends_on='state_changed')
+    '''Crack ligament nodes and transformation matrixes x_1_Ka, T_Kab
     at ultimate load.
     '''
     @tr.cached_property
-    def _get_crack_ligament(self):
-        return self.get_crack_ligament(self.X_tip_a)
+    def _get_crack_ligament_1(self):
+        return self.get_crack_ligament(self.x_1_tip_a)
 
-    crack_ligament_T1 = tr.Property(depends_on='state_changed')
+    crack_ligament_t = tr.Property(depends_on='state_changed')
     '''Crack ligament nodes and transformation matrixes X_Ka, T_Kab
     at the currently selected state.
     '''
     @tr.cached_property
-    def _get_crack_ligament_T1(self):
-        return self.get_crack_ligament(self.X1_tip_a)
+    def _get_crack_ligament_t(self):
+        return self.get_crack_ligament(self.x_t_tip_a)
 
     # Crack ligament at ultimate state
 
-    X_Ka = tr.Property(depends_on='state_changed')
+    x_1_Ka = tr.Property(depends_on='state_changed')
     '''All ligament points at ultimate state.
     '''
     @tr.cached_property
-    def _get_X_Ka(self):
-        X_Ka, _, _, _, _ = self.crack_ligament
-        return X_Ka
+    def _get_x_1_Ka(self):
+        x_1_Ka, _, _, _, _ = self.crack_ligament_1
+        return x_1_Ka
 
-    T_Kab = tr.Property(depends_on='state_changed')
+    T_1_Kab = tr.Property(depends_on='state_changed')
     '''Smoothed crack profile.
     '''
     @tr.cached_property
-    def _get_T_Kab(self):
-        _, T_Kab, _, _, _ = self.crack_ligament
-        return T_Kab
+    def _get_T_1_Kab(self):
+        _, T_1_Kab, _, _, _ = self.crack_ligament_1
+        return T_1_Kab
 
-    X_crc_Ka = tr.Property(depends_on='state_changed')
+    x_1_crc_Ka = tr.Property(depends_on='state_changed')
     '''All ligament points at ultimate state.
     '''
     @tr.cached_property
-    def _get_X_crc_Ka(self):
-        _, _, _, X_crc_Ka, _ = self.crack_ligament
-        return X_crc_Ka
+    def _get_x_1_crc_Ka(self):
+        _, _, _, x_1_crc_Ka, _ = self.crack_ligament_1
+        return x_1_crc_Ka
 
-    T_crc_Kab = tr.Property(depends_on='state_changed')
+    T_1_crc_Kab = tr.Property(depends_on='state_changed')
     '''Smoothed crack profile.
     '''
     @tr.cached_property
-    def _get_T_crc_Kab(self):
-        _, _, _, _, T_crc_Kab = self.crack_ligament
-        return T_crc_Kab
+    def _get_T_1_crc_Kab(self):
+        _, _, _, _, T_1_crc_Kab = self.crack_ligament_1
+        return T_1_crc_Kab
 
     # Crack ligament at an intermediate state T1
 
-    X1_Ka = tr.Property(depends_on='state_changed')
+    x_t_Ka = tr.Property(depends_on='state_changed')
     '''All ligament points at intermediate state.
     '''
     @tr.cached_property
-    def _get_X1_Ka(self):
-        X1_Ka, _, _, _, _ = self.crack_ligament_T1
-        return X1_Ka
+    def _get_x_t_Ka(self):
+        x_t_Ka, _, _, _, _ = self.crack_ligament_t
+        return x_t_Ka
 
-    T1_Kab = tr.Property(depends_on='state_changed')
+    T_t_Kab = tr.Property(depends_on='state_changed')
     '''Transformation matrices into and from ligament coordinates.
     '''
     @tr.cached_property
-    def _get_T1_Kab(self):
-        _, T1_Kab, _, _, _ = self.crack_ligament_T1
-        return T1_Kab
+    def _get_T_t_Kab(self):
+        _, T_t_Kab, _, _, _ = self.crack_ligament_t
+        return T_t_Kab
 
-    X1_unc_Ka = tr.Property(depends_on='state_changed')
+    x_t_unc_Ka = tr.Property(depends_on='state_changed')
     '''Uncracked ligament points at intermediate state.
     '''
     @tr.cached_property
-    def _get_X1_unc_Ka(self):
-        _, _, X1_unc_Ka, _, _ = self.crack_ligament_T1
-        return X1_unc_Ka
+    def _get_x_t_unc_Ka(self):
+        _, _, x_t_unc_Ka, _, _ = self.crack_ligament_t
+        return x_t_unc_Ka
 
-    X1_crc_Ka = tr.Property(depends_on='state_changed')
+    x_t_crc_Ka = tr.Property(depends_on='state_changed')
     '''All ligament points at intermediate state.
     '''
     @tr.cached_property
-    def _get_X1_crc_Ka(self):
-        _, _, _, X1_crc_Ka, _ = self.crack_ligament_T1
-        return X1_crc_Ka
+    def _get_x_t_crc_Ka(self):
+        _, _, _, x_t_crc_Ka, _ = self.crack_ligament_t
+        return x_t_crc_Ka
 
-    T1_crc_Kab = tr.Property(depends_on='state_changed')
+    T_t_crc_Kab = tr.Property(depends_on='state_changed')
     '''Smoothed crack profile.
     '''
     @tr.cached_property
-    def _get_T1_crc_Kab(self):
-        _, _, _, _, T1_crc_Kab = self.crack_ligament_T1
-        return T1_crc_Kab
+    def _get_T_t_crc_Kab(self):
+        _, _, _, _, T_t_crc_Kab = self.crack_ligament_t
+        return T_t_crc_Kab
 
     # Strain evaluation
 
-    def get_eps_Kab(self, t, X_Ka):
+    def get_eps_Kab(self, t, x_Ka):
         """Get strain along the ligament by picking up the interpolated
         strain in the state field model.
         """
-        x_K, y_K = X_Ka.T
+        x_K, y_K = x_Ka.T
         t_K = np.ones_like(x_K) * t
         tX_mid_K = np.array([t_K, x_K, y_K], dtype=np.float_).T
         eps_Kab = self.cl.dsf.f_eps_ipl_txy(tX_mid_K)
         return eps_Kab
 
-    eps1_Kab = tr.Property(depends_on='state_changed')
+    eps_t_Kab = tr.Property(depends_on='state_changed')
     '''Global strain displacement of points along the 
     crack at an intermediate state.
     '''
     @tr.cached_property
-    def _get_eps1_Kab(self):
-        return self.get_eps_Kab(self.dic_grid.t, self.X1_unc_Ka)
+    def _get_eps_t_Kab(self):
+        return self.get_eps_Kab(self.dic_grid.t, self.x_t_unc_Ka)
 
     # Displacement jump evaluation
 
-    def get_U_Ka(self, t, X_Ka):
+    def get_u_crc_Ka(self, t, X_crc_Ka):
         """Displacement jump across the crack.
         """
         d_x = self.d_x / 2
-        x_K, y_K = X_Ka.T
+        x_K, y_K = X_crc_Ka.T
         t_K = np.ones_like(x_K) * t
         tX_right_K = np.array([t_K, x_K + d_x, y_K], dtype=np.float_).T
         tX_left_K = np.array([t_K, x_K - d_x, y_K], dtype=np.float_).T
-        U_Ka = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
+        u_Ka = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
 
         # eps_Kab, K_eps = self.get_eps_Kab(t, X_Ka)
         # U_Ka[K_eps, 0] = eps_Kab[K_eps, 0, 0] * self.bd.matrix_.L_cr
         # U_Ka[K_eps, 1] = eps_Kab[K_eps, 0, 1] * self.bd.matrix_.L_cr
-        return U_Ka
+        return u_Ka
 
-    U_Ka = tr.Property(depends_on='state_changed')
+    u_1_crc_Ka = tr.Property(depends_on='state_changed')
     '''Global relative displacement of points along the crack 
     at the ultimate state.
     '''
     @tr.cached_property
-    def _get_U_Ka(self):
-        return self.get_U_Ka(1, self.X_crc_Ka)
+    def _get_u_1_crc_Ka(self):
+        return self.get_u_crc_Ka(1, self.x_1_crc_Ka)
 
-    U1_Ka = tr.Property(depends_on='state_changed')
+    u_t_crc_Ka = tr.Property(depends_on='state_changed')
     '''Global relative displacement of points along the crack 
     at an intermediate state.
     '''
     @tr.cached_property
-    def _get_U1_Ka(self):
-        return self.get_U_Ka(self.dic_grid.t, self.X1_crc_Ka)
+    def _get_u_t_crc_Ka(self):
+        return self.get_u_crc_Ka(self.dic_grid.t, self.x_t_crc_Ka)
 
-    U1_Kb = tr.Property(depends_on='state_changed')
+    u_t_crc_Kb = tr.Property(depends_on='state_changed')
     '''Local relative displacement of points along the crack 
     in an intermediate state.
     '''
     @tr.cached_property
-    def _get_U1_Kb(self):
-        U1_Ka = self.U1_Ka
-        U1_Kb = np.einsum('...ab,...b->...a', self.T1_crc_Kab, U1_Ka)
-        return U1_Kb
+    def _get_u_t_crc_Kb(self):
+        u_t_crc_Ka = self.u_t_crc_Ka
+        u_t_crc_Kb = np.einsum('...ab,...b->...a', self.T_t_crc_Kab, u_t_crc_Ka)
+        return u_t_crc_Kb
 
     # Time-space interpolation of the damage function along the ligament
 
@@ -393,10 +393,10 @@ class DICCrack(bu.Model):
     '''
     @tr.cached_property
     def _get_omega_TK(self):
-        X_Ka = self.X_Ka
+        x_1_Ka = self.x_1_Ka
         # construct a grid with time and space dimensions
         t_TKa, x_TKa = np.broadcast_arrays(
-            self.t_T[:, np.newaxis, np.newaxis], X_Ka[np.newaxis, :, :]
+            self.t_T[:, np.newaxis, np.newaxis], x_1_Ka[np.newaxis, :, :]
         )
         # flatten the time space such that points are flattened
         tx_Pb = np.hstack([t_TKa[..., 0].reshape(-1, 1), x_TKa.reshape(-1, 2)])
@@ -410,119 +410,119 @@ class DICCrack(bu.Model):
     def _get_K_tip_T(self):
         return np.argmax(self.omega_TK < 0.1, axis=-1)
 
-    X1_tip_a = tr.Property(depends_on='state_changed')
+    x_t_tip_a = tr.Property(depends_on='state_changed')
     '''Position of the crack tip at time index T1.
     '''
     @tr.cached_property
-    def _get_X1_tip_a(self):
-        return self.X_Ka[self.K_tip_T[self.T1]]
+    def _get_x_t_tip_a(self):
+        return self.x_1_Ka[self.K_tip_T[self.T1]]
 
-    omega1_N = tr.Property(depends_on='state_changed')
+    omega_t_N = tr.Property(depends_on='state_changed')
     '''Damage along the ligament at current time t.
     '''
     @tr.cached_property
-    def _get_omega1_N(self):
+    def _get_omega_t_N(self):
         return self.omega_TK[self.dic_grid.T1]
 
     # ----------------------------------------------------------
     # Plot functions
     # ----------------------------------------------------------
-    def plot_X_Ka(self, ax_x):
+    def plot_x_1_Ka(self, ax_x):
         """Plot crack geometry at ultimate state.
         """
         if self.plot_grid_markers:
             ax_x.plot(self.x_N, self.y_N, 'o')
-        ax_x.plot(*self.X_Ka.T, color='black');
-        ax_x.plot(*self.X_tip_a[:, np.newaxis], 'o', color='red')
+        ax_x.plot(*self.x_1_Ka.T, color='black');
+        ax_x.plot(*self.x_1_tip_a[:, np.newaxis], 'o', color='red')
 
-    def plot_X1_Ka(self, ax):
+    def plot_x_t_Ka(self, ax):
         """Plot geometry at current state.
         """
-        ax.plot(*self.X1_Ka.T, linestyle='dashed', color='black');
-        ax.plot(*self.X1_tip_a[:, np.newaxis], 'o', color='magenta')
+        ax.plot(*self.x_t_Ka.T, linestyle='dashed', color='black');
+        ax.plot(*self.x_t_tip_a[:, np.newaxis], 'o', color='magenta')
 
-    def _plot_eps1(self, ax, eps1_Kab, a=0, b=0, color='black', label=r'$\varepsilon$ [-]'):
+    def _plot_eps_t(self, ax, eps_t_Kab, a=0, b=0, color='black', label=r'$\varepsilon$ [-]'):
         """Helper function for plotting the strain along the ligament
         at an intermediate state.
         """
-        X1_unc_La = self.sp.X1_unc_La
-        ax.plot(eps1_Kab[:, a, b], X1_unc_La[:, 1], color=color, label=label)
-        ax.fill_betweenx(X1_unc_La[:, 1], eps1_Kab[:, a, b], 0, color=color, alpha=0.1)
+        x_t_unc_La = self.sp.x_t_unc_La
+        ax.plot(eps_t_Kab[:, a, b], x_t_unc_La[:, 1], color=color, label=label)
+        ax.fill_betweenx(x_t_unc_La[:, 1], eps_t_Kab[:, a, b], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
         # eps_K = self.eps_Kab[:, idx, idx]
-        # ax.set_xlim(np.min(eps_K) * 1.04, np.max(self.U_Ka) * 1.04)
+        # ax.set_xlim(np.min(eps_K) * 1.04, np.max(self.u_1_crc_Ka) * 1.04)
 
-    def plot_eps1_Kab(self, ax_eps):
+    def plot_eps_t_Kab(self, ax_eps):
         """Plot the displacement (u_x, u_y) in local crack coordinates
         at an intermediate state.
         """
-        self._plot_eps1(ax_eps, self.sp.eps1_unc_Lab, 0, 0, color='blue')
-        self._plot_eps1(ax_eps, self.sp.eps1_unc_Lab, 0, 1, color='green')
+        self._plot_eps_t(ax_eps, self.sp.eps_t_unc_Lab, 0, 0, color='blue')
+        self._plot_eps_t(ax_eps, self.sp.eps_t_unc_Lab, 0, 1, color='green')
         ax_eps.set_xlabel(r'$\varepsilon$ [-]', fontsize=10)
         # ax_eps.legend()
         # ax_eps.set_ylim(self.y_N[0], self.y_N[-1])
 
-    def _plot_U1(self, ax, U1_Ka, idx=0, color='black', label=r'$w$ [mm]'):
+    def _plot_u_t(self, ax, u_t_crc_Ka, idx=0, color='black', label=r'$w$ [mm]'):
         """Helper function for plotting the displacement along the ligament
         at an intermediate state.
         """
-        X1_crc_Ka = self.X1_crc_Ka
-        ax.plot(U1_Ka[:, idx], X1_crc_Ka[:, 1], color=color, label=label)
-        ax.fill_betweenx(X1_crc_Ka[:, 1], U1_Ka[:, idx], 0, color=color, alpha=0.1)
+        x_t_crc_Ka = self.x_t_crc_Ka
+        ax.plot(u_t_crc_Ka[:, idx], x_t_crc_Ka[:, 1], color=color, label=label)
+        ax.fill_betweenx(x_t_crc_Ka[:, 1], u_t_crc_Ka[:, idx], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
-        # ax.set_xlim(np.min(self.U_Ka) * 1.04, np.max(self.U_Ka) * 1.04)
+        # ax.set_xlim(np.min(self.u_1_crc_Ka) * 1.04, np.max(self.u_1_crc_Ka) * 1.04)
 
-    def plot_U1_Ka(self, ax):
+    def plot_u_t_crc_Ka(self, ax):
         """Plot the displacement along the crack (w and s)
         in global coordinates at an intermediate state.
         """
-        self._plot_U1(ax, self.U1_Ka, 0, label=r'$u_x$ [mm]', color='blue')
+        self._plot_u_t(ax, self.u_t_crc_Ka, 0, label=r'$u_x$ [mm]', color='blue')
         ax.set_xlabel(r'$u_x, u_y$ [mm]', fontsize=10)
-        ax.plot([0], [self.X1_tip_a[1]], 'o', color='magenta')
-        self._plot_U1(ax, self.U1_Ka, 1, label=r'$u_y$ [mm]', color='green')
+        ax.plot([0], [self.x_t_tip_a[1]], 'o', color='magenta')
+        self._plot_u_t(ax, self.u_t_crc_Ka, 1, label=r'$u_y$ [mm]', color='green')
         ax.legend()
         ax.set_ylim(self.y_N[0], self.y_N[-1])
-        ax.set_xlim(np.min(self.U_Ka) * 1.04, np.max(self.U_Ka) * 1.04)
+        ax.set_xlim(np.min(self.u_1_crc_Ka) * 1.04, np.max(self.u_1_crc_Ka) * 1.04)
 
-    def plot_U1_Kb(self, ax_w):
+    def plot_u_t_crc_Kb(self, ax_w):
         """Plot the displacement (u_x, u_y) in local crack coordinates
         at an intermediate state.
         """
-        self._plot_U1(ax_w, self.U1_Kb, 0, label=r'$w$ [mm]', color='blue')
-        ax_w.plot([0], [self.X1_tip_a[1]], 'o', color='magenta')
+        self._plot_u_t(ax_w, self.u_t_crc_Kb, 0, label=r'$w$ [mm]', color='blue')
+        ax_w.plot([0], [self.x_t_tip_a[1]], 'o', color='magenta')
         ax_w.set_xlabel(r'$w, s$ [mm]', fontsize=10)
-        self._plot_U1(ax_w, self.U1_Kb, 1, label=r'$s$ [mm]', color='green')
+        self._plot_u_t(ax_w, self.u_t_crc_Kb, 1, label=r'$s$ [mm]', color='green')
         ax_w.legend()
         ax_w.set_ylim(self.y_N[0], self.y_N[-1])
 
-    def plot_U1_Nib(self, ax):
+    def plot_u_t_Nib(self, ax):
         """Plot the opening displacement in ligament coordinates
         at an intermediate state.
         """
-        w_max = np.max(self.U1_Kb[:, 0])
+        w_max = np.max(self.u_t_crc_Kb[:, 0])
         w_max_plot_size = self.H_ligament * self.w_H_plot_ratio
         w_plot_factor = w_max_plot_size / w_max
-        U1_Kb = self.U1_Kb[:, 0, np.newaxis] * self.T1_Kab[..., 0, :] * w_plot_factor
-        xU1_Kb = self.X1_crc_Ka + U1_Kb
-        l_iNb = np.array([self.X1_crc_Ka, xU1_Kb], dtype=np.float_)
+        u_t_crc_Kb = self.u_t_crc_Kb[:, 0, np.newaxis] * self.T_t_crc_Kab[..., 0, :] * w_plot_factor
+        xu_t_crc_Kb = self.x_t_crc_Ka + u_t_crc_Kb
+        l_iNb = np.array([self.x_t_crc_Ka, xu_t_crc_Kb], dtype=np.float_)
         l_biN = np.einsum('iNb->biN', l_iNb)
         ax.plot(*l_biN, color='orange', alpha=0.5)
-        ax.plot(*xU1_Kb.T, color='orange')
+        ax.plot(*xu_t_crc_Kb.T, color='orange')
 
-    def plot_omega1_Ni(self, ax):
+    def plot_omega_t_Ni(self, ax):
         """Plot the damage in ligament coordinates
         at an ultimate state.
         """
         w_max_plot_size = self.H_ligament * self.w_H_plot_ratio
         w_plot_factor = w_max_plot_size
-        omega_Nb = self.omega1_N[:, np.newaxis] * self.T_Kab[..., 0, :] * w_plot_factor
-        X_omega_Kb = self.X_Ka + omega_Nb
-        l_iNb = np.array([self.X_Ka, X_omega_Kb], dtype=np.float_)
+        omega_Nb = self.omega_t_N[:, np.newaxis] * self.T_1_Kab[..., 0, :] * w_plot_factor
+        x_1_omega_Kb = self.x_1_Ka + omega_Nb
+        l_iNb = np.array([self.x_1_Ka, x_1_omega_Kb], dtype=np.float_)
         l_biN = np.einsum('iNb->biN', l_iNb)
         ax.plot(*l_biN, color='blue', alpha=0.5)
-        ax.plot(*X_omega_Kb.T, color='blue')
+        ax.plot(*x_1_omega_Kb.T, color='blue')
 
     def subplots(self, fig):
         self.fig = fig
@@ -551,28 +551,28 @@ class DICCrack(bu.Model):
             self.cl.dsf.plot_eps_field(ax_cl, self.fig)
 
         self.cl.plot_primary_cracks(ax_cl)
-        self.plot_omega1_Ni(ax_cl)
+        self.plot_omega_t_Ni(ax_cl)
         self.dic_grid.plot_load_deflection(ax_FU)
-        self.plot_X_Ka(ax_x)
-        self.plot_X1_Ka(ax_x)
+        self.plot_x_1_Ka(ax_x)
+        self.plot_x_t_Ka(ax_x)
         ax_x.set_title(r'smoothed ligament & opening')
         ax_x.set_xlabel(r'$x$ [mm]')
         ax_x.set_ylabel(r'$y$ [mm]')
         ax_x.axis('equal');
         # ax_x.set_ylim(self.y_N[0], self.y_N[-1])
         ax_x.set_ylim(0, self.bd.H)
-        # self.plot_U1_Nib(ax_x)
-        self.plot_omega1_Ni(ax_x)
-        self.plot_U1_Ka(ax_u)
-        self.plot_eps1_Kab(ax_eps)
+        # self.plot_u_t_Nib(ax_x)
+        self.plot_omega_t_Ni(ax_x)
+        self.plot_u_t_crc_Ka(ax_u)
+        self.plot_eps_t_Kab(ax_eps)
         ax_eps.set_ylim(0, self.bd.H)
         ax_u.set_ylim(0, self.bd.H * 1.04)
         bu.mpl_align_xaxis(ax_u, ax_eps)
 
-        self.sp.plot_sig1_unc_Lab(ax_sig)
-        self.sp.plot_sig1_crc_La(ax_sig)
+        self.sp.plot_sig_t_unc_Lab(ax_sig)
+        self.sp.plot_sig_t_crc_La(ax_sig)
 
-        self.sp.plot_F_a(ax_F)
+        self.sp.plot_F_t_a(ax_F)
         bu.mpl_align_xaxis(ax_sig, ax_F)
 
-        # self.plot_U1_Kb(ax_sig_0)
+        # self.plot_u_t_Kb(ax_sig_0)

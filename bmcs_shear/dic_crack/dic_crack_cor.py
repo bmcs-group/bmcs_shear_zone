@@ -31,18 +31,18 @@ class DICCrackCOR(bu.Model):
     tree = ['dic_crack']
 
     M0 = tr.Property(bu.Int, depends_on='state_changed')
-    '''Horizontal index defining the y_axis position
+    '''Horizontal index defining the y_axis position.
     '''
     @tr.cached_property
     def _get_M0(self):
         return self.dic_crack.M_N[self.dic_crack.N_tip] - 3
 
     N0_min = bu.Int(1, ALG=True)
-    '''Vertical index defining the start position of y axis
+    '''Vertical index defining the start position of y axis.
     '''
 
     N0_max = bu.Int(15, ALG=True)
-    '''Vertical index defining the end position of y axis
+    '''Vertical index defining the end position of y axis.
     '''
 
     M_N = tr.Property(bu.Int, depends_on='state_changed')
@@ -183,21 +183,21 @@ class DICCrackCOR(bu.Model):
 
     #####################################################################################
     X_mNa = tr.Property(depends_on='state_changed')
-    '''Right crack plane positions.
+    '''Right tooth positions.
     '''
     @tr.cached_property
     def _get_X_mNa(self):
         return np.array([self.X_MNa[self.M_N + i, np.arange(len(self.M_N))] for i in range(1,6)])
 
     U0_mNa = tr.Property(depends_on='state_changed')
-    '''Displacement of the right crack plane relative to CFO
+    '''Displacement of the right tooth relative to CFO
     '''
     @tr.cached_property
     def _get_U0_mNa(self):
         return np.array([self.U0_MNa[self.M_N + i, np.arange(len(self.M_N))] for i in range(1,6)])
 
     x_ref_mNa = tr.Property(depends_on='state_changed')
-    '''Positions of the right plane within the rotated CF.
+    '''Positions of the right tooth within the rotated CF.
     '''
     @tr.cached_property
     def _get_x_ref_mNa(self):
@@ -274,6 +274,7 @@ class DICCrackCOR(bu.Model):
     def _get_X_cor_pa_sol(self):
         xu_mid_mNa, w_ref_mNa = self.xu_mid_w_ref_mNa
         upper_N = self.dic_crack.N_tip
+        # slice of the form [:upper_N:self.step_N_COR]
         cor_slice = slice(None, upper_N, self.step_N_COR)
         xu_mid_mNa = xu_mid_mNa[cor_slice]
         w_ref_mNa = w_ref_mNa[cor_slice]
@@ -357,9 +358,9 @@ class DICCrackCOR(bu.Model):
         self.dic_grid.plot_box_annotate(ax_cl)
         self.cl.plot_primary_cracks(ax_cl)
         self.dic_grid.plot_load_deflection(ax_FU)
-        self.dic_crack.plot_X_Ka(ax_x)
-        self.dic_crack.plot_X1_Ka(ax_x)
-        self.dic_crack.plot_U1_Ka(ax_u_0)
+        self.dic_crack.plot_x_1_Ka(ax_x)
+        self.dic_crack.plot_x_t_Ka(ax_x)
+        self.dic_crack.plot_u_t_crc_Ka(ax_u_0)
         self.plot_cor_markers(ax_x)
         self.plot_ref_frame(ax_x)
         self.plot_COR(ax_x)
