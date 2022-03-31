@@ -133,7 +133,7 @@ class DICStateFields(ib.TStepBC):
     '''
     @tr.cached_property
     def _get_f_interp_U(self):
-
+        print('f_interp_U')
         xy = self.dic_grid.X_IJa.reshape(-1, 2)
         u = self.dic_grid.U_IJa.reshape(-1, 2)
         return LinearNDInterpolator(xy, u)
@@ -142,7 +142,7 @@ class DICStateFields(ib.TStepBC):
         '''Get the interpolated displacements'''
         return self.f_interp_U(X_Pa)
 
-    X_ipl_MNa = tr.Property(depends_on='state_change')
+    X_ipl_MNa = tr.Property(depends_on='state_changed')
     '''Interpolation grid
     '''
     @tr.cached_property
@@ -157,11 +157,12 @@ class DICStateFields(ib.TStepBC):
         X_MNa = np.einsum('aNM->MNa', X_aNM)
         return X_MNa
 
-    U_ipl_MNa = tr.Property(depends_on='state_change')
+    U_ipl_MNa = tr.Property(depends_on='state_changed')
     '''Interpolation grid
     '''
     @tr.cached_property
     def _get_U_ipl_MNa(self):
+        print('U_ipl_MNa')
         return self.f_interp_U(self.X_ipl_MNa)
 
     f_interp_cdf = tr.Property(depends_on='state_changed')

@@ -28,7 +28,7 @@ class DICCrackCOR(bu.Model):
     def _get_dic_grid(self):
         return self.dic_crack.dic_grid
 
-    tree = ['dic_crack']
+    tree = ['dic_grid']
 
     M0 = tr.Property(bu.Int, depends_on='state_changed')
     '''Horizontal index defining the y_axis position.
@@ -353,6 +353,7 @@ class DICCrackCOR(bu.Model):
         ax_x.scatter(*N0a.T, s=20, color='green')
 
     def update_plot(self, axes):
+        print('update plot')
         ax_cl, ax_FU, ax_x, ax_u_0, ax_w_0 = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         self.dic_grid.plot_box_annotate(ax_cl)

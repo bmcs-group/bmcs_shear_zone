@@ -89,7 +89,7 @@ class DICCrack(bu.Model):
     def _get_dic_grid(self):
         return self.cl.dsf.dic_grid
 
-    tree = ['sp', 'dic_grid']
+    tree = ['sp', 'cor', 'dic_grid']
 
     C = bu.Int(0, ALG=True)
     '''Crack index within the crack list.

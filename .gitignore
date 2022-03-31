@@ -43,3 +43,11 @@ package-lock.json
 geckodriver.log
 *.iml
 
+notebooks/sz_matmod/crackplotangleforthreecaseswhenbeta0.pdf
+notebooks/sz_matmod/crackplotnew1.pdf
+notebooks/sz_matmod/crackplotshear.pdf
+notebooks/sz_matmod/crackpropagationagainstinclination.pdf
+notebooks/sz_matmod/Failurelocus.pdf
+notebooks/sz_matmod/KIbeta.pdf
+notebooks/sz_matmod/KIIbeta.pdf
+notebooks/sz_matmod/thetaMeps.pdf
