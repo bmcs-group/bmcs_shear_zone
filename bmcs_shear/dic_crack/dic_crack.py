@@ -551,6 +551,8 @@ class DICCrack(bu.Model):
             self.cl.dsf.plot_eps_field(ax_cl, self.fig)
 
         self.cl.plot_primary_cracks(ax_cl)
+        self.cor.plot_X_cor_t(ax_cl)
+
         self.plot_omega_t_Ni(ax_cl)
         self.dic_grid.plot_load_deflection(ax_FU)
         self.plot_x_1_Ka(ax_x)

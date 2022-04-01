@@ -1,6 +1,7 @@
+from ctypes import alignment
 import bmcs_utils.api as bu
 from .dic_crack import DICCrack
-from .dic_crack_cor import DICCrackCOR
+from .dic_aligned_grid import DICAlignedGrid
 from .dic_state_fields import DICStateFields
 import traits.api as tr
 from scipy.signal import argrelextrema
@@ -13,10 +14,25 @@ class DICCrackList(bu.ModelList):
     name = 'crack list'
 
     dsf = bu.Instance(DICStateFields)
+    '''State field component providing the history of 
+    displacement, strain and damage within the grid.
+    '''
+
+    a_grid = tr.Property(depends_on='dsf')
+    '''Grid aligned to a specified fixed frame - used 
+    for the crack-centered evaluation of displacement.
+    '''
+    @tr.cached_property
+    def _get_a_grid(self):
+        return DICAlignedGrid(dsf=self.dsf)
 
     bd = tr.DelegatesTo('dsf')
+    '''Beam design.
+    '''
 
     items = tr.Property(bu.List(DICCrack))
+    '''Cracks
+    '''
 
     @tr.cached_property
     def _get_items(self):

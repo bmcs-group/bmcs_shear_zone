@@ -7,8 +7,6 @@ from .dic_grid import DICGrid
 import traits.api as tr
 from matplotlib import cm
 import ibvpy.api as ib
-from mayavi import mlab
-from tvtk.api import tvtk
 import numpy as np
 import copy
 from scipy.interpolate import interp2d, LinearNDInterpolator
@@ -133,7 +131,6 @@ class DICStateFields(ib.TStepBC):
     '''
     @tr.cached_property
     def _get_f_interp_U(self):
-        print('f_interp_U')
         xy = self.dic_grid.X_IJa.reshape(-1, 2)
         u = self.dic_grid.U_IJa.reshape(-1, 2)
         return LinearNDInterpolator(xy, u)
@@ -162,7 +159,6 @@ class DICStateFields(ib.TStepBC):
     '''
     @tr.cached_property
     def _get_U_ipl_MNa(self):
-        print('U_ipl_MNa')
         return self.f_interp_U(self.X_ipl_MNa)
 
     f_interp_cdf = tr.Property(depends_on='state_changed')
@@ -414,6 +410,8 @@ class DICStateFields(ib.TStepBC):
         ax_cracks.axis('off');
 
     def mlab_tensor(self, x_NM, y_NM, tensor_MNab, factor=100, label='damage'):
+        from mayavi import mlab
+        from tvtk.api import tvtk
         mlab.figure()
         scene = mlab.get_engine().scenes[-1]
         scene.name = label
@@ -447,6 +445,8 @@ class DICStateFields(ib.TStepBC):
         mlab.show()
 
     def mlab_scalar(self, x_NM, y_NM, z_NM, factor=100, label='damage'):
+        from mayavi import mlab
+        from tvtk.api import tvtk
         mlab.figure()
         scene = mlab.get_engine().scenes[-1]
         scene.name = label
