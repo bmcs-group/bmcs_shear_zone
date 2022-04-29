@@ -10,7 +10,7 @@ import matplotlib.gridspec as gridspec
 from matplotlib import cm
 
 
-class DICCrackList(bu.ModelList):
+class DICCrackList(bu.ModelDict):
     name = 'crack list'
 
     dsf = bu.Instance(DICStateFields)
@@ -30,18 +30,13 @@ class DICCrackList(bu.ModelList):
     '''Beam design.
     '''
 
-    items = tr.Property(bu.List(DICCrack))
+    items = bu.Dict(bu.Str, DICCrack, {})
     '''Cracks
     '''
-
-    @tr.cached_property
-    def _get_items(self):
-        print('Creating cracks')
+    def identify_cracks(self):
         x_NC, y_NC, N_tip_C, M_NC = self.primary_cracks
-        dic_cracks = [DICCrack(cl=self, C=C, x_N=x_N, y_N=y_N, N_tip=N_tip, M_N=M_N)
-                      for C, (x_N, y_N, N_tip, M_N) in enumerate(zip(x_NC.T, y_NC.T, N_tip_C, M_NC.T))
-                      ]
-        return dic_cracks
+        for C, (x_N, y_N, N_tip, M_N) in enumerate(zip(x_NC.T, y_NC.T, N_tip_C, M_NC.T)):
+            self.__setitem__(str(C), DICCrack(cl=self, C=C, x_N=x_N, y_N=y_N, N_tip=N_tip, M_N=M_N))
 
     T1 = tr.Property(bu.Int)
 
@@ -204,9 +199,9 @@ class DICCrackList(bu.ModelList):
         ax_cracks.axis('off');
 
     def plot_cracking_hist2(self, ax_cracks):
-        for crack in self.items:
-            crack.plot_X_Ka(ax_cracks)
-            crack.plot_X1_Ka(ax_cracks)
+        for crack in self.items.values():
+            crack.plot_x_1_Ka(ax_cracks)
+            crack.plot_x_t_Ka(ax_cracks)
 
     def subplots(self, fig):
         self.fig = fig

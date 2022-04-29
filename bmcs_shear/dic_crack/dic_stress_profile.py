@@ -32,7 +32,7 @@ class DICStressProfile(bu.Model):
 
     smeared_matmod = bu.Instance(ib.MATS2DMplDamageEEQ, ())
 
-    tree = ['dic_grid']
+    depends_on = ['dic_grid']
 
     show_stress = Bool(True)
     show_force = Bool(False)
@@ -58,10 +58,13 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_x_t_unc_La(self):
-        x_t_unc_La = np.copy(self.dic_crack.x_t_unc_Ka)
-        # add the top point
-        x_top = x_t_unc_La[-1, 0]
-        return np.vstack([x_t_unc_La, [[x_top, self.bd.H]]])
+        if len(self.dic_crack.x_t_unc_Ka) == 0:
+            return np.zeros_like(self.dic_crack.x_t_unc_Ka)
+        else:
+            x_t_unc_La = np.copy(self.dic_crack.x_t_unc_Ka)
+            # add the top point
+            x_top = x_t_unc_La[-1, 0]
+            return np.vstack([x_t_unc_La, [[x_top, self.bd.H]]])
 
     x_t_crc_La = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
@@ -81,18 +84,22 @@ class DICStressProfile(bu.Model):
     def _get_eps_t_unc_Lab(self):
         eps_t_Kab = self.dic_crack.eps_t_Kab
         # Add the upper point by copying the top most measured strain tensor
-        # This is a simplification an extrapolation of strain should be used
+        # This is a simplification. An extrapolation of strain should be used
         # instead or a local strain controlled IBVP along the ligament
         x_t_unc_La = self.dic_crack.x_t_unc_Ka
-        y_1 = x_t_unc_La[-1, 1]
-        y_0 = x_t_unc_La[0, 1]
-        y_top = self.bd.H
-        eps_0 = eps_t_Kab[0, 0, 0]
-        eps_1 = eps_t_Kab[-1, 0, 0]
-        eps_top = eps_1 + (eps_1 - eps_0) / (y_1 - y_0) * (y_top - y_1)
-        eps_t_top_ab = np.zeros((2,2), dtype=np.float_)
-        eps_t_top_ab[0, 0] = eps_top
-        return np.vstack([eps_t_Kab, [eps_t_top_ab]])
+        if len(x_t_unc_La) == 0:
+            # the crack
+            return np.zeros_like(eps_t_Kab)
+        else:
+            y_1 = x_t_unc_La[-1, 1]
+            y_0 = x_t_unc_La[0, 1]
+            y_top = self.bd.H
+            eps_0 = eps_t_Kab[0, 0, 0]
+            eps_1 = eps_t_Kab[-1, 0, 0]
+            eps_top = eps_1 + (eps_1 - eps_0) / (y_1 - y_0) * (y_top - y_1)
+            eps_t_top_ab = np.zeros((2,2), dtype=np.float_)
+            eps_t_top_ab[0, 0] = eps_top
+            return np.vstack([eps_t_Kab, [eps_t_top_ab]])
 
     u_t_crc_Ka = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
@@ -206,7 +213,7 @@ class DICStressProfile(bu.Model):
         u_t_Na = self.u_t_Na
         if len(u_t_Na) == 0:
             return np.zeros((0, 2), dtype=np.float_)
-        F_t_Na = np.array([r.get_F_a(u_a) for r, u_a in zip(self.bd.csl.items, u_t_Na)],
+        F_t_Na = np.array([r.get_F_a(u_a) for r, u_a in zip(self.bd.csl.items.values(), u_t_Na)],
                         dtype=np.float_)
         return F_t_Na
 
@@ -341,6 +348,8 @@ class DICStressProfile(bu.Model):
     neg_F_y = tr.Property
 
     def _get_neg_F_y(self):
+        if len(self.x_t_unc_La) == 0:
+            return 0, 0
         S_ = self.sig_t_unc_Lab[:, 0, 0]
         y_ = self.x_t_unc_La[:, 1] - self.x_t_unc_La[0, 1]
         get_S, get_Y = self.get_SY

@@ -53,11 +53,6 @@ class DICCrack(bu.Model):
     Model of a shear crack with the representation of the kinematics
     evaluating the opening and sliding displacement.
     """
-    name = tr.Property(depends_on='C')
-
-    @tr.cached_property
-    def _get_name(self):
-        return f'crack #{self.C}'
 
     cl = tr.WeakRef
     '''Reference to containing crack list.
@@ -89,7 +84,11 @@ class DICCrack(bu.Model):
     def _get_dic_grid(self):
         return self.cl.dsf.dic_grid
 
-    tree = ['sp', 'cor', 'dic_grid']
+    tree = [
+#        'sp',
+        'cor'
+    ]
+    depends_on = ['dic_grid']
 
     C = bu.Int(0, ALG=True)
     '''Crack index within the crack list.
@@ -571,10 +570,11 @@ class DICCrack(bu.Model):
         ax_u.set_ylim(0, self.bd.H * 1.04)
         bu.mpl_align_xaxis(ax_u, ax_eps)
 
-        self.sp.plot_sig_t_unc_Lab(ax_sig)
-        self.sp.plot_sig_t_crc_La(ax_sig)
+        if 'sp' in self.tree:
+            self.sp.plot_sig_t_unc_Lab(ax_sig)
+            self.sp.plot_sig_t_crc_La(ax_sig)
 
-        self.sp.plot_F_t_a(ax_F)
-        bu.mpl_align_xaxis(ax_sig, ax_F)
+            self.sp.plot_F_t_a(ax_F)
+            bu.mpl_align_xaxis(ax_sig, ax_F)
 
         # self.plot_u_t_Kb(ax_sig_0)
