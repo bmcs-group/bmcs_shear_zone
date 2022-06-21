@@ -48,11 +48,32 @@ class DICGrid(bu.Model):
     def _get_beam_param_file(self):
         return join(self.data_dir, self.beam_param_file_name)
 
-    sz_bd = tr.Property(bu.Instance(RCBeamDesign), depends_on='dir_name')
+    # sz_bd = tr.Property(bu.Instance(RCBeamDesign), depends_on='dir_name')
+    # '''Beam design object provides geometrical data and material data.
+    # '''
+    # @tr.cached_property
+    # def _get_sz_bd(self):
+    #     params_str = {}
+    #     f = open(self.beam_param_file)
+    #     data = f.readlines()
+    #     for line in data:
+    #         key, value = line.split(":")
+    #         params_str[key.strip()] = value.strip()
+    #     f.close()
+    #     # convert the strings to the paramater types specified in the param_types table
+    #     params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
+    #     sz_bd = RCBeamDesign(**{key: params[key] for key in ['H', 'B', 'L']})
+    #     sz_bd.Rectangle = True
+    #     sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
+    #     return sz_bd
+
+    sz_bd = bu.Instance(RCBeamDesign)
     '''Beam design object provides geometrical data and material data.
     '''
-    @tr.cached_property
-    def _get_sz_bd(self):
+    def _sz_bd_default(self):
+        return RCBeamDesign()
+
+    def read_beam_design(self):
         params_str = {}
         f = open(self.beam_param_file)
         data = f.readlines()
@@ -62,10 +83,9 @@ class DICGrid(bu.Model):
         f.close()
         # convert the strings to the paramater types specified in the param_types table
         params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
-        sz_bd = RCBeamDesign(**{key: params[key] for key in ['H', 'B', 'L']})
-        sz_bd.Rectangle = True
-        sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
-        return sz_bd
+        self.sz_bd.trait_set(**{key: params[key] for key in ['H', 'B', 'L']})
+        self.sz_bd.Rectangle = True
+        self.sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
 
     n_I = tr.Property(bu.Int, depends_on='state_changed')
     ''' Number of horizontal nodes of the DIC input displacement grid

@@ -26,7 +26,7 @@ class DICStateFields(ib.TStepBC):
     tmodel = bu.EitherType(options=[('miproplane_mdm', ib.MATS2DMplDamageEEQ),
                                     ('scalar_damage', ib.MATS2DScalarDamage)])
 
-    xmodel = tr.Property(depends_on='dic_grid')
+    xmodel = tr.Property(bu.Instance(ib.XDomainFEGrid), depends_on='dic_grid')
     '''Finite element discretization of the monotored grid field
     '''
     @tr.cached_property
