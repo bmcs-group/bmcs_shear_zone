@@ -139,7 +139,7 @@ class DICGrid(bu.Model):
 
     T0 = bu.Int(0, ALG=True)
 
-    T1 = bu.Int(-1, ALG=True)
+    T_t = bu.Int(-1, ALG=True)
 
     U_factor = bu.Float(100, ALG=True)
 
@@ -148,8 +148,8 @@ class DICGrid(bu.Model):
     t = bu.Float(1, ALG=True)
 
     def _t_changed(self):
-        d_t = (1 / self.n_dic_T)
-        self.T1 = int( (self.n_dic_T - 1) * (self.t + d_t/2))
+        d_t = (1 / self.T1)
+        self.T_t = int( (self.T1 - 1) * (self.t + d_t/2))
 
     ipw_view = bu.View(
         bu.Item('n_I', readonly=True),
@@ -158,7 +158,7 @@ class DICGrid(bu.Model):
         bu.Item('d_y', readonly=True),
         bu.Item('x_offset', readonly=True),
         bu.Item('y_offset', readonly=True),
-        bu.Item('T1', readonly=True),
+        bu.Item('T_t', readonly=True),
         bu.Item('U_factor'),
         bu.Item('column_first_enum'),
         bu.Item('top_down_enum'),
@@ -283,23 +283,23 @@ class DICGrid(bu.Model):
         else:
             return U_TIJa[:,::-1,:,:]
 
-    n_dic_T = tr.Property(depends_on='state_changed')
+    T1 = tr.Property(depends_on='state_changed')
     """Number of dic snapshots up to the maximum load"""
     @tr.cached_property
-    def _get_n_dic_T(self):
+    def _get_T1(self):
         return self.argmax_F_dic_T
 
-    def get_T_eta(self, eta = 0.9):
+    def get_T_eta(self, t = 0.9):
         """Get the dic index correponding to the specified fraction
         of ultimate load.
         """
         F = -self.Fw_T[::50,1]
         F_max = np.max(F)
-        F_eta = eta * F_max
+        F_t = t * F_max
         F_dic_T = self.F_dic_T
         dic_T = np.arange(len(F_dic_T))
-        T_eta = np.interp(F_eta, F_dic_T, dic_T)
-        return int(T_eta)
+        T_t = np.interp(F_t, F_dic_T, dic_T)
+        return int(T_t)
 
     X_IJa = tr.Property(depends_on='state_changed')
     """Coordinates of the DIC markers in the grid"""
@@ -315,11 +315,11 @@ class DICGrid(bu.Model):
         return X_IJa
 
     U_IJa = tr.Property(depends_on='state_changed')
-    """Total displacement at step T1 w.r.t. T0
+    """Total displacement at step T_t w.r.t. T0
     """
     @tr.cached_property
     def _get_U_IJa(self):
-        return self.U_TIJa[self.T1] - self.U_TIJa[self.T0]
+        return self.U_TIJa[self.T_t] - self.U_TIJa[self.T0]
 
     Fw_file_name = tr.Str('load_deflection.csv')
     """Name of the file with the measured load deflection data
@@ -335,12 +335,12 @@ class DICGrid(bu.Model):
         Fw_T = np.array(pd.read_csv(Fw_file, decimal=",", skiprows=1, delimiter=None), dtype=np.float_)
         return Fw_T
 
-    F_T1 = tr.Property(depends_on='state_changed')
+    F_T_t = tr.Property(depends_on='state_changed')
     """Current load
     """
     @tr.cached_property
-    def _get_F_T1(self):
-        return self.F_DIC_T[self.T1]
+    def _get_F_T_t(self):
+        return self.F_DIC_T[self.T_t]
 
     def plot_grid(self, ax_u):
         XU_aIJ = np.einsum('IJa->aIJ', self.X_IJa + self.U_IJa * self.U_factor)
@@ -381,7 +381,7 @@ class DICGrid(bu.Model):
                     )
 
     def plot_load_deflection(self, ax_load):
-        w = self.Fw_T[::50, 2]
+        w = self.Fw_T[::50,2]
         F = -self.Fw_T[::50,1]
 
         argmax_F_T = np.argmax(F)
@@ -395,9 +395,9 @@ class DICGrid(bu.Model):
         ax_load.plot(w_dic_T, self.F_dic_T, 'o', markersize=3, color='orange')
 
         # show the current load marker
-        F_T1 = self.F_dic_T[self.T1]
-        w_T1 = np.interp(F_T1, F[:argmax_F_T], w[:argmax_F_T])
-        ax_load.plot(w_T1, F_T1, marker='o', markersize=6, color='green')
+        F_T_t = self.F_dic_T[self.T_t]
+        w_T_t = np.interp(F_T_t, F[:argmax_F_T], w[:argmax_F_T])
+        ax_load.plot(w_T_t, F_T_t, marker='o', markersize=6, color='green')
 
         # annotate the maximum load level
         max_F = F[argmax_F_T]
