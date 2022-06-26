@@ -9,9 +9,9 @@ from bmcs_shear.beam_design import RCBeamDesign
 from bmcs_shear.matmod import CrackBridgeAdv
 
 def convert_to_bool(str_bool):
-    '''helper method for the parsing of input file with boalean values
+    """Helper method for the parsing of input file with boalean values
     given as strings 'True' and 'False'
-    '''
+    """
     value_map = {'True': True,
                  'False': False,
                  '1' : True,
@@ -22,19 +22,28 @@ def convert_to_bool(str_bool):
 
 
 class DICGrid(bu.Model):
-
+    """
+    History of displacment grids imported from the DIC measurement.
+    """
+    depends_on = ['sz_bd']
     tree = ['sz_bd']
 
     name = 'DIC grid history'
 
     dir_name = bu.Str('<unnamed>', ALG=True)
+    """Directory name containing the test data.
+    """
     def _dir_name_change(self):
         self.name = 'DIC grid %s' % self.name
         self._set_grid_params()
 
     grid_param_file_name = bu.Str('grid_params.txt', ALG=True)
+    """Default name of the file with the parameters of the grid.
+    """
 
     beam_param_file_name = bu.Str('beam_params.txt', ALG=True)
+    """Default name of the file with the parameters of the beam.
+    """
 
     beam_param_types = {'L' : float,
                         'B' : float,
@@ -42,38 +51,25 @@ class DICGrid(bu.Model):
                         'n_s' : float,
                         'y_s' : float,
                         'd_s' : float}
+    """Parameters of the test specifying the length, width and depth of the beam.
+    """
 
     beam_param_file = tr.Property
-    '''File containing the parameters of the beam'''
+    """File containing the parameters of the beam
+    """
     def _get_beam_param_file(self):
         return join(self.data_dir, self.beam_param_file_name)
 
-    # sz_bd = tr.Property(bu.Instance(RCBeamDesign), depends_on='dir_name')
-    # '''Beam design object provides geometrical data and material data.
-    # '''
-    # @tr.cached_property
-    # def _get_sz_bd(self):
-    #     params_str = {}
-    #     f = open(self.beam_param_file)
-    #     data = f.readlines()
-    #     for line in data:
-    #         key, value = line.split(":")
-    #         params_str[key.strip()] = value.strip()
-    #     f.close()
-    #     # convert the strings to the paramater types specified in the param_types table
-    #     params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
-    #     sz_bd = RCBeamDesign(**{key: params[key] for key in ['H', 'B', 'L']})
-    #     sz_bd.Rectangle = True
-    #     sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
-    #     return sz_bd
-
     sz_bd = bu.Instance(RCBeamDesign)
-    '''Beam design object provides geometrical data and material data.
-    '''
+    """Beam design object provides geometrical data and material data.
+    """
     def _sz_bd_default(self):
         return RCBeamDesign()
 
     def read_beam_design(self):
+        """Read the file with the input data using the input configuration
+        including the beam param types.
+        """
         params_str = {}
         f = open(self.beam_param_file)
         data = f.readlines()
@@ -88,45 +84,45 @@ class DICGrid(bu.Model):
         self.sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
 
     n_I = tr.Property(bu.Int, depends_on='state_changed')
-    ''' Number of horizontal nodes of the DIC input displacement grid
-    '''
+    """Number of horizontal nodes of the DIC input displacement grid.
+    """
     @tr.cached_property
     def _get_n_I(self):
         return self.grid_params['n_x']
 
     n_J = tr.Property(bu.Int, depends_on='state_changed')
-    ''' Number of vertical nodes of the DIC input displacement grid
-    '''
+    """Number of vertical nodes of the DIC input displacement grid
+    """
     @tr.cached_property
     def _get_n_J(self):
         return self.grid_params['n_y']
 
     d_x = tr.Property(bu.Float, depends_on='state_changed')
-    ''' Horizontal spacing between nodes of the DIC input displacement grid
-    '''
+    """Horizontal spacing between nodes of the DIC input displacement grid.
+    """
     @tr.cached_property
     def _get_d_x(self):
         return self.grid_params['d_x']
 
     d_y = tr.Property(bu.Float, depends_on='state_changed')
-    ''' Vertical spacing between nodes of the DIC input displacement grid
-    '''
+    """Vertical spacing between nodes of the DIC input displacement grid.
+    """
     @tr.cached_property
     def _get_d_y(self):
         return self.grid_params['d_y']
 
     x_offset = tr.Property(bu.Float, depends_on='state_changed')
-    ''' Horizontal offset of the DIC input displacement grid from the left
-        boundary of the beam
-    '''
+    """Horizontal offset of the DIC input displacement grid from the left
+    boundary of the beam.
+    """
     @tr.cached_property
     def _get_x_offset(self):
         return self.grid_params['x_offset']
 
     y_offset = tr.Property(bu.Float, depends_on='state_changed')
-    ''' Vertical offset of the DIC input displacement grid from the bottom
+    """ Vertical offset of the DIC input displacement grid from the bottom
         boundary of the beam
-    '''
+    """
     @tr.cached_property
     def _get_y_offset(self):
         return self.grid_params['y_offset']
@@ -172,17 +168,17 @@ class DICGrid(bu.Model):
     )
 
     L_x = tr.Property
-    '''Width of the domain'''
+    """Width of the domain"""
     def _get_L_x(self):
         return self.d_x * (self.n_I-1)
 
     L_y = tr.Property
-    '''Height of the domain'''
+    """Height of the domain"""
     def _get_L_y(self):
         return self.d_y * (self.n_J-1)
 
     X_frame = tr.Property
-    '''Define the bottom left and top right corners'''
+    """Define the bottom left and top right corners"""
     def _get_X_frame(self):
         L_x, L_y = self.L_x, self.L_y
         x_offset, y_offset = self.x_offset, self.y_offset
@@ -192,24 +188,24 @@ class DICGrid(bu.Model):
 
 
     data_dir = tr.Property
-    '''Directory with the data'''
+    """Directory with the data"""
     def _get_data_dir(self):
         home_dir = expanduser('~')
         data_dir = join(home_dir, 'simdb', 'data', 'shear_zone', self.dir_name)
         return data_dir
 
     dic_data_dir = tr.Property
-    '''Directory with the DIC data'''
+    """Directory with the DIC data"""
     def _get_dic_data_dir(self):
         return join(self.data_dir, 'dic_data')
 
     Fw_data_dir = tr.Property
-    '''Directory with the load deflection data'''
+    """Directory with the load deflection data"""
     def _get_Fw_data_dir(self):
         return join(self.data_dir, 'load_deflection')
 
     grid_param_file = tr.Property
-    '''File containing the parameters of the grid'''
+    """File containing the parameters of the grid"""
     def _get_grid_param_file(self):
         return join(self.dic_data_dir, self.grid_param_file_name)
 
@@ -244,27 +240,27 @@ class DICGrid(bu.Model):
          if each.endswith('.csv')]
 
     F_DIC_T = tr.Property(depends_on='state_changed')
-    '''DIC load levels'''
+    """DIC load levels"""
     @tr.cached_property
     def _get_F_DIC_T(self):
         return np.array([float(os.path.basename(file_name).split('_')[-2])
                          for file_name in self.files ], dtype=np.float_ )
 
     argmax_F_dic_T = tr.Property(depends_on='state_changed')
-    '''Time index of DIC snapshots at maximum load
-    '''
+    """Time index of DIC snapshots at maximum load
+    """
     def _get_argmax_F_dic_T(self):
         return np.argmax(self.F_DIC_T)
 
     F_dic_T = tr.Property(depends_on='state_changed')
-    '''Load levels of ascending DIC snapshots
-    '''
+    """Load levels of ascending DIC snapshots
+    """
     @tr.cached_property
     def _get_F_dic_T(self):
-        return self.F_DIC_T[:self.argmax_F_dic_T]
+        return self.F_DIC_T[:self.argmax_F_dic_T+1]
 
     U_TIJa = tr.Property(depends_on='state_changed')
-    '''Read the displacement data from the individual csv files'''
+    """Read the displacement data from the individual csv files"""
     @tr.cached_property
     def _get_U_TIJa(self):
         files = self.files
@@ -288,15 +284,15 @@ class DICGrid(bu.Model):
             return U_TIJa[:,::-1,:,:]
 
     n_dic_T = tr.Property(depends_on='state_changed')
-    '''Number of dic snapshots up to the maximum load'''
+    """Number of dic snapshots up to the maximum load"""
     @tr.cached_property
     def _get_n_dic_T(self):
         return self.argmax_F_dic_T
 
     def get_T_eta(self, eta = 0.9):
-        '''Get the dic index correponding to the specified fraction
+        """Get the dic index correponding to the specified fraction
         of ultimate load.
-        '''
+        """
         F = -self.Fw_T[::50,1]
         F_max = np.max(F)
         F_eta = eta * F_max
@@ -306,7 +302,7 @@ class DICGrid(bu.Model):
         return int(T_eta)
 
     X_IJa = tr.Property(depends_on='state_changed')
-    '''Coordinates of the DIC markers in the grid'''
+    """Coordinates of the DIC markers in the grid"""
     @tr.cached_property
     def _get_X_IJa(self):
         n_I, n_J = self.n_I, self.n_J
@@ -319,20 +315,20 @@ class DICGrid(bu.Model):
         return X_IJa
 
     U_IJa = tr.Property(depends_on='state_changed')
-    '''Total displacement at step T1 w.r.t. T0
-    '''
+    """Total displacement at step T1 w.r.t. T0
+    """
     @tr.cached_property
     def _get_U_IJa(self):
         return self.U_TIJa[self.T1] - self.U_TIJa[self.T0]
 
     Fw_file_name = tr.Str('load_deflection.csv')
-    '''Name of the file with the measured load deflection data
-    '''
+    """Name of the file with the measured load deflection data
+    """
     
     Fw_T = tr.Property(depends_on='state_changed')
-    '''Read the load displacement values from the individual 
+    """Read the load displacement values from the individual 
     csv files from the test
-    '''
+    """
     @tr.cached_property
     def _get_Fw_T(self):
         Fw_file = join(self.Fw_data_dir, self.Fw_file_name)
@@ -340,8 +336,8 @@ class DICGrid(bu.Model):
         return Fw_T
 
     F_T1 = tr.Property(depends_on='state_changed')
-    '''Current load
-    '''
+    """Current load
+    """
     @tr.cached_property
     def _get_F_T1(self):
         return self.F_DIC_T[self.T1]

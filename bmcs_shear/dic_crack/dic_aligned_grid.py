@@ -1,8 +1,8 @@
 
-from .dic_state_fields import DICStateFields
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
+from .dic_state_fields import DICStateFields
 
 def rotate_around_ref(X_MNa, X_ref_a, T_ab):
     """Rotate the points around X_ref_a
@@ -17,12 +17,19 @@ def rotate_around_ref(X_MNa, X_ref_a, T_ab):
 
 
 class DICAlignedGrid(bu.Model):
+    """
+    Define a grid rotated to local coordinate system.
 
+    :param `**kwargs`
+
+    :math: \alpha
+    """
     name = 'rotated grid'
 
     dsf = tr.WeakRef(DICStateFields, ())
 
-    tree = ['dsf']
+    # depends_on = ['dsf']
+    # tree = ['dsf']
 
     M0 = bu.Int(0, ALG=True)
     '''Horizontal index of the origin marker

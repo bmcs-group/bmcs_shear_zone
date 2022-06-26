@@ -26,6 +26,8 @@ class DICStateFields(ib.TStepBC):
     tmodel = bu.EitherType(options=[('miproplane_mdm', ib.MATS2DMplDamageEEQ),
                                     ('scalar_damage', ib.MATS2DScalarDamage)])
 
+    depends_on = ['dic_grid', 'tmodel']
+
     xmodel = tr.Property(bu.Instance(ib.XDomainFEGrid), depends_on='dic_grid')
     '''Finite element discretization of the monotored grid field
     '''
@@ -45,7 +47,7 @@ class DICStateFields(ib.TStepBC):
     def _get_domains(self):
         return [(self.xmodel, self.tmodel_)]
 
-    tree = ['dic_grid', 'tmodel', 'xmodel']
+    ipw_tree = ['dic_grid', 'tmodel', 'xmodel']
 
     def eval(self):
         '''Run the FE analysis for the dic load levels

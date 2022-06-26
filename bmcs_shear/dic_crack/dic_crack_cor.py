@@ -44,7 +44,7 @@ class DICCrackCOR(bu.Model):
     def _get_dic_grid(self):
         return self.dic_crack.dic_grid
 
-    depends_on = ['a_grid']
+    depends_on = ['dic_crack']
 
     delta_M = bu.Int(2, ALG=True)
 

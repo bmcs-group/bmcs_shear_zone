@@ -17,6 +17,7 @@ class DICCrackList(bu.ModelDict):
     '''State field component providing the history of 
     displacement, strain and damage within the grid.
     '''
+    depends_on = ['dsf']
 
     a_grid = tr.Property(depends_on='dsf')
     '''Grid aligned to a specified fixed frame - used 
