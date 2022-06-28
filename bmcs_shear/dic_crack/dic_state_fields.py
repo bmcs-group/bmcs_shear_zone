@@ -54,7 +54,7 @@ class DICStateFields(ib.TStepBC):
         '''
         self.hist.init_state()
         self.fe_domain[0].state_k = copy.deepcopy(self.fe_domain[0].state_n)
-        for T in range(0, self.dic_grid.n_dic_T):
+        for T in range(0, self.dic_grid.n_T):
             self.t_n1 = T
             U_IJa = self.dic_grid.U_TIJa[T]
             U_Ia = U_IJa.reshape(-1, 2)
@@ -77,16 +77,16 @@ class DICStateFields(ib.TStepBC):
     n_N = bu.Int(28, ALG=True)
     '''Number of interpolation points in y direction'''
 
-    T1 = tr.Property(bu.Int)
+    T_t = tr.Property(bu.Int)
 
-    def _get_T1(self):
-        return self.dic_grid.T1
+    def _get_T_t(self):
+        return self.dic_grid.T_t
 
     ipw_view = bu.View(
         bu.Item('R'),
         bu.Item('n_M'),
         bu.Item('n_N'),
-        bu.Item('T1', readonly=True),
+        bu.Item('T_t', readonly=True),
         time_editor=bu.HistoryEditor(var='dic_grid.t')
     )
 
@@ -128,18 +128,20 @@ class DICStateFields(ib.TStepBC):
         z_MN = np.trapz(np.trapz(z_MNJK, x_JK[:, 0], axis=2), y_JK[0, :], axis=2)
         return z_MN
 
-    f_interp_U = tr.Property(depends_on='state_changed')
+    ####################################################################################
+
+    f_dic_U_xy = tr.Property(depends_on='state_changed')
     '''Construct an interpolator over the domain
     '''
     @tr.cached_property
-    def _get_f_interp_U(self):
+    def _get_f_dic_U_xy(self):
         xy = self.dic_grid.X_IJa.reshape(-1, 2)
         u = self.dic_grid.U_IJa.reshape(-1, 2)
         return LinearNDInterpolator(xy, u)
 
     def interp_U(self, X_Pa):
         '''Get the interpolated displacements'''
-        return self.f_interp_U(X_Pa)
+        return self.f_dic_U_xy(X_Pa)
 
     X_ipl_MNa = tr.Property(depends_on='state_changed')
     '''Interpolation grid
@@ -161,17 +163,16 @@ class DICStateFields(ib.TStepBC):
     '''
     @tr.cached_property
     def _get_U_ipl_MNa(self):
-        return self.f_interp_U(self.X_ipl_MNa)
+        return self.f_dic_U_xy(self.X_ipl_MNa)
 
     f_interp_cdf = tr.Property(depends_on='state_changed')
     '''Construct an interpolator over the domain
     '''
     @tr.cached_property
     def _get_f_interp_cdf(self):
-
-        U_TIJa = self.dic_grid.U_TIJa
-        n_T, n_I, n_J, _ = U_TIJa.shape
-        T_range = self.dic_grid.load_levels
+        # U_TIJa = self.dic_grid.U_TIJa
+        # n_T, n_I, n_J, _ = U_TIJa.shape
+        # T_range = self.dic_grid.load_levels
         xy = self.dic_grid.X_IJa.reshape(-1, 2)
         u = self.dic_grid.U_IJa.reshape(-1, 2)
         return LinearNDInterpolator(xy, u)
@@ -199,7 +200,7 @@ class DICStateFields(ib.TStepBC):
 
     @tr.cached_property
     def _get_eps_fields(self):
-        U_o = self.hist.U_t[self.dic_grid.T1]
+        U_o = self.hist.U_t[self.dic_grid.T_t]
         eps_Emab = self.xmodel.map_U_to_field(U_o)
         eps_MNab = self.transform_mesh_to_grid(eps_Emab)
         eps_MNa, _ = np.linalg.eig(eps_MNab)
@@ -214,7 +215,7 @@ class DICStateFields(ib.TStepBC):
     def _get_eps_TMNab(self):
         # state variables
         eps_MNab_list = []
-        for T in range(self.dic_grid.n_dic_T):
+        for T in range(self.dic_grid.n_T):
             U_o = self.hist.U_t[T]
             eps_Emab = self.xmodel.map_U_to_field(U_o)
             eps_MNab = self.transform_mesh_to_grid(eps_Emab)
@@ -224,9 +225,9 @@ class DICStateFields(ib.TStepBC):
     f_eps_ipl_txy = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_f_eps_ipl_txy(self):
-        dic_T = np.arange(self.dic_grid.n_dic_T)
+        dic_T = np.arange(self.dic_grid.n_T)
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
-        dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
+        dic_t = dic_T / (self.dic_grid.n_T - 1)
         args = (dic_t, x_MN[:, 0], y_MN[0, :])
         return RegularGridInterpolator(args, self.eps_TMNab[:, :, :])
 
@@ -235,7 +236,7 @@ class DICStateFields(ib.TStepBC):
 
     @tr.cached_property
     def _get_sig_fields(self):
-        state_vars = self.hist.state_vars[self.dic_grid.T1][0]
+        state_vars = self.hist.state_vars[self.dic_grid.T_t][0]
         eps_Emab, _, _, _ = self.eps_fields
         sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, **state_vars)
         sig_MNab = self.transform_mesh_to_grid(sig_Emab)
@@ -249,7 +250,7 @@ class DICStateFields(ib.TStepBC):
     @tr.cached_property
     def _get_omega_MN(self):
         # state variables
-        kappa_Emr = self.hist.state_vars[self.dic_grid.T1][0]['kappa']
+        kappa_Emr = self.hist.state_vars[self.dic_grid.T_t][0]['kappa']
         phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
         phi_MNab = self.transform_mesh_to_grid(phi_Emab)
         phi_MNa, _ = np.linalg.eig(phi_MNab)
@@ -278,12 +279,12 @@ class DICStateFields(ib.TStepBC):
     '''
     @tr.cached_property
     def _get_f_U_ipl_txy(self):
-        n_dic_T = self.dic_grid.n_dic_T
-        dic_T = np.arange(n_dic_T)
+        n_T = self.dic_grid.n_T
+        dic_T = np.arange(n_T)
         X_IJa = self.dic_grid.X_IJa
-        U_TIJa = self.dic_grid.U_TIJa[:n_dic_T, ...]
+        U_TIJa = self.dic_grid.U_TIJa[:n_T, ...]
         x_IJ, y_IJ = np.einsum('IJa->aIJ', X_IJa)
-        dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
+        dic_t = dic_T / (self.dic_grid.n_T - 1)
         txy = (dic_t, x_IJ[:, 0], y_IJ[0, :])
         return RegularGridInterpolator(txy, U_TIJa[:, :, :, :])
 
@@ -295,7 +296,7 @@ class DICStateFields(ib.TStepBC):
     def _get_omega_TMN(self):
         # state variables
         omega_MN_list = []
-        for T in range(self.dic_grid.n_dic_T):
+        for T in range(self.dic_grid.n_T):
             kappa_Emr = self.hist.state_vars[T][0]['kappa']
             phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
             phi_MNab = self.transform_mesh_to_grid(phi_Emab)
@@ -309,9 +310,9 @@ class DICStateFields(ib.TStepBC):
     f_omega_ipl_TMN = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_f_omega_ipl_TMN(self):
-        dic_T = np.arange(self.dic_grid.n_dic_T)
+        dic_T = np.arange(self.dic_grid.n_T)
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
-        dic_t = dic_T / (self.dic_grid.n_dic_T - 1)
+        dic_t = dic_T / (self.dic_grid.n_T - 1)
         args = (dic_t, x_MN[:, 0], y_MN[0, :])
         return RegularGridInterpolator(args, self.omega_TMN[:, :, :])
 

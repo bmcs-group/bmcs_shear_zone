@@ -148,8 +148,8 @@ class DICGrid(bu.Model):
     t = bu.Float(1, ALG=True)
 
     def _t_changed(self):
-        d_t = (1 / self.T1)
-        self.T_t = int( (self.T1 - 1) * (self.t + d_t/2))
+        d_t = (1 / self.n_T)
+        self.T_t = int( (self.n_T - 1) * (self.t + d_t/2))
 
     ipw_view = bu.View(
         bu.Item('n_I', readonly=True),
@@ -283,10 +283,10 @@ class DICGrid(bu.Model):
         else:
             return U_TIJa[:,::-1,:,:]
 
-    T1 = tr.Property(depends_on='state_changed')
+    n_T = tr.Property(depends_on='state_changed')
     """Number of dic snapshots up to the maximum load"""
     @tr.cached_property
-    def _get_T1(self):
+    def _get_n_T(self):
         return self.argmax_F_dic_T
 
     def get_T_eta(self, t = 0.9):
