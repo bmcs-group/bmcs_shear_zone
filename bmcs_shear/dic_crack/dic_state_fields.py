@@ -155,8 +155,8 @@ class DICStateFields(ib.TStepBC):
         yy_N = np.linspace(x_N[0], x_N[-1], n_ipl_N)
         xx_NM, yy_NM = np.meshgrid(xx_M, yy_N)
         X_aNM = np.array([xx_NM, yy_NM])
-        X_fe_KLa = np.einsum('aNM->MNa', X_aNM)
-        return X_fe_KLa
+        X_ipl_KLa = np.einsum('aNM->MNa', X_aNM)
+        return X_ipl_KLa
 
     U_ipl_MNa = tr.Property(depends_on='state_changed')
     '''Interpolation grid
@@ -323,8 +323,10 @@ class DICStateFields(ib.TStepBC):
         '''
         x_K, x_L = x_KL[:, 0], y_KL[0, :]
         n_ipl_M, n_ipl_N = self.n_ipl_M, self.n_ipl_N
-        x_M = np.linspace(x_K[0], x_L[-1], n_ipl_M)
-        y_N = np.linspace(x_K[0], x_L[-1], n_ipl_N)
+        x_M = np.linspace(x_K[0], x_K[-1], n_ipl_M)
+        y_N = np.linspace(x_L[0], x_L[-1], n_ipl_N)
+        # x_M = np.linspace(x_K[0], x_L[-1], n_ipl_M)
+        # y_N = np.linspace(x_K[0], x_L[-1], n_ipl_N)
         f_omega = interp2d(x_K, x_L, omega_KL.T, kind='cubic')
         x_NM, y_NM = np.meshgrid(x_M, y_N)
         omega_ipl_NM = f_omega(x_M, y_N)

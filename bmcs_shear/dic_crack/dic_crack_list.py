@@ -110,13 +110,12 @@ class DICCrackList(bu.ModelDict):
     primary_cracks = tr.Property(depends_on='MESH, ALG')
     '''Get the cracks at the near-failure load level
     '''
-
     @tr.cached_property
     def _get_primary_cracks(self):
         # spatial coordinates
         T_eta = self.dsf.dic_grid.get_T_eta(0.95)
         self.dsf.dic_grid.T1 = T_eta
-        xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_field
+        xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_ipl_field
         # initial crack positions at the bottom of the zone
         M_C = argrelextrema(cd_field_irn_MN.T[0, :], np.greater)[0]
         xx_NC, yy_NC, N_tip_C, M_NC = self.detect_cracks(M_C, xx_MN, yy_MN, cd_field_irn_MN)
@@ -154,7 +153,7 @@ class DICCrackList(bu.ModelDict):
             print(T1, end=' ')
             # get the crack detection field for the next time index
             self.dsf.dic_grid.T1 = T1 - 1
-            _, _, cdf_MN = self.dsf.crack_detection_field
+            _, _, cdf_MN = self.dsf.crack_detection_ipl_field
             # for each crack get the indexes starting from the current tip
             N_tip_CN = [np.arange(N_tip, -1, -1) for N_tip in N_tip_C]
             M_tip_CN = [M_NC[N_tip_T, C] for C, N_tip_T in enumerate(N_tip_CN)]
@@ -171,7 +170,7 @@ class DICCrackList(bu.ModelDict):
         return M_tip_CT, N_tip_CT
 
     def plot_crack_detection_field(self, ax_cracks, fig):
-        xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_field
+        xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_ipl_field
         if np.sum(cd_field_irn_MN) == 0:
             # return without warning if there is no damage or strain
             return

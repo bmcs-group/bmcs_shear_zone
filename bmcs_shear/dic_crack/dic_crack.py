@@ -323,7 +323,7 @@ class DICCrack(bu.Model):
         x_K, y_K = x_Ka.T
         t_K = np.ones_like(x_K) * t
         tX_mid_K = np.array([t_K, x_K, y_K], dtype=np.float_).T
-        eps_Kab = self.cl.dsf.f_eps_ipl_txy(tX_mid_K)
+        eps_Kab = self.cl.dsf.f_eps_fe_txy(tX_mid_K)
         return eps_Kab
 
     eps_t_Kab = tr.Property(depends_on='state_changed')
@@ -384,8 +384,8 @@ class DICCrack(bu.Model):
     '''
     @tr.cached_property
     def _get_t_T(self):
-        n_dic_T = self.cl.dsf.dic_grid.n_dic_T
-        return np.linspace(0, 1, n_dic_T)
+        n_T = self.cl.dsf.dic_grid.n_T
+        return np.linspace(0, 1, n_T)
 
     omega_TK = tr.Property(depends_on='state_changed')
     '''History of damage along the crack ligament.
@@ -400,7 +400,7 @@ class DICCrack(bu.Model):
         # flatten the time space such that points are flattened
         tx_Pb = np.hstack([t_TKa[..., 0].reshape(-1, 1), x_TKa.reshape(-1, 2)])
         # reshape the dimension of the result array back to TK
-        return self.cl.dsf.f_omega_ipl_TMN(tx_Pb).reshape(len(self.t_T), -1)
+        return self.cl.dsf.f_omega_fe_txy(tx_Pb).reshape(len(self.t_T), -1)
 
     K_tip_T = tr.Property(depends_on='state_changed')
     '''Vertical index of the crack tip at time index T.
