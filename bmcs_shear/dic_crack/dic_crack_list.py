@@ -116,7 +116,7 @@ class DICCrackList(bu.ModelDict):
         # spatial coordinates
         T_eta = self.dsf.dic_grid.get_T_eta(0.95)
         self.dsf.dic_grid.T1 = T_eta
-        xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_field
+        xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_fe_field
         # initial crack positions at the bottom of the zone
         M_C = argrelextrema(cd_field_irn_MN.T[0, :], np.greater)[0]
         xx_NC, yy_NC, N_tip_C, M_NC = self.detect_cracks(M_C, xx_MN, yy_MN, cd_field_irn_MN)
@@ -171,7 +171,7 @@ class DICCrackList(bu.ModelDict):
         return M_tip_CT, N_tip_CT
 
     def plot_crack_detection_field(self, ax_cracks, fig):
-        xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_field
+        xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_fe_field
         if np.sum(cd_field_irn_MN) == 0:
             # return without warning if there is no damage or strain
             return

@@ -390,14 +390,15 @@ class DICGrid(bu.Model):
         ax_load.set_ylabel(r'$F$ [kN]')
         ax_load.set_xlabel(r'$w$ [mm]')
 
+
         # plot the markers of dic levels
         w_dic_T = np.interp(self.F_dic_T, F[:argmax_F_T], w[:argmax_F_T])
-        ax_load.plot(w_dic_T, self.F_dic_T, 'o', markersize=3, color='orange')
+        # ax_load.plot(w_dic_T, self.F_dic_T, 'o', markersize=3, color='orange')
 
         # show the current load marker
         F_T_t = self.F_dic_T[self.T_t]
         w_T_t = np.interp(F_T_t, F[:argmax_F_T], w[:argmax_F_T])
-        ax_load.plot(w_T_t, F_T_t, marker='o', markersize=6, color='green')
+        # ax_load.plot(w_T_t, F_T_t, marker='o', markersize=6, color='green')
 
         # annotate the maximum load level
         max_F = F[argmax_F_T]
