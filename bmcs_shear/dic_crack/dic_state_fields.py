@@ -77,8 +77,8 @@ class DICStateFields(ib.TStepBC):
     n_ipl_N = bu.Int(28, ALG=True)
     '''Number of interpolation points in y direction'''
 
-    T_t = tr.Property(bu.Int)
-
+    T_t = tr.Property(bu.Int, depends_on='state_changed')
+    @tr.cached_property
     def _get_T_t(self):
         return self.dic_grid.T_t
 
@@ -139,10 +139,6 @@ class DICStateFields(ib.TStepBC):
         u = self.dic_grid.U_IJa.reshape(-1, 2)
         return LinearNDInterpolator(xy, u)
 
-    def interp_U(self, X_Pa):
-        '''Get the interpolated displacements'''
-        return self.f_dic_U_xy(X_Pa)
-
     X_ipl_MNa = tr.Property(depends_on='state_changed')
     '''Interpolation grid
     '''
@@ -159,7 +155,7 @@ class DICStateFields(ib.TStepBC):
         return X_ipl_KLa
 
     U_ipl_MNa = tr.Property(depends_on='state_changed')
-    '''Interpolation grid
+    '''Displacement on the ipl_MN grid
     '''
     @tr.cached_property
     def _get_U_ipl_MNa(self):
@@ -171,6 +167,25 @@ class DICStateFields(ib.TStepBC):
     @tr.cached_property
     def _get_X_fe_KLa(self):
         return self.transform_mesh_to_grid(self.xmodel.x_Ema)
+
+    #######################################################################
+
+    f_U_ipl_txy = tr.Property(depends_on='state_changed')
+    '''Interpolator of displacements over the time and spatial domains.
+    This method is used to extract the displacements along the crack path
+    '''
+    @tr.cached_property
+    def _get_f_U_ipl_txy(self):
+        n_T = self.dic_grid.n_T
+        dic_T = np.arange(n_T)
+        X_IJa = self.dic_grid.X_IJa
+        U_TIJa = self.dic_grid.U_TIJa[:n_T, ...]
+        x_IJ, y_IJ = np.einsum('IJa->aIJ', X_IJa)
+        dic_t = dic_T / (self.dic_grid.n_T - 1)
+        txy = (dic_t, x_IJ[:, 0], y_IJ[0, :])
+        return RegularGridInterpolator(txy, U_TIJa[:, :, :, :])
+
+    #######################################################################
 
     eps_fe_fields = tr.Property(depends_on='state_changed')
 
@@ -211,7 +226,8 @@ class DICStateFields(ib.TStepBC):
 
 
     sig_fe_fields = tr.Property(depends_on='state_changed')
-
+    """Stress fields on fe_KL grid
+    """
     @tr.cached_property
     def _get_sig_fe_fields(self):
         state_vars = self.hist.state_vars[self.dic_grid.T_t][0]
@@ -223,40 +239,11 @@ class DICStateFields(ib.TStepBC):
         max_sig_KL[max_sig_KL < 0] = 0
         return sig_Emab, sig_KLab, sig_KLa, max_sig_KL
 
-    crack_detection_ipl_field = tr.Property(depends_on='state_changed')
-    """Crack detection field on the fe grid
-    """
-    @tr.cached_property
-    def _get_crack_detection_ipl_field(self):
-        X_fe_KLa = self.X_fe_KLa
-        X_fe_aKL = np.einsum('KLa->aKL', X_fe_KLa)
-        x_fe_KL, y_fe_KL = X_fe_aKL
-        x_NM, y_NM, cd_field_ipl_NM = self.interp_omega(x_fe_KL, y_fe_KL, self.omega_fe_KL)
-        x_MN, y_MN, cd_field_ipl_MN = x_NM.T, y_NM.T, cd_field_ipl_NM.T
-        cd_field_irn_MN = self.get_z_MN_ironed(x_MN, y_MN, cd_field_ipl_MN)
-        cd_field_irn_MN[cd_field_irn_MN < 0.2] = 0
-        return x_MN, y_MN, cd_field_irn_MN
-
-    #######################################################################
-
-    f_U_ipl_txy = tr.Property(depends_on='state_changed')
-    '''Interpolator over the time and spatial domains
-    '''
-    @tr.cached_property
-    def _get_f_U_ipl_txy(self):
-        n_T = self.dic_grid.n_T
-        dic_T = np.arange(n_T)
-        X_IJa = self.dic_grid.X_IJa
-        U_TIJa = self.dic_grid.U_TIJa[:n_T, ...]
-        x_IJ, y_IJ = np.einsum('IJa->aIJ', X_IJa)
-        dic_t = dic_T / (self.dic_grid.n_T - 1)
-        txy = (dic_t, x_IJ[:, 0], y_IJ[0, :])
-        return RegularGridInterpolator(txy, U_TIJa[:, :, :, :])
-
     #######################################################################
 
     omega_fe_TKL = tr.Property(depends_on='state_changed')
-
+    """Maximum damage value in each material point of the fe_KL grid
+    """
     @tr.cached_property
     def _get_omega_fe_TKL(self):
         # state variables
@@ -273,6 +260,7 @@ class DICStateFields(ib.TStepBC):
         return np.array(omega_fe_KL_list, dtype=np.float_)
 
     f_omega_fe_txy = tr.Property(depends_on='state_changed')
+    """Interpolator of maximum damage value in time-space domain"""
     @tr.cached_property
     def _get_f_omega_fe_txy(self):
         dic_T = np.arange(self.dic_grid.n_T)
@@ -281,10 +269,12 @@ class DICStateFields(ib.TStepBC):
         args = (dic_t, x_MN[:, 0], y_MN[0, :])
         return RegularGridInterpolator(args, self.omega_fe_TKL[:, :, :])
 
-    n_ipl_T = bu.Float(20)
+    n_ipl_T = tr.Property
+    def _get_n_ipl_T(self):
+        return self.dic_grid.n_T
 
     mgrid_ipl_TMN = tr.Property(depends_on='state_changed')
-    """Maximum principal damage field in at the ultimate load 
+    """Time-space grid for interpolated fields
     """
     @tr.cached_property
     def _get_mgrid_ipl_TMN(self):
@@ -297,7 +287,7 @@ class DICStateFields(ib.TStepBC):
                       ]
 
     omega_ipl_TMN = tr.Property(depends_on='state_changed')
-    """Maximum principal damage field in at the ultimate load 
+    """Maximum principal damage field in interpolated time-domain
     """
     @tr.cached_property
     def _get_omega_ipl_TMN(self):
@@ -318,20 +308,41 @@ class DICStateFields(ib.TStepBC):
         # state variables
         return self.omega_fe_TKL[-1]
 
-    def interp_omega(self, x_KL, y_KL, omega_KL):
-        '''Damage field interpolated on an n_ipl_M, n_ipl_N grid.
-        '''
-        x_K, x_L = x_KL[:, 0], y_KL[0, :]
-        n_ipl_M, n_ipl_N = self.n_ipl_M, self.n_ipl_N
-        x_M = np.linspace(x_K[0], x_K[-1], n_ipl_M)
-        y_N = np.linspace(x_L[0], x_L[-1], n_ipl_N)
-        # x_M = np.linspace(x_K[0], x_L[-1], n_ipl_M)
-        # y_N = np.linspace(x_K[0], x_L[-1], n_ipl_N)
-        f_omega = interp2d(x_K, x_L, omega_KL.T, kind='cubic')
-        x_NM, y_NM = np.meshgrid(x_M, y_N)
-        omega_ipl_NM = f_omega(x_M, y_N)
-        omega_ipl_NM[omega_ipl_NM < 0] = 0
-        return x_NM, y_NM, omega_ipl_NM
+    ###########################################################################
+    # Crack detection related services
+    #
+    omega_ipl_MN = tr.Property(depends_on='state_changed')
+    """Maximum principal damage field in at the ultimate load 
+    """
+    @tr.cached_property
+    def _get_omega_ipl_MN(self):
+        # state variables
+        return self.omega_ipl_TMN[-1]
+
+    omega_ipl_field = tr.Property(depends_on='state_changed')
+    """Crack detection field on the ipl grid
+    """
+    @tr.cached_property
+    def _get_omega_ipl_field(self):
+        _, X_TMN, Y_TMN = self.mgrid_ipl_TMN
+        T_t = self.dic_grid.T_t
+        x_MN, y_MN = X_TMN[T_t,...], Y_TMN[T_t,...]
+        omega_ipl_MN = self.omega_ipl_TMN[T_t,...]
+        cd_field_irn_MN = self.get_z_MN_ironed(x_MN, y_MN, omega_ipl_MN)
+        cd_field_irn_MN[cd_field_irn_MN < 0.2] = 0
+        return x_MN, y_MN, cd_field_irn_MN
+
+    crack_detection_ipl_field = tr.Property(depends_on='state_changed')
+    """Crack detection field on the ipl grid
+    """
+    @tr.cached_property
+    def _get_crack_detection_ipl_field(self):
+        _, X_TMN, Y_TMN = self.mgrid_ipl_TMN
+        x_MN, y_MN = X_TMN[-1,...], Y_TMN[-1,...]
+        omega_ipl_MN = self.omega_ipl_MN
+        cd_field_irn_MN = self.get_z_MN_ironed(x_MN, y_MN, omega_ipl_MN)
+        cd_field_irn_MN[cd_field_irn_MN < 0.2] = 0
+        return x_MN, y_MN, cd_field_irn_MN
 
     #######################################################################
 

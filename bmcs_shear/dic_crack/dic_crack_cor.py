@@ -25,7 +25,7 @@ class DICCrackCOR(bu.Model):
     def _get_name(self):
         return self.dic_crack.name
 
-    dic_crack = tr.WeakRef(IDICCrack)
+    dic_crack = bu.Instance(IDICCrack)
 
     cl = tr.DelegatesTo('dic_crack')
 
@@ -111,7 +111,7 @@ class DICCrackCOR(bu.Model):
         upper_N = self.dic_crack.N_tip
         slice_N = slice(None, upper_N, self.step_N_COR)
         n_N = len(self.M_N)
-        m = self.M_N[slice_N,np.newaxis] + np.arange(5)
+        m = self.M_N[slice_N,np.newaxis] + np.arange(1,6)
         n = np.zeros_like(m) + np.arange(n_N)[slice_N, np.newaxis]
         return m.flatten(), n.flatten()
 
@@ -208,7 +208,14 @@ class DICCrackCOR(bu.Model):
             M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
             MN_selection=self.MN_selection
         )
-        self.a_grid.plot_rot(ax_x)
-        self.plot_VW_rot_t(ax_x)
-        self.plot_X_cor_rot_t(ax_x)
+        #self.a_grid.plot_rot(ax_x)
+        self.dic_grid.plot_bounding_box(ax_x)
+        self.dic_grid.plot_box_annotate(ax_x)
+
+        self.a_grid.plot_selection_init(ax_x)
+        self.plot_X_cor_t(ax_x)
+
+        self.dic_crack.plot_x_1_Ka(ax_x)
+        self.dic_crack.plot_x_t_Ka(ax_x)
+
         ax_x.axis('equal');

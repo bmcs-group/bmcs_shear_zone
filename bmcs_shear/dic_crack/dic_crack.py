@@ -8,6 +8,7 @@ import matplotlib.gridspec as gridspec
 from .dic_stress_profile import DICStressProfile
 from .dic_crack_cor import DICCrackCOR
 from .i_dic_crack import IDICCrack
+from .dic_grid import DICGrid
 
 
 def get_f_ironed_weighted(x_, y_, r=10):
@@ -57,6 +58,8 @@ class DICCrack(bu.Model):
     cl = tr.WeakRef
     '''Reference to containing crack list.
     '''
+    def _cl_changed(self):
+        self.dic_grid = self.cl.dsf.dic_grid
 
     bd = tr.DelegatesTo('cl')
     '''Access to the beam design available through crack list.
@@ -76,13 +79,9 @@ class DICCrack(bu.Model):
     def _cor_default(self):
         return DICCrackCOR(dic_crack=self)
 
-    dic_grid = tr.Property()
+    dic_grid = bu.Instance(DICGrid)
     '''Input data grid.
     '''
-
-    @tr.cached_property
-    def _get_dic_grid(self):
-        return self.cl.dsf.dic_grid
 
     tree = [
 #        'sp',
@@ -138,15 +137,14 @@ class DICCrack(bu.Model):
         bu.Item('w_H_plot_ratio'),
         bu.Item('plot_grid_markers'),
         bu.Item('plot_field'),
-        bu.Item('T1', readonly=True),
+        bu.Item('T_t', readonly=True),
         time_editor=bu.HistoryEditor(var='dic_grid.t')
     )
 
-    T1 = tr.Property(bu.Int)
-    '''Current time index.
-    '''
-    def _get_T1(self):
-        return self.dic_grid.T1
+    T_t = tr.Property(bu.Int, depends_on='state_changed')
+    @tr.cached_property
+    def _get_T_t(self):
+        return self.dic_grid.T_t
 
     C_cubic_spline = tr.Property(depends_on='state_changed')
     '''Smoothed crack profile.
@@ -272,7 +270,7 @@ class DICCrack(bu.Model):
         _, _, _, _, T_1_crc_Kab = self.crack_ligament_1
         return T_1_crc_Kab
 
-    # Crack ligament at an intermediate state T1
+    # Crack ligament at an intermediate state T_t
 
     x_t_Ka = tr.Property(depends_on='state_changed')
     '''All ligament points at intermediate state.
@@ -410,18 +408,18 @@ class DICCrack(bu.Model):
         return np.argmax(self.omega_TK < 0.1, axis=-1)
 
     x_t_tip_a = tr.Property(depends_on='state_changed')
-    '''Position of the crack tip at time index T1.
+    '''Position of the crack tip at time index T_t.
     '''
     @tr.cached_property
     def _get_x_t_tip_a(self):
-        return self.x_1_Ka[self.K_tip_T[self.T1]]
+        return self.x_1_Ka[self.K_tip_T[self.T_t]]
 
     omega_t_N = tr.Property(depends_on='state_changed')
     '''Damage along the ligament at current time t.
     '''
     @tr.cached_property
     def _get_omega_t_N(self):
-        return self.omega_TK[self.dic_grid.T1]
+        return self.omega_TK[self.T_t]
 
     # ----------------------------------------------------------
     # Plot functions

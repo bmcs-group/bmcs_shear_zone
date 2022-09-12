@@ -149,7 +149,16 @@ class DICGrid(bu.Model):
 
     def _t_changed(self):
         d_t = (1 / self.n_T)
+        #self.T_t = self.get_T_t(self.t)
         self.T_t = int( (self.n_T - 1) * (self.t + d_t/2))
+
+    t_dic_T = tr.Property(depends_on='state_changed')
+    """Time steps of ascending DIC snapshots
+    """
+    @tr.cached_property
+    def _get_t_dic_T(self):
+        return np.linspace(0, 1, self.n_T)
+        #return self.F_dic_T / self.F_dic_T[-1]
 
     ipw_view = bu.View(
         bu.Item('n_I', readonly=True),
@@ -232,38 +241,54 @@ class DICGrid(bu.Model):
         params = { key : type_(params_str[key]) for key, type_ in self.grid_param_types.items()  }
         return params
 
-    files = tr.Property(depends_on='state_changed')
+    all_files = tr.Property(depends_on='state_changed')
     @tr.cached_property
-    def _get_files(self):
-        return [join(self.dic_data_dir, each)
+    def _get_all_files(self):
+        return np.array([join(self.dic_data_dir, each)
          for each in sorted(os.listdir(self.dic_data_dir))
-         if each.endswith('.csv')]
+         if each.endswith('.csv')])
 
-    F_DIC_T = tr.Property(depends_on='state_changed')
-    """DIC load levels"""
-    @tr.cached_property
-    def _get_F_DIC_T(self):
-        return np.array([float(os.path.basename(file_name).split('_')[-2])
-                         for file_name in self.files ], dtype=np.float_ )
-
-    argmax_F_dic_T = tr.Property(depends_on='state_changed')
-    """Time index of DIC snapshots at maximum load
+    asc_F_files = tr.Property(depends_on='state_changed')
+    """DIC files with ascending levels of force
     """
-    def _get_argmax_F_dic_T(self):
-        return np.argmax(self.F_DIC_T)
+    @tr.cached_property
+    def _get_asc_F_files(self):
+        F_DIC_T = np.array([float(os.path.basename(file_name).split('_')[-2])
+                         for file_name in self.all_files ], dtype=np.float_ )
+        dF_ST = F_DIC_T[np.newaxis, :] - F_DIC_T[:, np.newaxis]
+        dic_asc_T = np.unique(np.argmax(np.triu(dF_ST, 0) > 0, axis=1))
+        return F_DIC_T[dic_asc_T], self.all_files[dic_asc_T]
 
     F_dic_T = tr.Property(depends_on='state_changed')
     """Load levels of ascending DIC snapshots
     """
     @tr.cached_property
     def _get_F_dic_T(self):
-        return self.F_DIC_T[:self.argmax_F_dic_T+1]
+        F_dic_T, _ = self.asc_F_files
+        return F_dic_T
+
+    w_T = tr.Property(depends_on='state_changed')
+    """Displacement levels of ascending DIC snapshots
+    """
+    @tr.cached_property
+    def _get_w_T(self):
+        w = self.Fw_T[::50,2]
+        F = -self.Fw_T[::50,1]
+        argmax_F_T = np.argmax(F)
+        return np.interp(self.F_dic_T, F[:argmax_F_T], w[:argmax_F_T])
+
+    w_dic_T = tr.Property(depends_on='state_changed')
+    """Displacement levels of ascending DIC snapshots
+    """
+    @tr.cached_property
+    def _get_w_dic_T(self):
+        return -self.U_TIJa[:len(self.F_dic_T),0,-1,1]
 
     U_TIJa = tr.Property(depends_on='state_changed')
     """Read the displacement data from the individual csv files"""
     @tr.cached_property
     def _get_U_TIJa(self):
-        files = self.files
+        _, files = self.asc_F_files
         # indexes: T - load level, P - point, a - dimension
         U_TPa = np.array([
             np.loadtxt(csv_file, dtype=float,
@@ -287,9 +312,9 @@ class DICGrid(bu.Model):
     """Number of dic snapshots up to the maximum load"""
     @tr.cached_property
     def _get_n_T(self):
-        return self.argmax_F_dic_T
+        return len(self.F_dic_T)
 
-    def get_T_eta(self, t = 0.9):
+    def get_T_t(self, t = 0.9):
         """Get the dic index correponding to the specified fraction
         of ultimate load.
         """
@@ -340,7 +365,7 @@ class DICGrid(bu.Model):
     """
     @tr.cached_property
     def _get_F_T_t(self):
-        return self.F_DIC_T[self.T_t]
+        return self.F_dic_T[self.T_t]
 
     def plot_grid(self, ax_u):
         XU_aIJ = np.einsum('IJa->aIJ', self.X_IJa + self.U_IJa * self.U_factor)
@@ -390,15 +415,15 @@ class DICGrid(bu.Model):
         ax_load.set_ylabel(r'$F$ [kN]')
         ax_load.set_xlabel(r'$w$ [mm]')
 
-
         # plot the markers of dic levels
         w_dic_T = np.interp(self.F_dic_T, F[:argmax_F_T], w[:argmax_F_T])
-        # ax_load.plot(w_dic_T, self.F_dic_T, 'o', markersize=3, color='orange')
+        ax_load.plot(self.w_T, self.F_dic_T, 'o', markersize=3, color='orange')
+        ax_load.plot(self.w_dic_T, self.F_dic_T, '-o', markersize=3, color='blue')
 
         # show the current load marker
         F_T_t = self.F_dic_T[self.T_t]
         w_T_t = np.interp(F_T_t, F[:argmax_F_T], w[:argmax_F_T])
-        # ax_load.plot(w_T_t, F_T_t, marker='o', markersize=6, color='green')
+        ax_load.plot(w_T_t, F_T_t, marker='o', markersize=6, color='green')
 
         # annotate the maximum load level
         max_F = F[argmax_F_T]

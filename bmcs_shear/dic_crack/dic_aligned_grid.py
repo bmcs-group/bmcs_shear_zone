@@ -26,9 +26,9 @@ class DICAlignedGrid(bu.Model):
     """
     name = 'rotated grid'
 
-    dsf = tr.WeakRef(DICStateFields, ())
+    dsf = bu.Instance(DICStateFields)
 
-    # depends_on = ['dsf']
+    depends_on = ['dsf']
     # tree = ['dsf']
 
     M0 = bu.Int(0, ALG=True)
@@ -233,11 +233,22 @@ class DICAlignedGrid(bu.Model):
         W_rot_t_anp_scaled = W_rot_t_aMNj_scaled.reshape(2, 2, -1)
         return V_rot_anp_scaled, W_rot_t_anp_scaled
 
+    def plot_selection_init(self, ax_u):
+        X_aij = np.einsum('...a->a...', self.X_MNa)
+        x_MN, y_MN = X_aij
+        ax_u.scatter(x_MN[self.MN_selection], y_MN[self.MN_selection], s=15, marker='o', color='orange')
+        X0_a = self.X_MNa[self.M0, self.N0, :]
+        X1_a = self.X_MNa[self.M1, self.N1, :]
+        X01_na = np.array([X0_a, X1_a])
+        ax_u.plot(*X01_na.T, lw=2, color='green')
+
     def plot_init(self, ax_u):
         X_t_MNa_scaled = np.einsum('...a->a...', self.X_t_MNa_scaled)
         ax_u.scatter(*X_t_MNa_scaled.reshape(2,-1), s=15, marker='o', color='darkgray')
         X_aij = np.einsum('...a->a...', self.X_MNa)
-        ax_u.scatter(*X_aij.reshape(2,-1), s=15, marker='o', color='blue')
+#        ax_u.scatter(*X_aij.reshape(2,-1), s=15, marker='o', color='blue')
+        x_MN, y_MN = X_aij
+        ax_u.scatter(x_MN[self.MN_selection], y_MN[self.MN_selection], s=15, marker='o', color='orange')
         X0_a = self.X_t_MNa_scaled[self.M0, self.N0, :]
         X1_a = self.X_t_MNa_scaled[self.M1, self.N1, :]
         X01_na = np.array([X0_a, X1_a])
