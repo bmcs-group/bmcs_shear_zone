@@ -141,6 +141,10 @@ class DICCrack(bu.Model):
         time_editor=bu.HistoryEditor(var='dic_grid.t')
     )
 
+    omega_threshold = tr.Property
+    def _get_omega_threshold(self):
+        return self.cl.dsf.omega_threshold
+
     T_t = tr.Property(bu.Int, depends_on='state_changed')
     @tr.cached_property
     def _get_T_t(self):
@@ -171,7 +175,20 @@ class DICCrack(bu.Model):
     '''
     @tr.cached_property
     def _get_H_ligament(self):
-        return self.dic_grid.L_y
+        # Distance between the lower and upper point
+        return self.y_N[-1] - self.y_N[0]
+
+    K_tip_1 = tr.Property(depends_on='state_changed')
+    '''Indes of the tip in the failure state.
+    '''
+    @tr.cached_property
+    def _get_K_tip_1(self):
+        return np.argmax(self.x_1_Ka[:, 1] > self.x_1_tip_a[1])
+        # _, y_tip = self.x_1_tip_a - self.y_N[0]
+        # # Cracked fraction of cross-section
+        # d_y = y_tip / self.H_ligament
+        # # number of discretization nodes in the cracked part
+        # return int(d_y * self.n_K_ligament)
 
     def get_crack_ligament(self, x_tip_a):
         """Discretize the crack path along the identified spline
@@ -183,13 +200,14 @@ class DICCrack(bu.Model):
         X_crc_Ka
         T_Kab[:n_K_crc]
         """
-        _, y_tip = x_tip_a
+        _, y_tip = x_tip_a - self.y_N[0]
         # Cracked fraction of cross-section
         d_y = y_tip / self.H_ligament
         # number of discretization nodes in the cracked part
         n_K_crc = int(d_y * self.n_K_ligament)
         # number of discretization nodes in the uncracked part
-        n_K_unc = int((self.H_ligament - y_tip) / self.H_ligament * self.n_K_ligament)
+        n_K_unc = self.n_K_ligament - n_K_crc
+        # n_K_unc = int((self.H_ligament - y_tip) / self.H_ligament * self.n_K_ligament)
         # vertical coordinates of the whole ligament
         y_N = self.y_N
         # discretize the ligament from the bottom to the crack tip
@@ -405,7 +423,33 @@ class DICCrack(bu.Model):
     '''
     @tr.cached_property
     def _get_K_tip_T(self):
-        return np.argmax(self.omega_TK < 0.1, axis=-1)
+        # array of tip indexes for each dic time step
+        K_tip_T = np.zeros((self.dic_grid.n_T,), dtype=np.int_)
+        # consider only steps with at least one non-zero damage value
+        K_omega_T = np.where(np.sum(self.omega_TK, axis=-1) > 0)[0]
+        # search from the top of the ligament the first occurrence of damage
+        # larger than threshold. The search starts from the crack tip identified
+        # for the ultimate state and goes downwards to the point where the
+        # damage reaches the overall damage threshold omega_threshold.
+        L_tip_1 = self.n_K_ligament - self.K_tip_1
+        # for each time step get the first indexes with omega larger than threshold
+        L_omega = np.argmax(np.flip(self.omega_TK[K_omega_T], axis=-1)[:, L_tip_1:] >
+                            self.omega_threshold, axis=-1)
+        # identify the indexes of the current crack tip from the bottom of the ligament
+        K_omega_tip_T = self.K_tip_1 - L_omega
+        # place the found indexes into the time array
+        K_tip_T[K_omega_T] = K_omega_tip_T
+        return K_tip_T
+
+    N_tip_T = tr.Property(depends_on='state_changed')
+    """Vertical index of the crack tip at time index T
+    """
+    def _get_N_tip_T(self):
+        K_tip = self.K_tip_T[self.T_t]
+        n_K = self.n_K_ligament
+        n_N = len(self.M_N)
+        N_tip = int(K_tip / n_K * n_N)
+        return N_tip
 
     x_t_tip_a = tr.Property(depends_on='state_changed')
     '''Position of the crack tip at time index T_t.
@@ -548,7 +592,7 @@ class DICCrack(bu.Model):
             self.cl.dsf.plot_eps_field(ax_cl, self.fig)
 
         self.cl.plot_primary_cracks(ax_cl)
-        self.cor.plot_X_cor_t(ax_cl)
+        # self.cor.plot_X_cor_t(ax_cl)
 
         self.plot_omega_t_Ni(ax_cl)
         self.dic_grid.plot_load_deflection(ax_FU)

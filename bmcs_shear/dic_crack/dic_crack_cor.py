@@ -108,7 +108,7 @@ class DICCrackCOR(bu.Model):
     MN_selection = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_MN_selection(self):
-        upper_N = self.dic_crack.N_tip
+        upper_N = self.dic_crack.N_tip_T
         slice_N = slice(None, upper_N, self.step_N_COR)
         n_N = len(self.M_N)
         m = self.M_N[slice_N,np.newaxis] + np.arange(1,6)
@@ -204,16 +204,18 @@ class DICCrackCOR(bu.Model):
 
     def update_plot(self, axes):
         ax_x = axes
-        self.a_grid.trait_set(
-            M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
-            MN_selection=self.MN_selection
-        )
-        #self.a_grid.plot_rot(ax_x)
         self.dic_grid.plot_bounding_box(ax_x)
         self.dic_grid.plot_box_annotate(ax_x)
 
-        self.a_grid.plot_selection_init(ax_x)
-        self.plot_X_cor_t(ax_x)
+        M_sel, N_sel = self.MN_selection
+        if len(M_sel) > 0:
+            self.a_grid.trait_set(
+                M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
+                MN_selection=self.MN_selection
+            )
+            #self.a_grid.plot_rot(ax_x)
+            self.a_grid.plot_selection_init(ax_x)
+            self.plot_X_cor_t(ax_x)
 
         self.dic_crack.plot_x_1_Ka(ax_x)
         self.dic_crack.plot_x_t_Ka(ax_x)

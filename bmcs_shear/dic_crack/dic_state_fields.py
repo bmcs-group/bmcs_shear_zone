@@ -84,6 +84,7 @@ class DICStateFields(ib.TStepBC):
 
     ipw_view = bu.View(
         bu.Item('R'),
+        bu.Item('omega_threshold'),
         bu.Item('n_ipl_M'),
         bu.Item('n_ipl_N'),
         bu.Item('T_t', readonly=True),
@@ -240,6 +241,7 @@ class DICStateFields(ib.TStepBC):
         return sig_Emab, sig_KLab, sig_KLa, max_sig_KL
 
     #######################################################################
+    omega_threshold = bu.Float(0.2, ALG=True)
 
     omega_fe_TKL = tr.Property(depends_on='state_changed')
     """Maximum damage value in each material point of the fe_KL grid
@@ -255,7 +257,7 @@ class DICStateFields(ib.TStepBC):
             phi_MNa, _ = np.linalg.eig(phi_MNab)
             min_phi_MN = np.min(phi_MNa, axis=-1)
             omega_fe_KL = 1 - min_phi_MN
-            omega_fe_KL[omega_fe_KL < 0.2] = 0
+            omega_fe_KL[omega_fe_KL < self.omega_threshold] = 0
             omega_fe_KL_list.append(np.copy(omega_fe_KL))
         return np.array(omega_fe_KL_list, dtype=np.float_)
 
