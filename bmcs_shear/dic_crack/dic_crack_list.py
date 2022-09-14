@@ -141,6 +141,8 @@ class DICCrackList(bu.ModelDict):
         # C_pri_C = C_mid_C[M] + dM - 1
         return xx_NC[:, C_pri_C], yy_NC[:, C_pri_C], N_tip_C[C_pri_C], M_NC[:, C_pri_C]
 
+    show_color_bar = bu.Bool(False, ALG=True)
+
     def plot_crack_detection_field(self, ax_cracks, fig):
         if self.omega_t_on:
             xx_MN, yy_MN, cd_field_irn_MN = self.dsf.omega_ipl_field
@@ -149,15 +151,16 @@ class DICCrackList(bu.ModelDict):
         if np.sum(cd_field_irn_MN) == 0:
             # return without warning if there is no damage or strain
             return
-        contour_levels = np.linspace(0, 1, 6)
+        contour_levels = np.array([0.15, 0.3, 0.6, 0.8, 1], dtype=np.float_)
         cs = ax_cracks.contourf(xx_MN, yy_MN, cd_field_irn_MN, contour_levels,
                                 cmap=cm.GnBu,
                                #cmap=cm.coolwarm,
                                antialiased=False)
-        cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
-                                   ax=ax_cracks, ticks=np.linspace(0, 1, 6),
-                                   orientation='horizontal')
-        cbar_cracks.set_label(r'$\omega = 1 - \min(\phi_I)$')
+        if self.show_color_bar:
+            cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
+                                       ax=ax_cracks, ticks=np.linspace(0, 1, 6),
+                                       orientation='horizontal')
+            cbar_cracks.set_label(r'$\omega = 1 - \min(\phi_I)$')
 
     def plot_primary_cracks(self, ax_cracks):
         xx_NC, yy_NC, N_tip_C, _ = self.primary_cracks

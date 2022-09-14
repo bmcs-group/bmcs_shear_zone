@@ -429,12 +429,12 @@ class DICCrack(bu.Model):
         # larger than threshold. The search starts from the crack tip identified
         # for the ultimate state and goes downwards to the point where the
         # damage reaches the overall damage threshold omega_threshold.
-        L_tip_1 = self.n_K_ligament - self.K_tip_1
-        # for each time step get the first indexes with omega larger than threshold
-        L_omega = np.argmax(np.flip(self.omega_TK[K_omega_T], axis=-1)[:, L_tip_1:] >
+        K_omega_tip_T = np.argmax(self.omega_TK[K_omega_T][:, :self.K_tip_1+1] <
                             self.omega_threshold, axis=-1)
-        # identify the indexes of the current crack tip from the bottom of the ligament
-        K_omega_tip_T = self.K_tip_1 - L_omega
+        # identify the fully cracked ligaments - the argmax search did not identify them
+        # since they did not drop blow the omega_threshold
+        fully_cracked = np.where(self.omega_TK[K_omega_T][:,self.K_tip_1] >= self.omega_threshold)
+        K_omega_tip_T[fully_cracked] = self.K_tip_1
         # place the found indexes into the time array
         K_tip_T[K_omega_T] = K_omega_tip_T
         return K_tip_T
@@ -472,13 +472,13 @@ class DICCrack(bu.Model):
         if self.plot_grid_markers:
             ax_x.plot(self.x_N, self.y_N, 'o')
         ax_x.plot(*self.x_1_Ka.T, linewidth=1, color='black');
-        ax_x.plot(*self.x_1_tip_a[:, np.newaxis], 'o', color='red')
+        ax_x.plot(*self.x_1_tip_a[:, np.newaxis], 'o', color='brown')
 
     def plot_x_t_Ka(self, ax):
         """Plot geometry at current state.
         """
-        ax.plot(*self.x_t_Ka.T, linewidth=2, color='black');
-        ax.plot(*self.x_t_tip_a[:, np.newaxis], 'o', color='brown')
+        ax.plot(*self.x_t_Ka.T, linewidth=1, linestyle='dotted', color='black');
+        ax.plot(*self.x_t_tip_a[:, np.newaxis], 'o', color='red')
 
     def _plot_eps_t(self, ax, eps_t_Kab, a=0, b=0, color='black', label=r'$\varepsilon$ [-]'):
         """Helper function for plotting the strain along the ligament
@@ -604,11 +604,11 @@ class DICCrack(bu.Model):
         ax_x.set_ylim(0, self.bd.H)
         # self.plot_u_t_Nib(ax_x)
         self.plot_omega_t_Ni(ax_x)
-        self.plot_u_t_crc_Ka(ax_u)
-        self.plot_eps_t_Kab(ax_eps)
-        ax_eps.set_ylim(0, self.bd.H)
-        ax_u.set_ylim(0, self.bd.H * 1.04)
-        bu.mpl_align_xaxis(ax_u, ax_eps)
+        # self.plot_u_t_crc_Ka(ax_u)
+        # self.plot_eps_t_Kab(ax_eps)
+        # ax_eps.set_ylim(0, self.bd.H)
+        # ax_u.set_ylim(0, self.bd.H * 1.04)
+        # bu.mpl_align_xaxis(ax_u, ax_eps)
 
         if 'sp' in self.tree:
             self.sp.plot_sig_t_unc_Lab(ax_sig)
