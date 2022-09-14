@@ -84,7 +84,7 @@ class DICCrack(bu.Model):
     '''
 
     tree = [
-#        'sp',
+        'sp',
         'cor'
     ]
     depends_on = ['dic_grid']
@@ -200,7 +200,7 @@ class DICCrack(bu.Model):
         y_tip_ratio = y_tip / self.H_ligament
         # number of discretization nodes in the cracked part
         n_K_crc = int(y_tip_ratio * self.n_K_ligament)
-        d_y = y_tip / n_K_crc
+        d_y = self.H_ligament / self.n_K_ligament
         # y_K = np.linspace(self.y_N[0], self.y_N[-1], self.H_ligament)
         # n_K_crc = np.argmax(y_K > y_tip)
         # number of discretization nodes in the uncracked part
@@ -466,13 +466,13 @@ class DICCrack(bu.Model):
     # ----------------------------------------------------------
     # Plot functions
     # ----------------------------------------------------------
-    def plot_x_1_Ka(self, ax_x):
+    def plot_x_1_Ka(self, ax_x, line_color='black', tip_color='brown'):
         """Plot crack geometry at ultimate state.
         """
         if self.plot_grid_markers:
             ax_x.plot(self.x_N, self.y_N, 'o')
-        ax_x.plot(*self.x_1_Ka.T, linewidth=1, color='black');
-        ax_x.plot(*self.x_1_tip_a[:, np.newaxis], 'o', color='brown')
+        ax_x.plot(*self.x_1_Ka.T, linewidth=1, color=line_color);
+        ax_x.plot(*self.x_1_tip_a[:, np.newaxis], 'o', color=tip_color)
 
     def plot_x_t_Ka(self, ax):
         """Plot geometry at current state.
@@ -604,11 +604,11 @@ class DICCrack(bu.Model):
         ax_x.set_ylim(0, self.bd.H)
         # self.plot_u_t_Nib(ax_x)
         self.plot_omega_t_Ni(ax_x)
-        # self.plot_u_t_crc_Ka(ax_u)
-        # self.plot_eps_t_Kab(ax_eps)
-        # ax_eps.set_ylim(0, self.bd.H)
-        # ax_u.set_ylim(0, self.bd.H * 1.04)
-        # bu.mpl_align_xaxis(ax_u, ax_eps)
+        self.plot_u_t_crc_Ka(ax_u)
+        self.plot_eps_t_Kab(ax_eps)
+        ax_eps.set_ylim(0, self.bd.H)
+        ax_u.set_ylim(0, self.bd.H * 1.04)
+        bu.mpl_align_xaxis(ax_u, ax_eps)
 
         if 'sp' in self.tree:
             self.sp.plot_sig_t_unc_Lab(ax_sig)

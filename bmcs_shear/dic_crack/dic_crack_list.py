@@ -141,6 +141,16 @@ class DICCrackList(bu.ModelDict):
         # C_pri_C = C_mid_C[M] + dM - 1
         return xx_NC[:, C_pri_C], yy_NC[:, C_pri_C], N_tip_C[C_pri_C], M_NC[:, C_pri_C]
 
+    critical_crack = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_critical_crack(self):
+        u_1_max_C = []
+        for dc in self.items.values():
+            u_1_max = np.max(dc.u_1_crc_Ka[:, 1])
+            u_1_max_C.append(u_1_max)
+        critical_C = np.argmax(np.array(u_1_max_C))
+        return self.items[str(critical_C)]
+
     show_color_bar = bu.Bool(False, ALG=True)
 
     def plot_crack_detection_field(self, ax_cracks, fig):
@@ -193,6 +203,7 @@ class DICCrackList(bu.ModelDict):
         self.dsf.dic_grid.plot_box_annotate(ax_dsf)
         self.plot_crack_detection_field(ax_dsf, self.fig)
         self.plot_cracking_hist2(ax_dsf)
+        self.critical_crack.plot_x_1_Ka(ax_dsf, line_color='red', tip_color='red')
         ax_dsf.axis('equal')
         ax_dsf.axis('off');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)

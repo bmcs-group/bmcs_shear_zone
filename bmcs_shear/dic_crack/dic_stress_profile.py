@@ -15,7 +15,7 @@ class DICStressProfile(bu.Model):
     """
     name = "Profiles"
 
-    dic_crack = tr.WeakRef(IDICCrack)
+    dic_crack = bu.Instance(IDICCrack)
 
     bd = tr.Property
     '''Beam design
@@ -32,7 +32,7 @@ class DICStressProfile(bu.Model):
 
     smeared_matmod = bu.Instance(ib.MATS2DMplDamageEEQ, ())
 
-    depends_on = ['dic_grid']
+    depends_on = ['dic_crack']
 
     show_stress = Bool(True)
     show_force = Bool(False)
