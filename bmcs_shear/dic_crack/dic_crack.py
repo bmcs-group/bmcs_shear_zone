@@ -183,12 +183,7 @@ class DICCrack(bu.Model):
     '''
     @tr.cached_property
     def _get_K_tip_1(self):
-        return np.argmax(self.x_1_Ka[:, 1] > self.x_1_tip_a[1])
-        # _, y_tip = self.x_1_tip_a - self.y_N[0]
-        # # Cracked fraction of cross-section
-        # d_y = y_tip / self.H_ligament
-        # # number of discretization nodes in the cracked part
-        # return int(d_y * self.n_K_ligament)
+        return np.argmax(self.x_1_Ka[:, 1] > self.x_1_tip_a[1]) + 1
 
     def get_crack_ligament(self, x_tip_a):
         """Discretize the crack path along the identified spline
@@ -202,23 +197,26 @@ class DICCrack(bu.Model):
         """
         _, y_tip = x_tip_a - self.y_N[0]
         # Cracked fraction of cross-section
-        d_y = y_tip / self.H_ligament
+        y_tip_ratio = y_tip / self.H_ligament
         # number of discretization nodes in the cracked part
-        n_K_crc = int(d_y * self.n_K_ligament)
+        n_K_crc = int(y_tip_ratio * self.n_K_ligament)
+        d_y = y_tip / n_K_crc
+        # y_K = np.linspace(self.y_N[0], self.y_N[-1], self.H_ligament)
+        # n_K_crc = np.argmax(y_K > y_tip)
         # number of discretization nodes in the uncracked part
         n_K_unc = self.n_K_ligament - n_K_crc
         # n_K_unc = int((self.H_ligament - y_tip) / self.H_ligament * self.n_K_ligament)
         # vertical coordinates of the whole ligament
         y_N = self.y_N
         # discretize the ligament from the bottom to the crack tip
-        y_crc_range = np.linspace(y_N[0], y_tip, n_K_crc)
+        y_crc_range = np.linspace(y_N[0], y_N[0] + y_tip, n_K_crc)
         # horizontal coordinates of the ligament nodes cracked
         X_crc_Ka = np.array([self.C_cubic_spline(y_crc_range), y_crc_range], dtype=np.float_).T
         # discretize the ligament from the crack tip to the top
-        y_unc_range = np.linspace(y_tip + d_y, y_N[-1], n_K_unc)
+        y_unc_range = np.linspace(y_N[0] + y_tip + d_y, y_N[-1], n_K_unc)
         # horizontal coordinates of the ligament nodes uncracked
         X_unc_Ka = np.array([
-            np.ones_like(y_unc_range) * self.C_cubic_spline(y_tip),
+            np.ones_like(y_unc_range) * self.C_cubic_spline(y_N[0] + y_tip),
             y_unc_range], dtype=np.float_).T
         # horizontal coordinates of the whole ligament
         X_Ka = np.vstack([X_crc_Ka, X_unc_Ka])
@@ -473,14 +471,14 @@ class DICCrack(bu.Model):
         """
         if self.plot_grid_markers:
             ax_x.plot(self.x_N, self.y_N, 'o')
-        ax_x.plot(*self.x_1_Ka.T, color='black');
+        ax_x.plot(*self.x_1_Ka.T, linewidth=1, color='black');
         ax_x.plot(*self.x_1_tip_a[:, np.newaxis], 'o', color='red')
 
     def plot_x_t_Ka(self, ax):
         """Plot geometry at current state.
         """
-        ax.plot(*self.x_t_Ka.T, linestyle='dashed', color='black');
-        ax.plot(*self.x_t_tip_a[:, np.newaxis], 'o', color='magenta')
+        ax.plot(*self.x_t_Ka.T, linewidth=2, color='black');
+        ax.plot(*self.x_t_tip_a[:, np.newaxis], 'o', color='brown')
 
     def _plot_eps_t(self, ax, eps_t_Kab, a=0, b=0, color='black', label=r'$\varepsilon$ [-]'):
         """Helper function for plotting the strain along the ligament

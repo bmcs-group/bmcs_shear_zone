@@ -149,8 +149,11 @@ class DICCrackList(bu.ModelDict):
         if np.sum(cd_field_irn_MN) == 0:
             # return without warning if there is no damage or strain
             return
-        cs = ax_cracks.contour(xx_MN, yy_MN, cd_field_irn_MN,
-                               cmap=cm.coolwarm, antialiased=False)
+        contour_levels = np.linspace(0, 1, 6)
+        cs = ax_cracks.contourf(xx_MN, yy_MN, cd_field_irn_MN, contour_levels,
+                                cmap=cm.GnBu,
+                               #cmap=cm.coolwarm,
+                               antialiased=False)
         cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
                                    ax=ax_cracks, ticks=np.linspace(0, 1, 6),
                                    orientation='horizontal')
@@ -171,12 +174,14 @@ class DICCrackList(bu.ModelDict):
 
     def subplots(self, fig):
         self.fig = fig
-        gs = gridspec.GridSpec(ncols=2, nrows=1,
-                               width_ratios=[2, 1], wspace=0.5,
-                               # hspace=0.5, height_ratios=[1, 1]
+        gs = gridspec.GridSpec(ncols=3, nrows=2,
+                               width_ratios=[1, 1, 1],
+                               wspace=0.5,
+                               # hspace=0.5,
+                               height_ratios=[3, 1]
                                )
-        ax_dsf = fig.add_subplot(gs[0, 0])
-        ax_FU = fig.add_subplot(gs[0, 1])
+        ax_dsf = fig.add_subplot(gs[0, :])
+        ax_FU = fig.add_subplot(gs[1, 0])
         return ax_dsf, ax_FU
 
     def update_plot(self, axes):
