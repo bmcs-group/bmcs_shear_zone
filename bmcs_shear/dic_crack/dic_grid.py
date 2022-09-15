@@ -43,9 +43,12 @@ class DICGrid(bu.Model):
 
     beam_param_file_name = bu.Str('beam_params.txt', ALG=True)
     """Default name of the file with the parameters of the beam.
+    L_right - length of the beam at the side with DIC measurement
+    L_left - length of the beam at th side without DIC measurement  
     """
 
-    beam_param_types = {'L' : float,
+    beam_param_types = {'L_right' : float,
+                        'L_left' : float,
                         'B' : float,
                         'H' : float,
                         'n_s' : float,
@@ -59,6 +62,9 @@ class DICGrid(bu.Model):
     """
     def _get_beam_param_file(self):
         return join(self.data_dir, self.beam_param_file_name)
+
+    L_left = bu.Float(1, ALG=True)
+    L_right = bu.Float(2, ALG=True)
 
     sz_bd = bu.Instance(RCBeamDesign)
     """Beam design object provides geometrical data and material data.
@@ -79,7 +85,9 @@ class DICGrid(bu.Model):
         f.close()
         # convert the strings to the paramater types specified in the param_types table
         params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
-        self.sz_bd.trait_set(**{key: params[key] for key in ['H', 'B', 'L']})
+        self.sz_bd.trait_set(**{key: params[key] for key in ['H', 'B', 'L_right', 'L_left']})
+        L = self.sz_bd.L_left + self.sz_bd.L_right
+        self.sz_bd.L = L
         self.sz_bd.Rectangle = True
         self.sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
 

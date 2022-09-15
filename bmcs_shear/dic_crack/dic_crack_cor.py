@@ -98,6 +98,10 @@ class DICCrackCOR(bu.Model):
         bu.Item('N1', readonly=True),
         bu.Item('step_N_COR'),
         bu.Item('frame_position'),
+        bu.Item('phi_t', readonly=True),
+        bu.Item('cov_phi_t', readonly=True),
+        bu.Item('V_t', readonly=True),
+        bu.Item('M_t', readonly=True),
         time_editor=bu.HistoryEditor(var='dic_crack.dic_grid.t')
     )
 
@@ -167,7 +171,11 @@ class DICCrackCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_X_cor_t_pa(self):
-        X_cor_pull_t_pa = np.einsum('ba,...b->...a', 
+        self.a_grid.trait_set(
+            M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
+            MN_selection=self.MN_selection
+        )
+        X_cor_pull_t_pa = np.einsum('ba,...b->...a',
             self.a_grid.T_t_ab, self.X_cor_rot_t_pa_sol
         )
         X_cor_t_pa = X_cor_pull_t_pa + self.a_grid.X0_t_a
@@ -179,16 +187,79 @@ class DICCrackCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_X_cor_t_a(self):
-        X_cor_pull_t_a = np.einsum('ba,...b->...a', 
+        self.a_grid.trait_set(
+            M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
+            MN_selection=self.MN_selection
+        )
+        X_cor_pull_t_a = np.einsum('ba,...b->...a',
             self.a_grid.T_t_ab, self.X_cor_rot_t_a
         )
         X_cor_t_a = X_cor_pull_t_a + self.a_grid.X0_t_a
         return X_cor_t_a
 
+    stat_phi_t = tr.Property(depends_on='state_changed')
+    '''Statistics of the rotation angle around the current COR.
+    '''
+    @tr.cached_property
+    def _get_stat_phi_t(self):
+        M_, N_ = self.MN_selection
+        if len(M_) == 0:
+            return 0, 0
+        V_rot_t_pa, W_rot_t_pa = self.VW_rot_t_pa
+        norm_U2_t_p = np.linalg.norm(self.a_grid.U_rot_t_MNa, axis=-1) / 2
+        norm_V2_t_p = np.linalg.norm(self.X_cor_rot_t_a - V_rot_t_pa, axis=-1)
+        phi_p = 2 * np.arctan(norm_U2_t_p / norm_V2_t_p)
+        mean_phi = np.mean(phi_p)
+        std_phi = np.std(phi_p)
+        cov_phi = std_phi / mean_phi
+        return mean_phi, cov_phi
+
+    phi_t = tr.Property(bu.Float, depends_on='state_changed')
+    '''Average angle of rotation.
+    '''
+    @tr.cached_property
+    def _get_phi_t(self):
+        mean_phi, _ = self.stat_phi_t
+        return mean_phi
+
+    cov_phi_t = tr.Property(bu.Float, depends_on='state_changed')
+    '''Coefficient of variation for the angles of rotation.
+    '''
+    @tr.cached_property
+    def _get_cov_phi_t(self):
+        _, cov_phi = self.stat_phi_t
+        return cov_phi
+
     def plot_X_cor_rot_t(self, ax):
         ax.plot(*self.X_cor_rot_t_pa_sol.T, 'o', color = 'blue')
         ax.plot([self.X_cor_rot_t_a[0]], [self.X_cor_rot_t_a[1]], 'o', color='red')
         ax.axis('equal');
+
+    M_t = tr.Property(bu.Float, depends_on='state_changed')
+    '''Coefficient of variation for the angles of rotation.
+    '''
+    @tr.cached_property
+    def _get_M_t(self):
+        if self.dic_crack.N_tip_T > 0:
+            X_cor_r = self.X_cor_t_a[0]
+        else:
+            X_cor_r = self.dic_crack.x_t_tip_a[0]
+        L_right = self.dic_grid.sz_bd.L_right
+        L_left = self.dic_grid.sz_bd.L_left
+        F_right = self.dic_grid.F_T_t * L_left / (L_left + L_right)
+        M = (F_right * (L_right - X_cor_r)) / 1000
+        return M
+
+    V_t = tr.Property(bu.Float, depends_on='state_changed')
+    '''Coefficient of variation for the angles of rotation.
+    '''
+    @tr.cached_property
+    def _get_V_t(self):
+        L_right = self.dic_grid.sz_bd.L_right
+        L_left = self.dic_grid.sz_bd.L_left
+        F_right = self.dic_grid.F_T_t * L_left / (L_left + L_right)
+        return F_right
+
 
     def plot_X_cor_t(self, ax):
         ax.plot(*self.X_cor_t_pa.T, 'o', color = 'blue')
