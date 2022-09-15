@@ -466,12 +466,12 @@ class DICCrack(bu.Model):
     # ----------------------------------------------------------
     # Plot functions
     # ----------------------------------------------------------
-    def plot_x_1_Ka(self, ax_x, line_color='black', tip_color='brown'):
+    def plot_x_1_Ka(self, ax_x, linewidth=1, line_color='black', tip_color='brown'):
         """Plot crack geometry at ultimate state.
         """
         if self.plot_grid_markers:
             ax_x.plot(self.x_N, self.y_N, 'o')
-        ax_x.plot(*self.x_1_Ka.T, linewidth=1, color=line_color);
+        ax_x.plot(*self.x_1_Ka.T, linewidth=linewidth, color=line_color);
         ax_x.plot(*self.x_1_tip_a[:, np.newaxis], 'o', color=tip_color)
 
     def plot_x_t_Ka(self, ax):
@@ -480,12 +480,13 @@ class DICCrack(bu.Model):
         ax.plot(*self.x_t_Ka.T, linewidth=1, linestyle='dotted', color='black');
         ax.plot(*self.x_t_tip_a[:, np.newaxis], 'o', color='red')
 
-    def _plot_eps_t(self, ax, eps_t_Kab, a=0, b=0, color='black', label=r'$\varepsilon$ [-]'):
+    def _plot_eps_t(self, ax, eps_t_Kab, a=0, b=0,
+                    linestyle='dotted', color='black', label=r'$\varepsilon$ [-]'):
         """Helper function for plotting the strain along the ligament
         at an intermediate state.
         """
         x_t_unc_La = self.sp.x_t_unc_La
-        ax.plot(eps_t_Kab[:, a, b], x_t_unc_La[:, 1], color=color, label=label)
+        ax.plot(eps_t_Kab[:, a, b], x_t_unc_La[:, 1], linestyle=linestyle, color=color, label=label)
         ax.fill_betweenx(x_t_unc_La[:, 1], eps_t_Kab[:, a, b], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
@@ -496,8 +497,8 @@ class DICCrack(bu.Model):
         """Plot the displacement (u_x, u_y) in local crack coordinates
         at an intermediate state.
         """
-        self._plot_eps_t(ax_eps, self.sp.eps_t_unc_Lab, 0, 0, color='blue')
-        self._plot_eps_t(ax_eps, self.sp.eps_t_unc_Lab, 0, 1, color='green')
+        self._plot_eps_t(ax_eps, self.sp.eps_t_unc_Lab, 0, 0, linestyle='dotted', color='blue')
+        self._plot_eps_t(ax_eps, self.sp.eps_t_unc_Lab, 0, 1, linestyle='dotted', color='green')
         ax_eps.set_xlabel(r'$\varepsilon$ [-]', fontsize=10)
         # ax_eps.legend()
         # ax_eps.set_ylim(self.y_N[0], self.y_N[-1])
@@ -565,20 +566,24 @@ class DICCrack(bu.Model):
 
     def subplots(self, fig):
         self.fig = fig
-        gs = gridspec.GridSpec(2, 3)
-        ax_cl = fig.add_subplot(gs[0, :2])
-        ax_FU = fig.add_subplot(gs[0, 2])
-        ax_x = fig.add_subplot(gs[1, 0])
+        gs = gridspec.GridSpec(ncols=3, nrows=2,
+                               width_ratios=[1, 1, 1],
+                               wspace=0.5,
+                               # hspace=0.5,
+                               height_ratios=[2, 1]
+                               )
+        ax_dsf = fig.add_subplot(gs[0, :])
+        ax_FU = fig.add_subplot(gs[1, 0])
         ax_u = fig.add_subplot(gs[1, 1])
         ax_eps = ax_u.twiny()
         ax_F = fig.add_subplot(gs[1, 2])
         ax_sig = ax_F.twiny()
-        return ax_cl, ax_FU, ax_x, ax_u, ax_eps, ax_F, ax_sig
+        return ax_dsf, ax_FU, ax_u, ax_eps, ax_F, ax_sig
 
     plot_field = bu.Enum(options=['damage', 'strain', 'stress', '--'])
 
     def update_plot(self, axes):
-        ax_cl, ax_FU, ax_x, ax_u, ax_eps, ax_F, ax_sig = axes
+        ax_cl, ax_FU, ax_u, ax_eps, ax_F, ax_sig = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         self.dic_grid.plot_box_annotate(ax_cl)
         self.bd.plot_sz_bd(ax_cl)
@@ -594,16 +599,12 @@ class DICCrack(bu.Model):
 
         self.plot_omega_t_Ni(ax_cl)
         self.dic_grid.plot_load_deflection(ax_FU)
-        self.plot_x_1_Ka(ax_x)
-        self.plot_x_t_Ka(ax_x)
-        ax_x.set_title(r'smoothed ligament & opening')
-        ax_x.set_xlabel(r'$x$ [mm]')
-        ax_x.set_ylabel(r'$y$ [mm]')
-        ax_x.axis('equal');
+        self.plot_x_1_Ka(ax_cl)
+        self.plot_x_t_Ka(ax_cl)
+        ax_cl.axis('equal');
         # ax_x.set_ylim(self.y_N[0], self.y_N[-1])
-        ax_x.set_ylim(0, self.bd.H)
         # self.plot_u_t_Nib(ax_x)
-        self.plot_omega_t_Ni(ax_x)
+        self.plot_omega_t_Ni(ax_cl)
         self.plot_u_t_crc_Ka(ax_u)
         self.plot_eps_t_Kab(ax_eps)
         ax_eps.set_ylim(0, self.bd.H)

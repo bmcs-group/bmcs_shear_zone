@@ -161,7 +161,7 @@ class DICCrackList(bu.ModelDict):
         if np.sum(cd_field_irn_MN) == 0:
             # return without warning if there is no damage or strain
             return
-        contour_levels = np.array([0.15, 0.3, 0.6, 0.8, 1], dtype=np.float_)
+        contour_levels = np.array([0.15, 0.35, 0.65, 0.95, 1.25], dtype=np.float_)
         cs = ax_cracks.contourf(xx_MN, yy_MN, cd_field_irn_MN, contour_levels,
                                 cmap=cm.GnBu,
                                #cmap=cm.coolwarm,
@@ -191,19 +191,37 @@ class DICCrackList(bu.ModelDict):
                                width_ratios=[1, 1, 1],
                                wspace=0.5,
                                # hspace=0.5,
-                               height_ratios=[3, 1]
+                               height_ratios=[2, 1]
                                )
         ax_dsf = fig.add_subplot(gs[0, :])
         ax_FU = fig.add_subplot(gs[1, 0])
-        return ax_dsf, ax_FU
+        ax_u = fig.add_subplot(gs[1, 1])
+        ax_eps = ax_u.twiny()
+        ax_F = fig.add_subplot(gs[1, 2])
+        ax_sig = ax_F.twiny()
+        return ax_dsf, ax_FU, ax_u, ax_eps, ax_F, ax_sig
 
     def update_plot(self, axes):
-        ax_dsf, ax_FU = axes
+        ax_dsf, ax_FU, ax_u, ax_eps, ax_F, ax_sig = axes
         self.dsf.dic_grid.plot_bounding_box(ax_dsf)
         self.dsf.dic_grid.plot_box_annotate(ax_dsf)
+        self.bd.plot_sz_bd(ax_dsf)
         self.plot_crack_detection_field(ax_dsf, self.fig)
         self.plot_cracking_hist2(ax_dsf)
-        self.critical_crack.plot_x_1_Ka(ax_dsf, line_color='red', tip_color='red')
+        self.critical_crack.plot_x_1_Ka(ax_dsf, linewidth=2, line_color='beige', tip_color='beige')
         ax_dsf.axis('equal')
         ax_dsf.axis('off');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
+
+        # plot the kinematic profile
+        self.critical_crack.plot_u_t_crc_Ka(ax_u)
+        self.critical_crack.plot_eps_t_Kab(ax_eps)
+        ax_eps.set_ylim(0, self.bd.H)
+        ax_u.set_ylim(0, self.bd.H * 1.04)
+        bu.mpl_align_xaxis(ax_u, ax_eps)
+
+        self.critical_crack.sp.plot_sig_t_unc_Lab(ax_sig)
+        self.critical_crack.sp.plot_sig_t_crc_La(ax_sig)
+        self.critical_crack.sp.plot_F_t_a(ax_F)
+        bu.mpl_align_xaxis(ax_sig, ax_F)
+
