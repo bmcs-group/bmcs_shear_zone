@@ -1,6 +1,8 @@
 import traits.api as tr
 import numpy as np
 
+from matplotlib.animation import FuncAnimation
+
 class IDICCrack(tr.Interface):
     """DIC Crack interface
     """

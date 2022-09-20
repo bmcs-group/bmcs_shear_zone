@@ -348,6 +348,26 @@ class DICCrack(bu.Model):
     def _get_eps_t_Kab(self):
         return self.get_eps_Kab(self.dic_grid.t, self.x_t_unc_Ka)
 
+    min_eps_1 = tr.Property(depends_on='state_changed')
+    '''Global strain displacement of points along the 
+    crack at an intermediate state.
+    '''
+    @tr.cached_property
+    def _get_min_eps_1(self):
+        eps_1_Kab = self.get_eps_Kab(1, self.x_1_Ka)
+        min_eps_1 = np.min(eps_1_Kab[:,0,:])
+        return min_eps_1
+
+    max_u_1 = tr.Property(depends_on='state_changed')
+    '''Global strain displacement of points along the 
+    crack at an intermediate state.
+    '''
+    @tr.cached_property
+    def _get_max_u_1(self):
+        u_1_Ka = self.get_u_crc_Ka(1, self.x_1_Ka)
+        u_1 = np.max(u_1_Ka[:,:])
+        return u_1
+
     # Displacement jump evaluation
 
     def get_u_crc_Ka(self, t, X_crc_Ka):
@@ -466,13 +486,25 @@ class DICCrack(bu.Model):
     # ----------------------------------------------------------
     # Plot functions
     # ----------------------------------------------------------
-    def plot_x_1_Ka(self, ax_x, linewidth=1, line_color='black', tip_color='brown'):
+    def plot_x_1_crc_Ka(self, ax_x, line_width=1, line_color='gray', tip_color='gray'):
+        """Plot crack geometry at ultimate state.
+        """
+        ax_x.plot(*self.x_1_crc_Ka.T, linewidth=line_width, color=line_color);
+        ax_x.plot(*self.x_1_tip_a[:, np.newaxis], 'o', color=tip_color)
+
+    def plot_x_1_Ka(self, ax_x, line_width=1, line_color='gray', tip_color='gray'):
         """Plot crack geometry at ultimate state.
         """
         if self.plot_grid_markers:
             ax_x.plot(self.x_N, self.y_N, 'o')
-        ax_x.plot(*self.x_1_Ka.T, linewidth=linewidth, color=line_color);
+        ax_x.plot(*self.x_1_Ka.T, linewidth=line_width, color=line_color);
         ax_x.plot(*self.x_1_tip_a[:, np.newaxis], 'o', color=tip_color)
+
+    def plot_x_t_crc_Ka(self, ax, line_width=1, line_color='black', tip_color='red'):
+        """Plot geometry at current state.
+        """
+        ax.plot(*self.x_t_crc_Ka.T, linewidth=line_width, color=line_color);
+        ax.plot(*self.x_t_tip_a[:, np.newaxis], 'o', color=tip_color)
 
     def plot_x_t_Ka(self, ax):
         """Plot geometry at current state.
@@ -490,6 +522,8 @@ class DICCrack(bu.Model):
         ax.fill_betweenx(x_t_unc_La[:, 1], eps_t_Kab[:, a, b], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
+        min_eps_1 = self.min_eps_1
+        ax.set_xlim(xmin=min_eps_1 * 1.04, xmax=-min_eps_1 * 1.04)
         # eps_K = self.eps_Kab[:, idx, idx]
         # ax.set_xlim(np.min(eps_K) * 1.04, np.max(self.u_1_crc_Ka) * 1.04)
 
@@ -512,6 +546,8 @@ class DICCrack(bu.Model):
         ax.fill_betweenx(x_t_crc_Ka[:, 1], u_t_crc_Ka[:, idx], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
+        max_u_1 = self.max_u_1
+        ax.set_xlim(xmin=-max_u_1 * 1.04, xmax=max_u_1 * 1.04)
         # ax.set_xlim(np.min(self.u_1_crc_Ka) * 1.04, np.max(self.u_1_crc_Ka) * 1.04)
 
     def plot_u_t_crc_Ka(self, ax):
@@ -524,7 +560,7 @@ class DICCrack(bu.Model):
         self._plot_u_t(ax, self.u_t_crc_Ka, 1, label=r'$u_y$ [mm]', color='green')
         ax.legend()
         ax.set_ylim(self.y_N[0], self.y_N[-1])
-        ax.set_xlim(np.min(self.u_1_crc_Ka) * 1.04, np.max(self.u_1_crc_Ka) * 1.04)
+        #ax.set_xlim(np.min(self.u_1_crc_Ka) * 1.04, np.max(self.u_1_crc_Ka) * 1.04)
 
     def plot_u_t_crc_Kb(self, ax_w):
         """Plot the displacement (u_x, u_y) in local crack coordinates

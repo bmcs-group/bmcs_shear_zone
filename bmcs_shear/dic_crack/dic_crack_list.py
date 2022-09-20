@@ -182,8 +182,8 @@ class DICCrackList(bu.ModelDict):
 
     def plot_cracking_hist2(self, ax_cracks):
         for crack in self.items.values():
-            crack.plot_x_1_Ka(ax_cracks)
-            crack.plot_x_t_Ka(ax_cracks)
+            crack.plot_x_1_crc_Ka(ax_cracks)
+            crack.plot_x_t_crc_Ka(ax_cracks)
 
     def subplots(self, fig):
         self.fig = fig
@@ -208,7 +208,7 @@ class DICCrackList(bu.ModelDict):
         self.bd.plot_sz_bd(ax_dsf)
         self.plot_crack_detection_field(ax_dsf, self.fig)
         self.plot_cracking_hist2(ax_dsf)
-        self.critical_crack.plot_x_1_Ka(ax_dsf, linewidth=2, line_color='beige', tip_color='beige')
+        self.critical_crack.plot_x_t_crc_Ka(ax_dsf, line_width=2, line_color='red', tip_color='red')
         ax_dsf.axis('equal')
         ax_dsf.axis('off');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
@@ -220,8 +220,8 @@ class DICCrackList(bu.ModelDict):
         ax_u.set_ylim(0, self.bd.H * 1.04)
         bu.mpl_align_xaxis(ax_u, ax_eps)
 
-        self.critical_crack.sp.plot_sig_t_unc_Lab(ax_sig)
-        self.critical_crack.sp.plot_sig_t_crc_La(ax_sig)
-        self.critical_crack.sp.plot_F_t_a(ax_F)
-        bu.mpl_align_xaxis(ax_sig, ax_F)
+        # self.critical_crack.sp.plot_sig_t_unc_Lab(ax_sig)
+        # self.critical_crack.sp.plot_sig_t_crc_La(ax_sig)
+        # self.critical_crack.sp.plot_F_t_a(ax_F)
+        # bu.mpl_align_xaxis(ax_sig, ax_F)
 

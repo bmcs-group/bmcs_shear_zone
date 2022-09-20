@@ -86,8 +86,7 @@ class DICGrid(bu.Model):
         # convert the strings to the paramater types specified in the param_types table
         params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
         self.sz_bd.trait_set(**{key: params[key] for key in ['H', 'B', 'L_right', 'L_left']})
-        L = self.sz_bd.L_left + self.sz_bd.L_right
-        self.sz_bd.L = L
+        self.sz_bd.L = self.sz_bd.L_right
         self.sz_bd.Rectangle = True
         self.sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
 
