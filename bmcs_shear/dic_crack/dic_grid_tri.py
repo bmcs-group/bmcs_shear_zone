@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 from bmcs_shear.beam_design import RCBeamDesign
 from bmcs_shear.matmod import CrackBridgeAdv
+from scipy.spatial import Delaunay
+import scipy.interpolate
 from .i_dic_grid import IDICGrid
 
 def convert_to_bool(str_bool):
@@ -21,9 +23,8 @@ def convert_to_bool(str_bool):
                  'false' : False}
     return value_map[str_bool]
 
-
 @tr.provides(IDICGrid)
-class DICGrid(bu.Model):
+class DICGridTri(bu.Model):
     """
     History of displacment grids imported from the DIC measurement.
     """
@@ -37,9 +38,9 @@ class DICGrid(bu.Model):
     """
     def _dir_name_change(self):
         self.name = 'DIC grid %s' % self.name
-        self._set_grid_params()
+        self._set_dic_params()
 
-    grid_param_file_name = bu.Str('grid_params.txt', ALG=True)
+    dic_param_file_name = bu.Str('dic_params.txt', ALG=True)
     """Default name of the file with the parameters of the grid.
     """
 
@@ -97,28 +98,22 @@ class DICGrid(bu.Model):
     """
     @tr.cached_property
     def _get_n_I(self):
-        return self.grid_params['n_x']
+        return int(self.L_x / self.d_x)
 
     n_J = tr.Property(bu.Int, depends_on='state_changed')
     """Number of vertical nodes of the DIC input displacement grid
     """
     @tr.cached_property
     def _get_n_J(self):
-        return self.grid_params['n_y']
+        return int(self.L_y / self.d_y)
 
-    d_x = tr.Property(bu.Float, depends_on='state_changed')
+    d_x = bu.Float(5 , ALG=True)
     """Horizontal spacing between nodes of the DIC input displacement grid.
     """
-    @tr.cached_property
-    def _get_d_x(self):
-        return self.grid_params['d_x']
 
-    d_y = tr.Property(bu.Float, depends_on='state_changed')
+    d_y = bu.Float(5 , ALG=True)
     """Vertical spacing between nodes of the DIC input displacement grid.
     """
-    @tr.cached_property
-    def _get_d_y(self):
-        return self.grid_params['d_y']
 
     x_offset = tr.Property(bu.Float, depends_on='state_changed')
     """Horizontal offset of the DIC input displacement grid from the left
@@ -126,7 +121,7 @@ class DICGrid(bu.Model):
     """
     @tr.cached_property
     def _get_x_offset(self):
-        return self.grid_params['x_offset']
+        return self.dic_params['x_offset']
 
     y_offset = tr.Property(bu.Float, depends_on='state_changed')
     """ Vertical offset of the DIC input displacement grid from the bottom
@@ -134,17 +129,35 @@ class DICGrid(bu.Model):
     """
     @tr.cached_property
     def _get_y_offset(self):
-        return self.grid_params['y_offset']
+        return self.dic_params['y_offset']
 
-    column_first_enum = tr.Property(bu.Bool, depends_on='state_changed')
+    pad_t = tr.Property(bu.Float, depends_on='state_changed')
+    """ Top pad width
+    """
     @tr.cached_property
-    def _get_column_first_enum(self):
-        return self.grid_params['column_first_enum']
+    def _get_pad_t(self):
+        return self.dic_params['pad_t']
 
-    top_down_enum = tr.Property(bu.Bool, depends_on='state_changed')
+    pad_b = tr.Property(bu.Float, depends_on='state_changed')
+    """ Bottom pad width
+    """
     @tr.cached_property
-    def _get_top_down_enum(self):
-        return self.grid_params['top_down_enum']
+    def _get_pad_b(self):
+        return self.dic_params['pad_b']
+
+    pad_l = tr.Property(bu.Float, depends_on='state_changed')
+    """ Left pad width
+    """
+    @tr.cached_property
+    def _get_pad_l(self):
+        return self.dic_params['pad_l']
+
+    pad_r = tr.Property(bu.Float, depends_on='state_changed')
+    """ Right pad width
+    """
+    @tr.cached_property
+    def _get_pad_r(self):
+        return self.dic_params['pad_r']
 
     T0 = bu.Int(0, ALG=True)
 
@@ -170,30 +183,38 @@ class DICGrid(bu.Model):
         #return self.F_dic_T / self.F_dic_T[-1]
 
     ipw_view = bu.View(
+        bu.Item('pad_t', readonly=True),
+        bu.Item('pad_b', readonly=True),
+        bu.Item('pad_l', readonly=True),
+        bu.Item('pad_r', readonly=True),
         bu.Item('n_I', readonly=True),
         bu.Item('n_J', readonly=True),
-        bu.Item('d_x', readonly=True),
-        bu.Item('d_y', readonly=True),
+        bu.Item('d_x'),
+        bu.Item('d_y'),
         bu.Item('x_offset', readonly=True),
         bu.Item('y_offset', readonly=True),
         bu.Item('T_t', readonly=True),
         bu.Item('U_factor'),
-        bu.Item('column_first_enum'),
-        bu.Item('top_down_enum'),
         time_editor=bu.HistoryEditor(
             var='t'
         )
     )
 
+    X_outer_frame = tr.Property(depends_on='state_changed')
+    def _get_X_outer_frame(self):
+        return np.min(self.X_Qa, axis=0), np.max(self.X_Qa, axis=0)
+
     L_x = tr.Property
     """Width of the domain"""
     def _get_L_x(self):
-        return self.d_x * (self.n_I-1)
+        X_min, X_max = self.X_outer_frame
+        return X_max[0] - X_min[0]
 
     L_y = tr.Property
     """Height of the domain"""
     def _get_L_y(self):
-        return self.d_y * (self.n_J-1)
+        X_min, X_max = self.X_outer_frame
+        return X_max[1] - X_min[1]
 
     X_frame = tr.Property
     """Define the bottom left and top right corners"""
@@ -215,31 +236,30 @@ class DICGrid(bu.Model):
     dic_data_dir = tr.Property
     """Directory with the DIC data"""
     def _get_dic_data_dir(self):
-        return join(self.data_dir, 'dic_data')
+        return join(self.data_dir, 'dic_point_data')
 
     Fw_data_dir = tr.Property
     """Directory with the load deflection data"""
     def _get_Fw_data_dir(self):
         return join(self.data_dir, 'load_deflection')
 
-    grid_param_file = tr.Property
+    dic_param_file = tr.Property
     """File containing the parameters of the grid"""
-    def _get_grid_param_file(self):
-        return join(self.dic_data_dir, self.grid_param_file_name)
+    def _get_dic_param_file(self):
+        return join(self.dic_data_dir, self.dic_param_file_name)
 
-    grid_param_types = {'n_x' : int,
-                       'n_y' : int,
-                       'd_x' : float,
-                       'd_y' : float,
-                       'x_offset' : float,
+    dic_param_types = {'x_offset' : float,
                        'y_offset' : float,
-                       'column_first_enum' : convert_to_bool,
-                       'top_down_enum' : convert_to_bool}
+                       'pad_t': float,
+                       'pad_b' : float,
+                       'pad_l' : float,
+                       'pad_r' : float,
+                       }
 
-    grid_params = tr.Property(depends_on='dir_name')
-    def _get_grid_params(self):
+    dic_params = tr.Property(depends_on='dir_name')
+    def _get_dic_params(self):
         params_str = {}
-        f = open(self.grid_param_file)
+        f = open(self.dic_param_file)
         data = f.readlines()
         for line in data:
             # parse input, assign values to variables
@@ -247,7 +267,7 @@ class DICGrid(bu.Model):
             params_str[key.strip()] = value.strip()
         f.close()
         # convert the strings to the parameter types specified in the param_types table
-        params = { key : type_(params_str[key]) for key, type_ in self.grid_param_types.items()  }
+        params = { key : type_(params_str[key]) for key, type_ in self.dic_param_types.items()  }
         return params
 
     all_files = tr.Property(depends_on='state_changed')
@@ -259,11 +279,16 @@ class DICGrid(bu.Model):
 
     asc_F_files = tr.Property(depends_on='state_changed')
     """DIC files with ascending levels of force
+
+    T - index of the time step
+    t - slider from 0 to 1 where 1 is the ultimate state
+    ts - true time stamp of the DIC figure
     """
     @tr.cached_property
     def _get_asc_F_files(self):
-        F_DIC_T = np.array([float(os.path.basename(file_name).split('_')[-2])
+        ts_DIC_T = np.array([float(os.path.basename(file_name).replace('.','_').split('_')[-2])
                          for file_name in self.all_files ], dtype=np.float_ )
+        F_DIC_T = self.F_ts(ts_DIC_T)
         dF_ST = F_DIC_T[np.newaxis, :] - F_DIC_T[:, np.newaxis]
         dic_asc_T = np.unique(np.argmax(np.triu(dF_ST, 0) > 0, axis=1))
         return F_DIC_T[dic_asc_T], self.all_files[dic_asc_T]
@@ -275,6 +300,12 @@ class DICGrid(bu.Model):
     def _get_F_dic_T(self):
         F_dic_T, _ = self.asc_F_files
         return F_dic_T
+
+    def F_ts(self, ts):
+        ts_ext = self.Fw_T[::50,0]
+        F_ext = -self.Fw_T[::50,1]
+        argmax_F_T = np.argmax(F_ext)
+        return np.interp(ts, F_ext[:argmax_F_T], ts_ext[:argmax_F_T])
 
     w_T = tr.Property(depends_on='state_changed')
     """Displacement levels of ascending DIC snapshots
@@ -293,29 +324,95 @@ class DICGrid(bu.Model):
     def _get_w_dic_T(self):
         return -self.U_TIJa[:len(self.F_dic_T),0,-1,1]
 
+    X_Qa__U_TQa = tr.Property(depends_on='state_changed')
+    """Read the displacement data from the individual csv files"""
+    @tr.cached_property
+    def _get_X_Qa__U_TQa(self):
+        _, pxyz_files = self.asc_F_files
+        # pxyz_files = [op.join(input_dir, each)
+        #               for each in sorted(os.listdir(files))
+        #               if each.endswith('.csv')]
+        pxyz_list = [
+            np.loadtxt(csv_file, dtype=np.float_,
+                       skiprows=6, delimiter=';')
+            for csv_file in pxyz_files
+        ]
+        # Identify the points that are included in all time steps.
+        P_list = [np.array(pxyz[:, 0], dtype=np.int_)
+                  for pxyz in pxyz_list
+                  ]
+        # Maximum number of points ocurring in one of the time steps to allocate the space
+        max_n_P = np.max(np.array([np.max(P_) for P_ in P_list])) + 1
+        P_Q = P_list[0]
+        for P_next in P_list[1:]:
+            P_Q = np.intersect1d(P_Q, P_next)
+        # Define the initial configuration
+        X_TPa = np.zeros((self.n_T, max_n_P, 3), dtype=np.float_)
+        for T in range(self.n_T):
+            X_TPa[T, P_list[T]] = pxyz_list[T][:, 1:]
+        U_TPa = np.zeros_like(X_TPa)
+        for T in range(1, self.n_T):
+            U_TPa[T, P_Q] = np.array(X_TPa[T, P_Q] - X_TPa[0, P_Q])
+        return X_TPa[0, P_Q], U_TPa[:, P_Q]
+
+    X_Qa = tr.Property(depends_on='state_changed')
+    """Initial coordinates"""
+    @tr.cached_property
+    def _get_X_Qa(self):
+        X_Qa, _ = self.X_Qa__U_TQa
+        return X_Qa
+
+    U_TQa = tr.Property(depends_on='state_changed')
+    """Read the displacement data from the individual csv files"""
+
+    @tr.cached_property
+    def _get_U_TQa(self):
+        _, U_TQa = self.X_Qa__U_TQa
+        return U_TQa
+
+    X0_IJa = tr.Property(depends_on='state_changed')
+    """Coordinates of the DIC markers in the grid"""
+    @tr.cached_property
+    def _get_X0_IJa(self):
+        n_I, n_J = self.n_I, self.n_J
+        X_min_a, X_max_a = self.X_outer_frame
+        min_x, min_y, _ = X_min_a
+        max_x, max_y, _ = X_max_a
+        X_aIJ = np.mgrid[
+                min_x + self.pad_l:max_x - self.pad_r:complex(n_I),
+                min_y + self.pad_b:max_y - self.pad_t:complex(n_J)]
+        x_IJ, y_IJ = X_aIJ
+        # x_IJ -= min_x
+        # y_IJ -= min_y
+        X0_IJa = np.einsum('aIJ->IJa', np.array([x_IJ, y_IJ]))
+        return X0_IJa
+
     U_TIJa = tr.Property(depends_on='state_changed')
     """Read the displacement data from the individual csv files"""
     @tr.cached_property
     def _get_U_TIJa(self):
-        _, files = self.asc_F_files
-        # indexes: T - load level, P - point, a - dimension
-        U_TPa = np.array([
-            np.loadtxt(csv_file, dtype=float,
-                       skiprows=1, delimiter=',', usecols=(2,3), unpack=False)
-            for csv_file in files
-        ], dtype=np.float_)
-        n_T, n_e, n_a = U_TPa.shape # get the dimensions of the time and entry dimensions
-        n_I, n_J = self.n_I, self.n_J
-        if self.column_first_enum:
-            U_TIJa = U_TPa.reshape(n_T, n_I, n_J, 2)  # for numbering from top right to bottom right
-        else:
-            U_TJIa = U_TPa.reshape(n_T, n_J, n_I, 2) # for numbering from bottom right to left
-            U_TIJa = np.einsum('TJIa->TIJa', U_TJIa)
-        if self.top_down_enum:
-            return U_TIJa[:,::-1,::-1,:]
-#            return U_TIJa[:,:,::-1,:]
-        else:
-            return U_TIJa[:,::-1,:,:]
+        points = self.X_Qa[:, :-1]
+        delaunay = Delaunay(points)
+        triangles = delaunay.simplices
+        x0_IJ, y0_IJ = np.einsum('IJa->aIJ', self.X0_IJa)
+        U_IJa_list = []
+        for T in range(self.n_T):
+            values = self.U_TQa[T, :, :]
+            get_U = scipy.interpolate.LinearNDInterpolator(delaunay, values)
+            U_IJa = get_U(x0_IJ, y0_IJ)
+            U_IJa_list.append(U_IJa)
+        U_TIJa = np.array(U_IJa_list)
+        return U_TIJa[...,:-1]
+
+    X_IJa = tr.Property(depends_on='state_changed')
+    """Coordinates of the DIC markers in the grid"""
+    @tr.cached_property
+    def _get_X_IJa(self):
+        X0_IJa = self.X0_IJa
+        x_min, y_min = X0_IJa[0,0,(0, 1)]
+        x0_IJ, y0_IJ = np.einsum('...a->a...', X0_IJa)
+        X_aIJ = np.array([x0_IJ-x_min+self.x_offset, y0_IJ-y_min+self.y_offset])
+        return np.einsum('a...->...a', X_aIJ)
 
     n_T = tr.Property(depends_on='state_changed')
     """Number of dic snapshots up to the maximum load"""
@@ -334,19 +431,6 @@ class DICGrid(bu.Model):
         dic_T = np.arange(len(F_dic_T))
         T_t = np.interp(F_t, F_dic_T, dic_T)
         return int(T_t)
-
-    X_IJa = tr.Property(depends_on='state_changed')
-    """Coordinates of the DIC markers in the grid"""
-    @tr.cached_property
-    def _get_X_IJa(self):
-        n_I, n_J = self.n_I, self.n_J
-#        x_range = np.arange(n_I)[::-1] * self.d_x + self.x_offset
-        x_range = np.arange(n_I) * self.d_x + self.x_offset
-        y_range = np.arange(n_J) * self.d_y + self.y_offset
-        y_IJ, x_IJ = np.meshgrid(y_range, x_range)
-        X_aIJ = np.array([x_IJ, y_IJ])
-        X_IJa = np.einsum('aIJ->IJa', X_aIJ)
-        return X_IJa
 
     U_IJa = tr.Property(depends_on='state_changed')
     """Total displacement at step T_t w.r.t. T0

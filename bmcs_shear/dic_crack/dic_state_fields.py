@@ -4,6 +4,7 @@
 
 import bmcs_utils.api as bu
 from .dic_grid import DICGrid
+from .i_dic_grid import IDICGrid
 import traits.api as tr
 from matplotlib import cm
 import ibvpy.api as ib
@@ -19,7 +20,7 @@ class DICStateFields(ib.TStepBC):
     '''State analysis of the field simulated by DIC.
     '''
 
-    dic_grid = bu.Instance(DICGrid)
+    dic_grid = bu.Instance(IDICGrid)
 
     bd = tr.DelegatesTo('dic_grid', 'sz_bd')
 
@@ -55,6 +56,8 @@ class DICStateFields(ib.TStepBC):
         self.hist.init_state()
         self.fe_domain[0].state_k = copy.deepcopy(self.fe_domain[0].state_n)
         for T in range(0, self.dic_grid.n_T):
+            if self.verbose_eval:
+                print('T:', T)
             self.t_n1 = T
             U_IJa = self.dic_grid.U_TIJa[T]
             U_Ia = U_IJa.reshape(-1, 2)
@@ -67,6 +70,9 @@ class DICStateFields(ib.TStepBC):
             self.hist.record_timestep(self.t_n1, self.U_k, self.F_k, states)
             self.t_n = self.t_n1
 
+
+    verbose_eval = bu.Bool(False)
+    '''Report time step in simulation'''
 
     R = bu.Float(8, ALG=True)
     '''Averaging radius'''
@@ -83,6 +89,7 @@ class DICStateFields(ib.TStepBC):
         return self.dic_grid.T_t
 
     ipw_view = bu.View(
+        bu.Item('verbose_eval'),
         bu.Item('R'),
         bu.Item('omega_threshold'),
         bu.Item('n_ipl_M'),
