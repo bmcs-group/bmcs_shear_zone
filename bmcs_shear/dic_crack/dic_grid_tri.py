@@ -286,7 +286,7 @@ class DICGridTri(bu.Model):
     """
     @tr.cached_property
     def _get_asc_F_files(self):
-        ts_DIC_T = np.array([float(os.path.basename(file_name).replace('.','_').split('_')[-2])
+        ts_DIC_T = np.array([float(os.path.basename(file_name).replace('.csv','').split('_')[-2])
                          for file_name in self.all_files ], dtype=np.float_ )
         F_DIC_T = self.F_ts(ts_DIC_T)
         dF_ST = F_DIC_T[np.newaxis, :] - F_DIC_T[:, np.newaxis]
