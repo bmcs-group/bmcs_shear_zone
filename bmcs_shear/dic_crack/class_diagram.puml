@@ -1,20 +1,31 @@
 @startuml
 'https://plantuml.com/class-diagram
 
+interface IDICGrid {
+  X_IJa
+  U_TIJa
+  F_T
+  time_T
+  w_T
+  t
+}
 
 class DICGrid {
-  U_TIJa
-  t
-  T0
-  T1
 }
+
+DICGrid --|> IDICGrid
+
+class DICGridTri {
+}
+
+DICGridTri --|> IDICGrid
 
 class DICStateFields{
   U_TMNa
   omega_TMN
 }
 
-DICStateFields --> DICGrid
+DICStateFields --> IDICGrid
 
 class DICCrack {
    index_range
@@ -24,11 +35,11 @@ DICCrackList --> DICStateFields
 
 DICCrackList *--> DICCrack
 
-DICCrack --> DICGrid
+DICCrack --> IDICGrid
 
 DICCrack --> DICStressProfile
 
-DICStressProfile --> DICGrid
+DICStressProfile --> IDICGrid
 
 class DICAlign{
 }

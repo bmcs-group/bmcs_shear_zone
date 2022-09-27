@@ -207,12 +207,12 @@ class DICCrackList(bu.ModelDict):
         self.dsf.dic_grid.plot_box_annotate(ax_dsf)
         self.bd.plot_sz_bd(ax_dsf)
         self.plot_crack_detection_field(ax_dsf, self.fig)
-        self.plot_cracking_hist2(ax_dsf)
+        # self.plot_cracking_hist2(ax_dsf)
         self.critical_crack.plot_x_t_crc_Ka(ax_dsf, line_width=2, line_color='red', tip_color='red')
         ax_dsf.axis('equal')
         ax_dsf.axis('off');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
-
+        return
         # plot the kinematic profile
         self.critical_crack.plot_u_t_crc_Ka(ax_u)
         self.critical_crack.plot_eps_t_Kab(ax_eps)

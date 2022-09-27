@@ -171,7 +171,6 @@ class DICGridTri(bu.Model):
 
     def _t_changed(self):
         d_t = (1 / self.n_T)
-        #self.T_t = self.get_T_t(self.t)
         self.T_t = int( (self.n_T - 1) * (self.t + d_t/2))
 
     t_dic_T = tr.Property(depends_on='state_changed')
@@ -180,7 +179,6 @@ class DICGridTri(bu.Model):
     @tr.cached_property
     def _get_t_dic_T(self):
         return np.linspace(0, 1, self.n_T)
-        #return self.F_dic_T / self.F_dic_T[-1]
 
     ipw_view = bu.View(
         bu.Item('pad_t', readonly=True),
@@ -221,9 +219,11 @@ class DICGridTri(bu.Model):
     def _get_X_frame(self):
         L_x, L_y = self.L_x, self.L_y
         x_offset, y_offset = self.x_offset, self.y_offset
-        X_min, X_max = x_offset, L_x + x_offset
-        Y_min, Y_max = y_offset, L_y + y_offset
-        return X_min, Y_min, X_max, Y_max
+        x_min, y_min = self.X_IJa[0,0,(0,1)] #x_offset + self.pad_l
+        #x_max = x_min + L_x - self.pad_r
+        x_max, y_max = self.X_IJa[-1,-1,(0,1)]
+        # y_max = y_min + L_y - self.pad_t
+        return x_min, y_min, x_max, y_max
 
 
     data_dir = tr.Property
@@ -237,11 +237,6 @@ class DICGridTri(bu.Model):
     """Directory with the DIC data"""
     def _get_dic_data_dir(self):
         return join(self.data_dir, 'dic_point_data')
-
-    Fw_data_dir = tr.Property
-    """Directory with the load deflection data"""
-    def _get_Fw_data_dir(self):
-        return join(self.data_dir, 'load_deflection')
 
     dic_param_file = tr.Property
     """File containing the parameters of the grid"""
@@ -270,77 +265,194 @@ class DICGridTri(bu.Model):
         params = { key : type_(params_str[key]) for key, type_ in self.dic_param_types.items()  }
         return params
 
-    all_files = tr.Property(depends_on='state_changed')
-    @tr.cached_property
-    def _get_all_files(self):
-        return np.array([join(self.dic_data_dir, each)
-         for each in sorted(os.listdir(self.dic_data_dir))
-         if each.endswith('.csv')])
+    time_F_w_data_dir = tr.Property
+    """Directory with the load deflection data"""
+    def _get_time_F_w_data_dir(self):
+        return join(self.data_dir, 'load_deflection')
 
-    asc_F_files = tr.Property(depends_on='state_changed')
-    """DIC files with ascending levels of force
+    time_F_w_file_name = tr.Str('load_deflection.csv')
+    """Name of the file with the measured load deflection data
+    """
 
-    T - index of the time step
-    t - slider from 0 to 1 where 1 is the ultimate state
-    ts - true time stamp of the DIC figure
+    time_F_w_m = tr.Property(depends_on='state_changed')
+    """Read the load displacement values from the individual 
+    csv files from the test
     """
     @tr.cached_property
-    def _get_asc_F_files(self):
-        ts_DIC_T = np.array([float(os.path.basename(file_name).replace('.csv','').split('_')[-2])
-                         for file_name in self.all_files ], dtype=np.float_ )
-        F_DIC_T = self.F_ts(ts_DIC_T)
-        dF_ST = F_DIC_T[np.newaxis, :] - F_DIC_T[:, np.newaxis]
-        dic_asc_T = np.unique(np.argmax(np.triu(dF_ST, 0) > 0, axis=1))
-        return F_DIC_T[dic_asc_T], self.all_files[dic_asc_T]
+    def _get_time_F_w_m(self):
+        time_F_w_file = join(self.time_F_w_data_dir, self.time_F_w_file_name)
+        time_F_w_m = np.array(pd.read_csv(time_F_w_file, decimal=",", skiprows=1,
+                              delimiter=None), dtype=np.float_)
+        time_m, F_m, w_m = time_F_w_m[::50, (0,1,2)].T
+        F_m *= -1
+        dF_mn = F_m[np.newaxis, :] - F_m[:, np.newaxis]
+        dF_up_mn = np.triu(dF_mn > 0)
+        argmin_m = np.argmin(dF_up_mn, axis=0)
+        for n in range(len(argmin_m)):
+            dF_up_mn[argmin_m[n]:, n] = False
+        asc_m = np.unique(np.argmax(np.triu(dF_up_mn, 0) > 0, axis=1))
+        F_asc_m = F_m[asc_m]
+        time_asc_m = time_m[asc_m]
+        w_asc_m = w_m[asc_m]
+        return time_asc_m, F_asc_m, w_asc_m
 
-    F_dic_T = tr.Property(depends_on='state_changed')
-    """Load levels of ascending DIC snapshots
+    time_F_m = tr.Property(depends_on='state_changed')
+    """time and force
     """
     @tr.cached_property
-    def _get_F_dic_T(self):
-        F_dic_T, _ = self.asc_F_files
-        return F_dic_T
+    def _get_time_F_m(self):
+        time_m, F_m, _ = self.time_F_w_m
+        return time_m, F_m
 
-    def F_ts(self, ts):
-        ts_ext = self.Fw_T[::50,0]
-        F_ext = -self.Fw_T[::50,1]
-        argmax_F_T = np.argmax(F_ext)
-        return np.interp(ts, F_ext[:argmax_F_T], ts_ext[:argmax_F_T])
+    w_m = tr.Property(depends_on='state_changed')
+    """time and force
+    """
+    @tr.cached_property
+    def _get_w_m(self):
+        _, _, w_m = self.time_F_w_m
+        return w_m
+
+    argmax_F_m = tr.Property(depends_on='state_changed')
+    """times and forces for all snapshots with machine clock (m index)
+    """
+    @tr.cached_property
+    def _get_argmax_F_m(self):
+        time_m, F_m = self.time_F_m
+        argmax_F_m = np.argmax(F_m)
+        return argmax_F_m
+
+    time_F_dic_file = tr.Property(depends_on='state_changed')
+    """File specifying the dic snapshot times and forces
+    """
+    @tr.cached_property
+    def _get_time_F_dic_file(self):
+        return os.path.join(self.dic_data_dir, 'Kraft.DIM.csv')
+
+    tstring_time_F_dic = tr.Property(depends_on='state_changed')
+    """times and forces for all snapshots with camera clock (dic index)
+    """
+    @tr.cached_property
+    def _get_tstring_time_F_dic(self):
+        rows_ = []
+        for row in open(self.time_F_dic_file):
+            rows_.append(row)
+        rows = np.array(rows_)
+        time_entries_dic = rows[0].replace('name;type;attribute;id;', '').split(';')
+        tstring_dic = np.array([time_entry_dic.split(' ')[0] for time_entry_dic in time_entries_dic])
+        time_dic = np.array(tstring_dic, dtype=np.float_)
+        F_entries_dic = rows[1].replace('Kraft.DIM;deviation;dimension;;', '')
+        F_dic = -np.fromstring(F_entries_dic, sep=';', dtype=np.float_)
+        dF_dic = F_dic[np.newaxis, :] - F_dic[:, np.newaxis]
+        dF_up_dic = np.triu(dF_dic > 0, 0)
+        argmin_dic = np.argmin(dF_up_dic, axis=0)
+        for n in range(len(argmin_dic)):
+            dF_up_dic[argmin_dic[n]:, n] = False
+        asc_dic = np.unique(np.argmax(np.triu(dF_up_dic, 0) > 0, axis=1))
+        return tstring_dic[asc_dic], time_dic[asc_dic], F_dic[asc_dic]
+
+    time_F_dic = tr.Property
+    def _get_time_F_dic(self):
+        _, time_dic, F_dic = self.tstring_time_F_dic
+        return time_dic, F_dic
+
+    tstring_dic = tr.Property
+    def _get_tstring_dic(self):
+        tstrings_dic, _, _ = self.tstring_time_F_dic
+        return tstrings_dic
+
+    argmax_F_dic = tr.Property(depends_on='state_changed')
+    """times and forces for all snapshots with camera clock (dic index)
+    """
+    @tr.cached_property
+    def _get_argmax_F_dic(self):
+        _, F_dic = self.time_F_dic
+        return np.argmax(F_dic)
+
+    tstring_time_F_T = tr.Property(depends_on='state_changed')
+    """synchronized times and forces for specified resolution n_T
+    """
+    def _get_tstring_time_F_T(self):
+        time_m, F_m = self.time_F_m
+        argmax_F_m = self.argmax_F_m
+        time_dic, F_dic = self.time_F_dic
+        argmax_F_dic = self.argmax_F_dic
+        argmax_time_F_dic = time_dic[argmax_F_dic]
+        max_F_dic = F_dic[argmax_F_dic]
+        m_max_F_dic = argmax_F_m - np.argmax(F_m[argmax_F_m:0:-1] < max_F_dic)
+        time_m_F_dic_max = time_m[m_max_F_dic]
+        delta_time_dic_m = argmax_time_F_dic - time_m_F_dic_max
+        time_dic_ = time_dic - delta_time_dic_m
+        dic_0 = np.argmax(time_dic_ > 0) - 1
+        delta_T = int(len(time_dic_[dic_0:argmax_F_dic]) / self.n_T)
+        T_slice = slice(dic_0, argmax_F_dic, delta_T)
+        time_T = time_dic_[T_slice]
+        F_T = F_dic[T_slice]
+        time_T[0] = 0
+        tstring_T = self.tstring_dic[T_slice]
+        tstring_T[0] = self.tstring_dic[0]
+        return tstring_T, time_T, F_T
+
+    time_F_T = tr.Property(depends_on='state_changed')
+    """synchronized times and forces for specified resolution n_T
+    """
+    def _get_time_F_T(self):
+        _, time_T, F_T = self.tstring_time_F_T
+        return time_T, F_T
+
+    tstring_T = tr.Property(depends_on='state_changed')
+    """synchronized times and forces for specified resolution n_T
+    """
+    def _get_tstring_T(self):
+        tstring_T, _, _ = self.tstring_time_F_T
+        return tstring_T
 
     w_T = tr.Property(depends_on='state_changed')
     """Displacement levels of ascending DIC snapshots
     """
     @tr.cached_property
     def _get_w_T(self):
-        w = self.Fw_T[::50,2]
-        F = -self.Fw_T[::50,1]
-        argmax_F_T = np.argmax(F)
-        return np.interp(self.F_dic_T, F[:argmax_F_T], w[:argmax_F_T])
+        w_m = self.w_m
+        _, F_m = self.time_F_m
+        _, F_T = self.time_F_T
+        argmax_F_m = np.argmax(F_m)
+        return np.interp(F_T, F_m[:argmax_F_m], w_m[:argmax_F_m])
 
-    w_dic_T = tr.Property(depends_on='state_changed')
+    pxyz_file_T = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_pxyz_file_T(self):
+        return [os.path.join(self.dic_data_dir, r'Flächenkomponente 1_{} s.csv'.format(tstring)) for
+                      tstring in self.tstring_T]
+
+    asc_time_F_T = tr.Property(depends_on='state_changed')
+    """Ascending force sequence
+    """
+    @tr.cached_property
+    def _get_asc_time_F_T(self):
+        time_T, F_T = self.time_F_T
+        dF_ST = F_T[np.newaxis, :] - F_T[:, np.newaxis]
+        asc_T = np.unique(np.argmax(np.triu(dF_ST, 0) > 0, axis=1))
+        return time_T[asc_T], F_T[asc_T]
+
+    u_T = tr.Property(depends_on='state_changed')
     """Displacement levels of ascending DIC snapshots
     """
     @tr.cached_property
-    def _get_w_dic_T(self):
-        return -self.U_TIJa[:len(self.F_dic_T),0,-1,1]
+    def _get_u_T(self):
+        return -self.U_TIJa[:,0,-1,1]
 
     X_Qa__U_TQa = tr.Property(depends_on='state_changed')
     """Read the displacement data from the individual csv files"""
     @tr.cached_property
     def _get_X_Qa__U_TQa(self):
-        _, pxyz_files = self.asc_F_files
-        # pxyz_files = [op.join(input_dir, each)
-        #               for each in sorted(os.listdir(files))
-        #               if each.endswith('.csv')]
+        pxyz_file_T = self.pxyz_file_T
         pxyz_list = [
-            np.loadtxt(csv_file, dtype=np.float_,
-                       skiprows=6, delimiter=';')
-            for csv_file in pxyz_files
+            np.loadtxt(pxyz_file, dtype=np.float_,
+                       skiprows=6, delimiter=';', usecols=(0, 1, 2, 3))
+            for pxyz_file in pxyz_file_T
         ]
         # Identify the points that are included in all time steps.
         P_list = [np.array(pxyz[:, 0], dtype=np.int_)
-                  for pxyz in pxyz_list
-                  ]
+                  for pxyz in pxyz_list]
         # Maximum number of points ocurring in one of the time steps to allocate the space
         max_n_P = np.max(np.array([np.max(P_) for P_ in P_list])) + 1
         P_Q = P_list[0]
@@ -382,8 +494,6 @@ class DICGridTri(bu.Model):
                 min_x + self.pad_l:max_x - self.pad_r:complex(n_I),
                 min_y + self.pad_b:max_y - self.pad_t:complex(n_J)]
         x_IJ, y_IJ = X_aIJ
-        # x_IJ -= min_x
-        # y_IJ -= min_y
         X0_IJa = np.einsum('aIJ->IJa', np.array([x_IJ, y_IJ]))
         return X0_IJa
 
@@ -414,23 +524,20 @@ class DICGridTri(bu.Model):
         X_aIJ = np.array([x0_IJ-x_min+self.x_offset, y0_IJ-y_min+self.y_offset])
         return np.einsum('a...->...a', X_aIJ)
 
-    n_T = tr.Property(depends_on='state_changed')
+    n_T = bu.Int(30, ALG=True)
     """Number of dic snapshots up to the maximum load"""
-    @tr.cached_property
-    def _get_n_T(self):
-        return len(self.F_dic_T)
 
     def get_T_t(self, t = 0.9):
-        """Get the dic index correponding to the specified fraction
+        """Get the T index correponding to the specified fraction
         of ultimate load.
         """
-        F = -self.Fw_T[::50,1]
-        F_max = np.max(F)
-        F_t = t * F_max
-        F_dic_T = self.F_dic_T
-        dic_T = np.arange(len(F_dic_T))
-        T_t = np.interp(F_t, F_dic_T, dic_T)
-        return int(T_t)
+        _, F_m = self.time_F_m
+        max_F_m = np.max(F_m)
+        F_t = t * max_F_m
+        _, F_T = self.time_F_T
+        T_T = np.arange(self.n_T)
+        T = np.interp(F_t, F_T, T_T)
+        return int(T)
 
     U_IJa = tr.Property(depends_on='state_changed')
     """Total displacement at step T_t w.r.t. T0
@@ -438,20 +545,6 @@ class DICGridTri(bu.Model):
     @tr.cached_property
     def _get_U_IJa(self):
         return self.U_TIJa[self.T_t] - self.U_TIJa[self.T0]
-
-    Fw_file_name = tr.Str('load_deflection.csv')
-    """Name of the file with the measured load deflection data
-    """
-    
-    Fw_T = tr.Property(depends_on='state_changed')
-    """Read the load displacement values from the individual 
-    csv files from the test
-    """
-    @tr.cached_property
-    def _get_Fw_T(self):
-        Fw_file = join(self.Fw_data_dir, self.Fw_file_name)
-        Fw_T = np.array(pd.read_csv(Fw_file, decimal=",", skiprows=1, delimiter=None), dtype=np.float_)
-        return Fw_T
 
     F_T_t = tr.Property(depends_on='state_changed')
     """Current load
@@ -499,30 +592,28 @@ class DICGridTri(bu.Model):
                     )
 
     def plot_load_deflection(self, ax_load):
-        w = self.Fw_T[::50,2]
-        F = -self.Fw_T[::50,1]
+        w_m = self.w_m
+        _, F_m = self.time_F_m
+        argmax_F_m = self.argmax_F_m
 
-        argmax_F_T = np.argmax(F)
-
-        ax_load.plot(w[:argmax_F_T], F[:argmax_F_T], color='black')
+        ax_load.plot(w_m[:argmax_F_m], F_m[:argmax_F_m], color='black')
         ax_load.set_ylabel(r'$F$ [kN]')
         ax_load.set_xlabel(r'$w$ [mm]')
 
         # plot the markers of dic levels
-        w_dic_T = np.interp(self.F_dic_T, F[:argmax_F_T], w[:argmax_F_T])
-        ax_load.plot(self.w_T, self.F_dic_T, 'o', markersize=3, color='orange')
-        ax_load.plot(self.w_dic_T, self.F_dic_T, '-o', markersize=3, color='blue')
+        _, F_T = self.time_F_T
+        ax_load.plot(self.w_T, F_T, 'o', markersize=3, color='orange')
 
         # show the current load marker
-        F_T_t = self.F_dic_T[self.T_t]
-        w_T_t = np.interp(F_T_t, F[:argmax_F_T], w[:argmax_F_T])
-        ax_load.plot(w_T_t, F_T_t, marker='o', markersize=6, color='green')
+        F_t = F_T[self.T_t]
+        w_t = np.interp(F_t, F_T, self.w_T)
+        ax_load.plot(w_t, F_t, marker='o', markersize=6, color='green')
 
         # annotate the maximum load level
-        max_F = F[argmax_F_T]
-        argmax_F_w = w[argmax_F_T]
-        ax_load.annotate(f'$F_\max=${max_F:.1f} kN, w={argmax_F_w:.2f} mm',
-                    xy=(argmax_F_w, max_F), xycoords='data',
+        max_F = F_m[argmax_F_m]
+        argmax_w_F = w_m[argmax_F_m]
+        ax_load.annotate(f'$F_\max=${max_F:.1f} kN, w={argmax_w_F:.2f} mm',
+                    xy=(argmax_w_F, max_F), xycoords='data',
                     xytext=(0.05, 0.95), textcoords='axes fraction',
                     horizontalalignment='left', verticalalignment='top',
                     )

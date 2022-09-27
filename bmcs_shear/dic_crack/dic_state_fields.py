@@ -3,7 +3,6 @@
 '''
 
 import bmcs_utils.api as bu
-from .dic_grid import DICGrid
 from .i_dic_grid import IDICGrid
 import traits.api as tr
 from matplotlib import cm
