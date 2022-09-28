@@ -49,12 +49,9 @@ class DICCrackList(bu.ModelDict):
     corridor_left = bu.Int(3, ALG=True)
     corridor_right = bu.Int(2, ALG=True)
 
-    omega_t_on = bu.Bool(True, ALG=True)
-
     ipw_view = bu.View(
         bu.Item('corridor_left'),
         bu.Item('corridor_right'),
-        bu.Item('omega_t_on'),
         bu.Item('T_t', readonly=True),
         time_editor=bu.HistoryEditor(var='dsf.dic_grid.t')
     )
@@ -151,26 +148,6 @@ class DICCrackList(bu.ModelDict):
         critical_C = np.argmax(np.array(u_1_max_C))
         return self.items[str(critical_C)]
 
-    show_color_bar = bu.Bool(False, ALG=True)
-
-    def plot_crack_detection_field(self, ax_cracks, fig):
-        if self.omega_t_on:
-            xx_MN, yy_MN, cd_field_irn_MN = self.dsf.omega_ipl_field
-        else:
-            xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_ipl_field
-        if np.sum(cd_field_irn_MN) == 0:
-            # return without warning if there is no damage or strain
-            return
-        contour_levels = np.array([0.15, 0.35, 0.65, 0.95, 1.25], dtype=np.float_)
-        cs = ax_cracks.contourf(xx_MN, yy_MN, cd_field_irn_MN, contour_levels,
-                                cmap=cm.GnBu,
-                               #cmap=cm.coolwarm,
-                               antialiased=False)
-        if self.show_color_bar:
-            cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
-                                       ax=ax_cracks, ticks=np.linspace(0, 1, 6),
-                                       orientation='horizontal')
-            cbar_cracks.set_label(r'$\omega = 1 - \min(\phi_I)$')
 
     def plot_primary_cracks(self, ax_cracks):
         xx_NC, yy_NC, N_tip_C, _ = self.primary_cracks
@@ -206,8 +183,8 @@ class DICCrackList(bu.ModelDict):
         self.dsf.dic_grid.plot_bounding_box(ax_dsf)
         self.dsf.dic_grid.plot_box_annotate(ax_dsf)
         self.bd.plot_sz_bd(ax_dsf)
-        self.plot_crack_detection_field(ax_dsf, self.fig)
-        # self.plot_cracking_hist2(ax_dsf)
+        self.dsf.plot_crack_detection_field(ax_dsf, self.fig)
+        self.plot_cracking_hist2(ax_dsf)
         self.critical_crack.plot_x_t_crc_Ka(ax_dsf, line_width=2, line_color='red', tip_color='red')
         ax_dsf.axis('equal')
         ax_dsf.axis('off');

@@ -181,18 +181,21 @@ class DICGridTri(bu.Model):
         return np.linspace(0, 1, self.n_T)
 
     ipw_view = bu.View(
+        bu.Item('d_x'),
+        bu.Item('d_y'),
+        bu.Item('n_T'),
+        bu.Item('U_factor'),
+        bu.Item('T_t', readonly=True),
         bu.Item('pad_t', readonly=True),
         bu.Item('pad_b', readonly=True),
         bu.Item('pad_l', readonly=True),
         bu.Item('pad_r', readonly=True),
         bu.Item('n_I', readonly=True),
         bu.Item('n_J', readonly=True),
-        bu.Item('d_x'),
-        bu.Item('d_y'),
+        bu.Item('n_m', readonly=True),
+        bu.Item('n_dic', readonly=True),
         bu.Item('x_offset', readonly=True),
         bu.Item('y_offset', readonly=True),
-        bu.Item('T_t', readonly=True),
-        bu.Item('U_factor'),
         time_editor=bu.HistoryEditor(
             var='t'
         )
@@ -312,6 +315,13 @@ class DICGridTri(bu.Model):
         _, _, w_m = self.time_F_w_m
         return w_m
 
+    n_m = tr.Property(bu.Int, depends_on='state_changed')
+    """Number of machine time sampling points up to the peak load 
+    """
+    def _get_n_m(self):
+        time_m, _ = self.time_F_m
+        return len(time_m)
+
     argmax_F_m = tr.Property(depends_on='state_changed')
     """times and forces for all snapshots with machine clock (m index)
     """
@@ -359,6 +369,13 @@ class DICGridTri(bu.Model):
     def _get_tstring_dic(self):
         tstrings_dic, _, _ = self.tstring_time_F_dic
         return tstrings_dic
+
+    n_dic = tr.Property(bu.Int, depends_on='state_changed')
+    """Number of camera time sampling points up to the peak load 
+    """
+    def _get_n_dic(self):
+        time_dic, _ = self.time_F_dic
+        return len(time_dic)
 
     argmax_F_dic = tr.Property(depends_on='state_changed')
     """times and forces for all snapshots with camera clock (dic index)
@@ -497,18 +514,21 @@ class DICGridTri(bu.Model):
         X0_IJa = np.einsum('aIJ->IJa', np.array([x_IJ, y_IJ]))
         return X0_IJa
 
+    delaunay = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_delaunay(self):
+        points = self.X_Qa[:, :-1]
+        return Delaunay(points)
+
     U_TIJa = tr.Property(depends_on='state_changed')
     """Read the displacement data from the individual csv files"""
     @tr.cached_property
     def _get_U_TIJa(self):
-        points = self.X_Qa[:, :-1]
-        delaunay = Delaunay(points)
-        triangles = delaunay.simplices
         x0_IJ, y0_IJ = np.einsum('IJa->aIJ', self.X0_IJa)
         U_IJa_list = []
         for T in range(self.n_T):
             values = self.U_TQa[T, :, :]
-            get_U = scipy.interpolate.LinearNDInterpolator(delaunay, values)
+            get_U = scipy.interpolate.LinearNDInterpolator(self.delaunay, values)
             U_IJa = get_U(x0_IJ, y0_IJ)
             U_IJa_list.append(U_IJa)
         U_TIJa = np.array(U_IJa_list)
@@ -526,6 +546,10 @@ class DICGridTri(bu.Model):
 
     n_T = bu.Int(30, ALG=True)
     """Number of dic snapshots up to the maximum load"""
+
+    def _n_T_changed(self):
+        if self.n_T > self.n_dic:
+            raise ValueError('n_T = {} larger than n_dic {}'.format(self.n_T, self.n_dic))
 
     def get_T_t(self, t = 0.9):
         """Get the T index correponding to the specified fraction
@@ -552,6 +576,14 @@ class DICGridTri(bu.Model):
     @tr.cached_property
     def _get_F_T_t(self):
         return self.F_dic_T[self.T_t]
+
+    def plot_grid_on_triangulation(self, ax):
+        triangles = self.delaunay.simplices
+        x, y = self.delaunay.points.T
+        ax.triplot(x, y, triangles, linewidth=0.5)
+        X0_aIJ = np.einsum('IJa->aIJ', self.X0_IJa)
+        ax.scatter(*X0_aIJ.reshape(2, -1), s=15, marker='o', color='orange')
+        ax.axis('equal')
 
     def plot_grid(self, ax_u):
         XU_aIJ = np.einsum('IJa->aIJ', self.X_IJa + self.U_IJa * self.U_factor)

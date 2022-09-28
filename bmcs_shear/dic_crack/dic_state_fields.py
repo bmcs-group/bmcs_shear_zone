@@ -49,10 +49,17 @@ class DICStateFields(ib.TStepBC):
 
     ipw_tree = ['dic_grid', 'tmodel', 'xmodel']
 
+    kappa_TEmr = tr.List()
+    omega_TEmr = tr.List()
+    U_To = tr.List()
     def eval(self):
         '''Run the FE analysis for the dic load levels
         '''
-        self.hist.init_state()
+        # self.hist.init_state()
+        self.kappa_TEmr = []
+        self.omega_TEmr = []
+        self.U_To = []
+        self.t_n = 0
         self.fe_domain[0].state_k = copy.deepcopy(self.fe_domain[0].state_n)
         for T in range(0, self.dic_grid.n_T):
             if self.verbose_eval:
@@ -65,8 +72,11 @@ class DICStateFields(ib.TStepBC):
             self.tmodel_.get_corr_pred(eps_Emab, 1, **self.fe_domain[0].state_k)
             self.U_k[:] = U_o[:]
             self.U_n[:] = self.U_k[:]
-            states = [self.fe_domain[0].state_k]
-            self.hist.record_timestep(self.t_n1, self.U_k, self.F_k, states)
+            self.kappa_TEmr.append(copy.deepcopy(self.fe_domain[0].state_k['kappa']))
+            self.omega_TEmr.append(copy.deepcopy(self.fe_domain[0].state_k['omega']))
+            self.U_To.append(np.copy(U_o))
+            # domain_states = [self.fe_domain[0].state_k]
+            # self.hist.record_timestep(self.t_n1, self.U_k, self.F_k, domain_states)
             self.t_n = self.t_n1
 
 
@@ -87,8 +97,11 @@ class DICStateFields(ib.TStepBC):
     def _get_T_t(self):
         return self.dic_grid.T_t
 
+    omega_t_on = bu.Bool(True, ALG=True)
+
     ipw_view = bu.View(
         bu.Item('verbose_eval'),
+        bu.Item('omega_t_on'),
         bu.Item('R'),
         bu.Item('omega_threshold'),
         bu.Item('n_ipl_M'),
@@ -122,6 +135,7 @@ class DICStateFields(ib.TStepBC):
 
     def get_z_MN_ironed(self, x_JK, y_JK, z_JK):
         RR = self.R
+        print('ironing with', RR)
         delta_x_JK = x_JK[None, None, ...] - x_JK[..., None, None]
         delta_y_JK = y_JK[None, None, ...] - y_JK[..., None, None]
         r2_n = (delta_x_JK ** 2 + delta_y_JK ** 2) / (2 * RR ** 2)
@@ -198,7 +212,7 @@ class DICStateFields(ib.TStepBC):
 
     @tr.cached_property
     def _get_eps_fe_fields(self):
-        U_o = self.hist.U_t[self.dic_grid.T_t]
+        U_o = self.U_To[self.dic_grid.T_t]
         eps_Emab = self.xmodel.map_U_to_field(U_o)
         eps_KLab = self.transform_mesh_to_grid(eps_Emab)
         eps_KLa, _ = np.linalg.eig(eps_KLab)
@@ -214,7 +228,7 @@ class DICStateFields(ib.TStepBC):
         # state variables
         eps_KLab_list = []
         for T in range(self.dic_grid.n_T):
-            U_o = self.hist.U_t[T]
+            U_o = self.U_to[T]
             eps_Emab = self.xmodel.map_U_to_field(U_o)
             eps_KLab = self.transform_mesh_to_grid(eps_Emab)
             eps_KLab_list.append(np.copy(eps_KLab))
@@ -237,9 +251,10 @@ class DICStateFields(ib.TStepBC):
     """
     @tr.cached_property
     def _get_sig_fe_fields(self):
-        state_vars = self.hist.state_vars[self.dic_grid.T_t][0]
+        kappa_TEmr = self.kappa_TEmr[self.dic_grid.T_t]
+        omega_TEmr = self.omega_TEmr[self.dic_grid.T_t]
         eps_Emab, _, _, _ = self.eps_fe_fields
-        sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, **state_vars)
+        sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, kappa=kappa_TEmr, omega=omega_TEmr)
         sig_KLab = self.transform_mesh_to_grid(sig_Emab)
         sig_KLa, _ = np.linalg.eig(sig_KLab)
         max_sig_KL = np.max(sig_KLa, axis=-1)
@@ -257,7 +272,7 @@ class DICStateFields(ib.TStepBC):
         # state variables
         omega_fe_KL_list = []
         for T in range(self.dic_grid.n_T):
-            kappa_Emr = self.hist.state_vars[T][0]['kappa']
+            kappa_Emr = self.kappa_TEmr[T] # self.hist.state_vars[T][0]['kappa']
             phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
             phi_MNab = self.transform_mesh_to_grid(phi_Emab)
             phi_MNa, _ = np.linalg.eig(phi_MNab)
@@ -337,7 +352,7 @@ class DICStateFields(ib.TStepBC):
         x_MN, y_MN = X_TMN[T_t,...], Y_TMN[T_t,...]
         omega_ipl_MN = self.omega_ipl_TMN[T_t,...]
         cd_field_irn_MN = self.get_z_MN_ironed(x_MN, y_MN, omega_ipl_MN)
-        cd_field_irn_MN[cd_field_irn_MN < 0.2] = 0
+        cd_field_irn_MN[cd_field_irn_MN < self.omega_threshold] = 0
         return x_MN, y_MN, cd_field_irn_MN
 
     crack_detection_ipl_field = tr.Property(depends_on='state_changed')
@@ -349,7 +364,7 @@ class DICStateFields(ib.TStepBC):
         x_MN, y_MN = X_TMN[-1,...], Y_TMN[-1,...]
         omega_ipl_MN = self.omega_ipl_MN
         cd_field_irn_MN = self.get_z_MN_ironed(x_MN, y_MN, omega_ipl_MN)
-        cd_field_irn_MN[cd_field_irn_MN < 0.2] = 0
+        cd_field_irn_MN[cd_field_irn_MN < self.omega_threshold] = 0
         return x_MN, y_MN, cd_field_irn_MN
 
     #######################################################################
@@ -411,6 +426,26 @@ class DICStateFields(ib.TStepBC):
         self.fig = fig
         return fig.subplots(3, 2)
 
+    show_color_bar = bu.Bool(False, ALG=True)
+    def plot_crack_detection_field(self, ax_cracks, fig):
+        if self.omega_t_on:
+            xx_MN, yy_MN, cd_field_irn_MN = self.omega_ipl_field
+        else:
+            xx_MN, yy_MN, cd_field_irn_MN = self.crack_detection_ipl_field
+        if np.sum(cd_field_irn_MN) == 0:
+            # return without warning if there is no damage or strain
+            return
+        contour_levels = np.array([0.15, 0.35, 0.65, 0.95, 1.25], dtype=np.float_)
+        cs = ax_cracks.contourf(xx_MN, yy_MN, cd_field_irn_MN, contour_levels,
+                                cmap=cm.GnBu,
+                               #cmap=cm.coolwarm,
+                               antialiased=False)
+        if self.show_color_bar:
+            cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
+                                       ax=ax_cracks, ticks=np.linspace(0, 1, 6),
+                                       orientation='horizontal')
+            cbar_cracks.set_label(r'$\omega = 1 - \min(\phi_I)$')
+
     def update_plot(self, axes):
         ((ax_eps, ax_FU), (ax_sig, ax_sig_eps), (ax_omega, ax_cracks)) = axes
         fig = self.fig
@@ -428,11 +463,7 @@ class DICStateFields(ib.TStepBC):
 
         self.plot_sig_field(ax_sig, fig)
 
-        cs = ax_omega.contourf(X_fe_aKL[0], X_fe_aKL[1], omega_fe_KL, cmap='BuPu', vmin=0, vmax=1)
-        cbar_omega = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
-                                  ax=ax_omega, ticks=np.arange(0, 1.1, 0.2),
-                                  orientation='horizontal')
-        cbar_omega.set_label(r'$\omega = 1 - \min(\phi_I)$')
+        self.plot_crack_detection_field(ax_omega, fig)
         ax_omega.axis('equal');
         ax_omega.axis('off')
 
