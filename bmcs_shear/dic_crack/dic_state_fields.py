@@ -228,7 +228,7 @@ class DICStateFields(ib.TStepBC):
         # state variables
         eps_KLab_list = []
         for T in range(self.dic_grid.n_T):
-            U_o = self.U_to[T]
+            U_o = self.U_To[T]
             eps_Emab = self.xmodel.map_U_to_field(U_o)
             eps_KLab = self.transform_mesh_to_grid(eps_Emab)
             eps_KLab_list.append(np.copy(eps_KLab))
@@ -435,7 +435,7 @@ class DICStateFields(ib.TStepBC):
         if np.sum(cd_field_irn_MN) == 0:
             # return without warning if there is no damage or strain
             return
-        contour_levels = np.array([0.15, 0.35, 0.65, 0.95, 1.25], dtype=np.float_)
+        contour_levels = np.array([0.15, 0.35, 0.65, 0.85, 1.05], dtype=np.float_)
         cs = ax_cracks.contourf(xx_MN, yy_MN, cd_field_irn_MN, contour_levels,
                                 cmap=cm.GnBu,
                                #cmap=cm.coolwarm,

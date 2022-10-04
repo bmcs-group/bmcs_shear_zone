@@ -624,7 +624,7 @@ class DICCrack(bu.Model):
         self.dic_grid.plot_box_annotate(ax_cl)
         self.bd.plot_sz_bd(ax_cl)
         if self.plot_field == 'damage':
-            self.cl.plot_crack_detection_field(ax_cl, self.fig)
+            self.cl.dsf.plot_crack_detection_field(ax_cl, self.fig)
         elif self.plot_field == 'stress':
             self.cl.dsf.plot_sig_field(ax_cl, self.fig)
         elif self.plot_field == 'strain':
