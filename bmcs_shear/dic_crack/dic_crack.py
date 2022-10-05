@@ -112,7 +112,7 @@ class DICCrack(bu.Model):
     to the crack path.
     '''
 
-    R = bu.Float(20, ALG=True)
+    R = bu.Float(10, ALG=True)
     '''Ironing radius used to smoothen the crack path
     before constructing its spline representation.
     '''

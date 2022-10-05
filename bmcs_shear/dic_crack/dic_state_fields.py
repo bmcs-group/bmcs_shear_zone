@@ -278,6 +278,7 @@ class DICStateFields(ib.TStepBC):
             phi_MNa, _ = np.linalg.eig(phi_MNab)
             min_phi_MN = np.min(phi_MNa, axis=-1)
             omega_fe_KL = 1 - min_phi_MN
+            #omega_fe_irn_KL = self.get_z_MN_ironed(x_KL, y_KL, omega_fe_KL)
             omega_fe_KL[omega_fe_KL < self.omega_threshold] = 0
             omega_fe_KL_list.append(np.copy(omega_fe_KL))
         return np.array(omega_fe_KL_list, dtype=np.float_)

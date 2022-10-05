@@ -385,9 +385,10 @@ class DICStressProfile(bu.Model):
 
     def plot_u_Lc(self, ax, u_Lc, idx=0, color='black', label=r'$w$ [mm]'):
         x_t_crc_La = self.x_t_crc_La
-        u_t_crc_Kb_min = np.min(u_Lc[:, idx])
-        u_t_crc_Kb_max = np.max(u_Lc[:, idx])
-        #    self.plot_hlines(ax, u_t_crc_Kb_min, u_t_crc_Kb_max)
+        if len(u_Lc) > 0:
+            u_t_crc_Kb_min = np.min(u_Lc[:, idx])
+            u_t_crc_Kb_max = np.max(u_Lc[:, idx])
+            #    self.plot_hlines(ax, u_t_crc_Kb_min, u_t_crc_Kb_max)
         ax.plot(u_Lc[:, idx], x_t_crc_La[:, 1], color=color, label=label)
         ax.fill_betweenx(x_t_crc_La[:, 1], u_Lc[:, idx], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)

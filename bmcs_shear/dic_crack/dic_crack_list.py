@@ -37,7 +37,8 @@ class DICCrackList(bu.ModelDict):
     def identify_cracks(self):
         x_NC, y_NC, N_tip_C, M_NC = self.primary_cracks
         for C, (x_N, y_N, N_tip, M_N) in enumerate(zip(x_NC.T, y_NC.T, N_tip_C, M_NC.T)):
-            self.items[str(C)] = DICCrack(cl=self, C=C, x_N=x_N, y_N=y_N, N_tip=N_tip, M_N=M_N)
+            self.items[str(C)] = DICCrack(cl=self,
+                                          C=C, x_N=x_N, y_N=y_N, N_tip=N_tip, M_N=M_N)
 #            self.__setitem__(str(C), DICCrack(cl=self, C=C, x_N=x_N, y_N=y_N, N_tip=N_tip, M_N=M_N))
 
 
@@ -184,8 +185,8 @@ class DICCrackList(bu.ModelDict):
         self.dsf.dic_grid.plot_box_annotate(ax_dsf)
         self.bd.plot_sz_bd(ax_dsf)
         self.dsf.plot_crack_detection_field(ax_dsf, self.fig)
-        #self.plot_cracking_hist2(ax_dsf)
-        #self.critical_crack.plot_x_t_crc_Ka(ax_dsf, line_width=2, line_color='red', tip_color='red')
+        self.plot_cracking_hist2(ax_dsf)
+        self.critical_crack.plot_x_t_crc_Ka(ax_dsf, line_width=2, line_color='red', tip_color='red')
         ax_dsf.axis('equal')
         ax_dsf.axis('off');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
