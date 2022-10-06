@@ -180,11 +180,14 @@ class DICGridTri(bu.Model):
     def _get_t_dic_T(self):
         return np.linspace(0, 1, self.n_T)
 
+    t_crack_detection = bu.Float(1, ALG=True)
+
     ipw_view = bu.View(
         bu.Item('d_x'),
         bu.Item('d_y'),
         bu.Item('n_T'),
         bu.Item('U_factor'),
+        bu.Item('t_crack_detection'),
         bu.Item('T_t', readonly=True),
         bu.Item('pad_t', readonly=True),
         bu.Item('pad_b', readonly=True),
@@ -601,7 +604,7 @@ class DICGridTri(bu.Model):
         X_iLa = np.array([X_Ca[:-1], X_Ca[1:]], dtype=np.float_)
         X_La = np.sum(X_iLa, axis=0) / 2
         x, y = X_La[0, :]
-        ax.annotate(f'{self.L_y} mm',
+        ax.annotate("{:.0f} mm".format(self.L_y),
                     xy=(x, y), xytext=(5, 0), xycoords='data',
                     textcoords='offset pixels',
                     horizontalalignment='left',
@@ -609,7 +612,7 @@ class DICGridTri(bu.Model):
                     rotation=90
                     )
         x, y = X_La[1, :]
-        ax.annotate(f'{self.L_x} mm',
+        ax.annotate('{:.0f} mm'.format(self.L_x),
                     xy=(x, y), xytext=(0, 1), xycoords='data',
                     textcoords='offset pixels',
                     horizontalalignment='center',

@@ -49,10 +49,12 @@ class DICCrackList(bu.ModelDict):
 
     corridor_left = bu.Int(3, ALG=True)
     corridor_right = bu.Int(2, ALG=True)
+    x_boundary = bu.Float(20, ALG=True)
 
     ipw_view = bu.View(
         bu.Item('corridor_left'),
         bu.Item('corridor_right'),
+        bu.Item('x_boundary'),
         bu.Item('T_t', readonly=True),
         time_editor=bu.HistoryEditor(var='dsf.dic_grid.t')
     )
@@ -124,9 +126,17 @@ class DICCrackList(bu.ModelDict):
     def _get_primary_cracks(self):
         # spatial coordinates
         xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_ipl_field
+        # number of points to skip on the left and right side based on the x_boundary parameters
+        d_x = xx_MN[1,0] - xx_MN[0,0]
+        M_offset = int(self.x_boundary / d_x)
         # initial crack positions at the bottom of the zone
-        M_C = argrelextrema(cd_field_irn_MN[:, 0], np.greater)[0]
-        xx_NC, yy_NC, N_tip_C, M_NC = self.detect_cracks(M_C, xx_MN, yy_MN, cd_field_irn_MN)
+        M_C = argrelextrema(cd_field_irn_MN[M_offset:-M_offset, 0], np.greater)[0]
+        xx_NC, yy_NC, N_tip_C, M_NC = self.detect_cracks(
+            M_C,
+            xx_MN[M_offset:-M_offset,:],
+            yy_MN[M_offset:-M_offset,:],
+            cd_field_irn_MN[M_offset:-M_offset,:]
+        )
         # remove secondary cracks and duplicate cracks
         n_N, n_C = M_NC.shape
         mid_N = int(n_N / 5)
@@ -137,7 +147,7 @@ class DICCrackList(bu.ModelDict):
         # M_mid_NC = M_NC[mid_N, C_mid_C]
         # _, M, dM = np.unique(M_mid_NC, return_index=True, return_counts=True)
         # C_pri_C = C_mid_C[M] + dM - 1
-        return xx_NC[:, C_pri_C], yy_NC[:, C_pri_C], N_tip_C[C_pri_C], M_NC[:, C_pri_C]
+        return xx_NC[:, C_pri_C], yy_NC[:, C_pri_C], N_tip_C[C_pri_C], M_NC[:, C_pri_C] + M_offset
 
     critical_crack = tr.Property(depends_on='state_changed')
     @tr.cached_property
