@@ -578,7 +578,8 @@ class DICGridTri(bu.Model):
     """
     @tr.cached_property
     def _get_F_T_t(self):
-        return self.F_dic_T[self.T_t]
+        _, F_T = self.time_F_T
+        return F_T[self.T_t]
 
     def plot_grid_on_triangulation(self, ax):
         triangles = self.delaunay.simplices
