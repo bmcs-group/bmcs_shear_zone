@@ -143,7 +143,7 @@ class DICCrack(bu.Model):
 
     omega_threshold = tr.Property
     def _get_omega_threshold(self):
-        return self.cl.dsf.omega_threshold
+        return self.cl.dsf.omega_threshold * 0.5 # TODO - make transparent as a parameter
 
     T_t = tr.Property(bu.Int, depends_on='state_changed')
     @tr.cached_property
@@ -436,7 +436,7 @@ class DICCrack(bu.Model):
         # flatten the time space such that points are flattened
         tx_Pb = np.hstack([t_TKa[..., 0].reshape(-1, 1), x_TKa.reshape(-1, 2)])
         # reshape the dimension of the result array back to TK
-        return self.cl.dsf.f_omega_fe_txy(tx_Pb).reshape(len(self.t_T), -1)
+        return self.cl.dsf.f_omega_irn_txy(tx_Pb).reshape(len(self.t_T), -1)
 
     K_tip_T = tr.Property(depends_on='state_changed')
     '''Vertical index of the crack tip at time index T.
@@ -454,7 +454,7 @@ class DICCrack(bu.Model):
         K_omega_tip_T = np.argmax(self.omega_TK[K_omega_T][:, :self.K_tip_1+1] <
                             self.omega_threshold, axis=-1)
         # identify the fully cracked ligaments - the argmax search did not identify them
-        # since they did not drop blow the omega_threshold
+        # since they did not drop below the omega_threshold
         fully_cracked = np.where(self.omega_TK[K_omega_T][:,self.K_tip_1] >= self.omega_threshold)
         K_omega_tip_T[fully_cracked] = self.K_tip_1
         # place the found indexes into the time array

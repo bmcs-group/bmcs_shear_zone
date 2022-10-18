@@ -125,17 +125,17 @@ class DICCrackList(bu.ModelDict):
     @tr.cached_property
     def _get_primary_cracks(self):
         # spatial coordinates
-        xx_MN, yy_MN, cd_field_irn_MN = self.dsf.crack_detection_ipl_field
+        xx_MN, yy_MN, omega_irn_1_MN = self.dsf.omega_irn_1_MN
         # number of points to skip on the left and right side based on the x_boundary parameters
         d_x = xx_MN[1,0] - xx_MN[0,0]
         M_offset = int(self.x_boundary / d_x)
         # initial crack positions at the bottom of the zone
-        M_C = argrelextrema(cd_field_irn_MN[M_offset:-M_offset, 0], np.greater)[0]
+        M_C = argrelextrema(omega_irn_1_MN[M_offset:-M_offset, 0], np.greater)[0]
         xx_NC, yy_NC, N_tip_C, M_NC = self.detect_cracks(
             M_C,
             xx_MN[M_offset:-M_offset,:],
             yy_MN[M_offset:-M_offset,:],
-            cd_field_irn_MN[M_offset:-M_offset,:]
+            omega_irn_1_MN[M_offset:-M_offset,:]
         )
         # remove secondary cracks and duplicate cracks
         n_N, n_C = M_NC.shape
