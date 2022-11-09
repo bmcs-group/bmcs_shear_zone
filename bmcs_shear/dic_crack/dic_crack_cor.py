@@ -138,7 +138,6 @@ class DICCrackCOR(bu.Model):
     def _get_X_cor_rot_t_pa_sol(self):
 
         V_rot_pa, W_rot_pa = self.VW_rot_t_pa
-
         def get_X_cor_pa(eta_p):
             '''Get the points on the perpendicular lines with the sliders eta_p'''
             return V_rot_pa + np.einsum('p,pa->pa', eta_p, W_rot_pa)
@@ -187,6 +186,8 @@ class DICCrackCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_X_cor_t_a(self):
+        if len(self.dic_crack.x_t_crc_Ka) == 0:
+            return np.array([0,0], dtype=np.float_)
         self.a_grid.trait_set(
             M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
             MN_selection=self.MN_selection
