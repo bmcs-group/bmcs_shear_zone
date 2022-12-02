@@ -8,7 +8,7 @@ import pandas as pd
 from bmcs_shear.beam_design import RCBeamDesign
 from bmcs_shear.matmod import CrackBridgeAdv
 from scipy.spatial import Delaunay
-import scipy.interpolate
+from scipy.interpolate import LinearNDInterpolator
 from .i_dic_grid import IDICGrid
 
 def convert_to_bool(str_bool):
@@ -280,6 +280,8 @@ class DICGridTri(bu.Model):
     """Name of the file with the measured load deflection data
     """
 
+    time_m_skip = bu.Int(50, ALG=True )
+
     time_F_w_m = tr.Property(depends_on='state_changed')
     """Read the load displacement values from the individual 
     csv files from the test
@@ -289,7 +291,7 @@ class DICGridTri(bu.Model):
         time_F_w_file = join(self.time_F_w_data_dir, self.time_F_w_file_name)
         time_F_w_m = np.array(pd.read_csv(time_F_w_file, decimal=",", skiprows=1,
                               delimiter=None), dtype=np.float_)
-        time_m, F_m, w_m = time_F_w_m[::50, (0,1,2)].T
+        time_m, F_m, w_m = time_F_w_m[::self.time_m_skip, (0,1,2)].T
         F_m *= -1
         dF_mn = F_m[np.newaxis, :] - F_m[:, np.newaxis]
         dF_up_mn = np.triu(dF_mn > 0)
@@ -531,7 +533,7 @@ class DICGridTri(bu.Model):
         U_IJa_list = []
         for T in range(self.n_T):
             values = self.U_TQa[T, :, :]
-            get_U = scipy.interpolate.LinearNDInterpolator(self.delaunay, values)
+            get_U = LinearNDInterpolator(self.delaunay, values)
             U_IJa = get_U(x0_IJ, y0_IJ)
             U_IJa_list.append(U_IJa)
         U_TIJa = np.array(U_IJa_list)
