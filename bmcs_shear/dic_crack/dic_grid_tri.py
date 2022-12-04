@@ -462,10 +462,10 @@ class DICGridTri(bu.Model):
     def _get_u_T(self):
         return -self.U_TIJa[:,0,-1,1]
 
-    X_Qa__U_TQa = tr.Property(depends_on='state_changed')
+    X_TQa = tr.Property(depends_on='state_changed')
     """Read the displacement data from the individual csv files"""
     @tr.cached_property
-    def _get_X_Qa__U_TQa(self):
+    def _get_X_TQa(self):
         pxyz_file_T = self.pxyz_file_T
         pxyz_list = [
             np.loadtxt(pxyz_file, dtype=np.float_,
@@ -484,25 +484,21 @@ class DICGridTri(bu.Model):
         X_TPa = np.zeros((self.n_T, max_n_P, 3), dtype=np.float_)
         for T in range(self.n_T):
             X_TPa[T, P_list[T]] = pxyz_list[T][:, 1:]
-        U_TPa = np.zeros_like(X_TPa)
-        for T in range(1, self.n_T):
-            U_TPa[T, P_Q] = np.array(X_TPa[T, P_Q] - X_TPa[0, P_Q])
-        return X_TPa[0, P_Q], U_TPa[:, P_Q]
+        return X_TPa[:, P_Q]
+
+    U_TQa = tr.Property(depends_on='state_changed')
+    """Get the displacement history"""
+    @tr.cached_property
+    def _get_U_TQa(self):
+        X_TPa = self.X_TQa
+        X_0Pa = X_TPa[0]
+        return X_TPa - X_0Pa[None, ...]
 
     X_Qa = tr.Property(depends_on='state_changed')
     """Initial coordinates"""
     @tr.cached_property
     def _get_X_Qa(self):
-        X_Qa, _ = self.X_Qa__U_TQa
-        return X_Qa
-
-    U_TQa = tr.Property(depends_on='state_changed')
-    """Read the displacement data from the individual csv files"""
-
-    @tr.cached_property
-    def _get_U_TQa(self):
-        _, U_TQa = self.X_Qa__U_TQa
-        return U_TQa
+        return self.X_TQa[0]
 
     X0_IJa = tr.Property(depends_on='state_changed')
     """Coordinates of the DIC markers in the grid"""
