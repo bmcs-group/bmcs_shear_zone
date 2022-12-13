@@ -2,18 +2,23 @@ name: bmcs_env
 channels:
 - conda-forge
 dependencies:
-- jupyter_contrib_nbextensions
-- traits>=6.1.1
-- matplotlib-base
-- numpy>=1.19.2
-- scipy>=1.5.2
+- traits
+- matplotlib
+- numpy
 - sympy
-- ipywidgets
+- scipy
+- k3d
+- ipywidgets==7.7.0
 - ipympl
+- ipytree
+- shapely
+- pandas
+- jupyterlab
+- importlib_resources
 - pip
 - pip:
-  - -e .
-  - bmcs_utils
-  - bmcs_cross_section
-  - bmcs_beam
-  - bmcs_ibvpy
+  - anastruct
+  - bmcs-utils==0.0.31a0
+  - bmcs-ibvpy==0.0.24a0
+  - bmcs-cross-section==0.0.54a0
+  - bmcs-beam==0.0.17a0
