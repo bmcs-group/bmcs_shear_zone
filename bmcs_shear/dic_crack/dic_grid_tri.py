@@ -173,21 +173,22 @@ class DICGridTri(bu.Model):
         d_t = (1 / self.n_T)
         self.T_t = int( (self.n_T - 1) * (self.t + d_t/2))
 
-    t_dic_T = tr.Property(depends_on='state_changed')
-    """Time steps of ascending DIC snapshots
-    """
-    @tr.cached_property
-    def _get_t_dic_T(self):
-        return np.linspace(0, 1, self.n_T)
+    # t_dic_T = tr.Property(depends_on='state_changed')
+    # """Time steps of ascending DIC snapshots
+    # """
+    # @tr.cached_property
+    # def _get_t_dic_T(self):
+    #     return np.linspace(0, 1, self.n_T)
 
     t_crack_detection = bu.Float(1, ALG=True)
 
     ipw_view = bu.View(
         bu.Item('d_x'),
         bu.Item('d_y'),
-        bu.Item('n_T'),
+        bu.Item('n_T_max'),
         bu.Item('U_factor'),
         bu.Item('t_crack_detection'),
+        bu.Item('T_stepping'),
         bu.Item('T_t', readonly=True),
         bu.Item('pad_t', readonly=True),
         bu.Item('pad_b', readonly=True),
@@ -390,13 +391,15 @@ class DICGridTri(bu.Model):
         _, F_dic = self.time_F_dic
         return np.argmax(F_dic)
 
+    T_stepping = bu.Enum(options=['delta_n', 'delta_T'], ALG=True)
+
     tstring_time_F_T = tr.Property(depends_on='state_changed')
     """synchronized times and forces for specified resolution n_T
     """
     def _get_tstring_time_F_T(self):
-        time_m, F_m = self.time_F_m
+        time_m, F_m = self.time_F_m # machine time and force
         argmax_F_m = self.argmax_F_m
-        time_dic, F_dic = self.time_F_dic
+        time_dic, F_dic = self.time_F_dic # dic time and force
         argmax_F_dic = self.argmax_F_dic
         argmax_time_F_dic = time_dic[argmax_F_dic]
         max_F_dic = F_dic[argmax_F_dic]
@@ -405,13 +408,20 @@ class DICGridTri(bu.Model):
         delta_time_dic_m = argmax_time_F_dic - time_m_F_dic_max
         time_dic_ = time_dic - delta_time_dic_m
         dic_0 = np.argmax(time_dic_ > 0) - 1
-        delta_T = int(len(time_dic_[dic_0:argmax_F_dic]) / self.n_T)
-        T_slice = slice(dic_0, argmax_F_dic, delta_T)
+        if self.T_stepping == 'delta_n':
+            delta_T = int(len(time_dic_[dic_0:argmax_F_dic]) / self.n_T_max)
+            T_slice = slice(dic_0, argmax_F_dic, delta_T)
+        elif self.T_stepping == 'delta_T':
+            time_ = time_dic_[dic_0:argmax_F_dic]
+            idx_ = np.arange(len(time_))
+            time1_T = np.linspace(0, time_[-1], self.n_T_max)
+            T_slice = np.unique(np.array(np.interp(time1_T, time_, idx_), dtype=np.int_))
         time_T = time_dic_[T_slice]
         F_T = F_dic[T_slice]
         time_T[0] = 0
         tstring_T = self.tstring_dic[T_slice]
         tstring_T[0] = self.tstring_dic[0]
+
         return tstring_T, time_T, F_T
 
     time_F_T = tr.Property(depends_on='state_changed')
@@ -545,12 +555,20 @@ class DICGridTri(bu.Model):
         X_aIJ = np.array([x0_IJ-x_min+self.x_offset, y0_IJ-y_min+self.y_offset])
         return np.einsum('a...->...a', X_aIJ)
 
-    n_T = bu.Int(30, ALG=True)
+    n_T_max = bu.Int(30, ALG=True)
     """Number of dic snapshots up to the maximum load"""
 
-    def _n_T_changed(self):
-        if self.n_T > self.n_dic:
-            raise ValueError('n_T = {} larger than n_dic {}'.format(self.n_T, self.n_dic))
+    def _n_T_max_changed(self):
+        if self.n_T_max > self.n_dic:
+            raise ValueError('n_T_max = {} larger than n_dic {}'.format(self.n_T_max, self.n_dic))
+
+    n_T = tr.Property(bu.Int, depends_on='state_changed')
+    """Number of camera time sampling points up to the peak load 
+    """
+    def _get_n_T(self):
+        time_T, _ = self.time_F_T
+        return len(time_T)
+
 
     def get_T_t(self, t = 0.9):
         """Get the T index correponding to the specified fraction
