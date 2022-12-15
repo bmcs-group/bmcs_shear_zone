@@ -1,6 +1,11 @@
 
 ## Discrete cracking within a shear zone
 
+The package includes the DIC driven modeling of the crack
+localization in the shear zone. The notebook demonstrating 
+showing the mathematical formulation and the implementation
+concept, including examples can be launched 
+
 The project implements a discrete crack propagation through 
 a two dimensional domain cut out from a shear zone of a bended beam.  
 
