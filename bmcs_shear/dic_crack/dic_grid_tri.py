@@ -180,6 +180,7 @@ class DICGridTri(bu.Model):
     def _get_t_dic_T(self):
         return np.linspace(0, 1, self.n_T_max)
 
+
     t_crack_detection = bu.Float(1, ALG=True)
 
     ipw_view = bu.View(
