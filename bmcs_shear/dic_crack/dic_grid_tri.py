@@ -173,12 +173,12 @@ class DICGridTri(bu.Model):
         d_t = (1 / self.n_T)
         self.T_t = int( (self.n_T - 1) * (self.t + d_t/2))
 
-    # t_dic_T = tr.Property(depends_on='state_changed')
-    # """Time steps of ascending DIC snapshots
-    # """
-    # @tr.cached_property
-    # def _get_t_dic_T(self):
-    #     return np.linspace(0, 1, self.n_T)
+    t_dic_T = tr.Property(depends_on='state_changed')
+    """Time steps of ascending DIC snapshots
+    """
+    @tr.cached_property
+    def _get_t_dic_T(self):
+        return np.linspace(0, 1, self.n_T_max)
 
     t_crack_detection = bu.Float(1, ALG=True)
 
