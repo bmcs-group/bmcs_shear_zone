@@ -31,7 +31,6 @@ class DICCrackList(bu.ModelDict):
     '''Beam design.
     '''
 
-    items = bu.Dict(bu.Str, DICCrack, {})
     '''Cracks
     '''
     def identify_cracks(self):
