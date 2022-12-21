@@ -51,6 +51,7 @@ class DICStateFields(ib.TStepBC):
 
     kappa_TEmr = tr.List()
     omega_TEmr = tr.List()
+    sig_TEmab = tr.List()
     U_To = tr.List()
     def eval(self):
         '''Run the FE analysis for the dic load levels
@@ -58,6 +59,7 @@ class DICStateFields(ib.TStepBC):
         # self.hist.init_state()
         self.kappa_TEmr = []
         self.omega_TEmr = []
+        self.sig_TEmr = []
         self.U_To = []
         self.t_n = 0
         self.fe_domain[0].state_k = copy.deepcopy(self.fe_domain[0].state_n)
@@ -69,11 +71,12 @@ class DICStateFields(ib.TStepBC):
             U_Ia = U_IJa.reshape(-1, 2)
             U_o = U_Ia.flatten()  # array of displacements corresponding to the DOF enumeration
             eps_Emab = self.xmodel.map_U_to_field(U_o)
-            self.tmodel_.get_corr_pred(eps_Emab, 1, **self.fe_domain[0].state_k)
+            sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, **self.fe_domain[0].state_k)
             self.U_k[:] = U_o[:]
             self.U_n[:] = self.U_k[:]
             self.kappa_TEmr.append(copy.deepcopy(self.fe_domain[0].state_k['kappa']))
             self.omega_TEmr.append(copy.deepcopy(self.fe_domain[0].state_k['omega']))
+            self.sig_TEmab.append(sig_Emab)
             self.U_To.append(np.copy(U_o))
             # domain_states = [self.fe_domain[0].state_k]
             # self.hist.record_timestep(self.t_n1, self.U_k, self.F_k, domain_states)
