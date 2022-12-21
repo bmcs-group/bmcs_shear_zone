@@ -1,6 +1,9 @@
 
 ## Discrete cracking within a shear zone
 
+[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/bmcs-group/bmcs_shear_zone.git/main?filepath=notebooks/papers/automatic_cdt_2023/cdt_impl_concept.ipynb) 
+
+
 The package includes the DIC driven modeling of the crack
 localization in the shear zone. The notebook demonstrating 
 showing the mathematical formulation and the implementation
