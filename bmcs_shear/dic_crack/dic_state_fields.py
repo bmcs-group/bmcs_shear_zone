@@ -3,7 +3,7 @@
 '''
 
 import bmcs_utils.api as bu
-from .i_dic_grid import IDICGrid
+from .dic_grid import DICGrid
 import traits.api as tr
 from matplotlib import cm
 import ibvpy.api as ib
@@ -11,6 +11,7 @@ import numpy as np
 import copy
 from scipy.interpolate import interp2d, LinearNDInterpolator
 from scipy.interpolate import RegularGridInterpolator
+from .cached_array import cached_array
 
 
 class DICStateFields(ib.TStepBC):
@@ -19,14 +20,15 @@ class DICStateFields(ib.TStepBC):
     '''State analysis of the field simulated by DIC.
     '''
 
-    dic_grid = bu.Instance(IDICGrid)
+    dic_grid = bu.Instance(DICGrid)
 
-    bd = tr.DelegatesTo('dic_grid', 'sz_bd')
+    bd = tr.DelegatesTo('dic_grid', 'bd')
 
     tmodel = bu.EitherType(options=[('miproplane_mdm', ib.MATS2DMplDamageEEQ),
                                     ('scalar_damage', ib.MATS2DScalarDamage)])
 
     depends_on = ['dic_grid', 'tmodel']
+    tree = ['dic_grid', 'tmodel', 'xmodel']
 
     xmodel = tr.Property(bu.Instance(ib.XDomainFEGrid), depends_on='dic_grid')
     '''Finite element discretization of the monotored grid field
@@ -47,20 +49,22 @@ class DICStateFields(ib.TStepBC):
     def _get_domains(self):
         return [(self.xmodel, self.tmodel_)]
 
-    ipw_tree = ['dic_grid', 'tmodel', 'xmodel']
+    data_dir = tr.DelegatesTo('dic_grid')
+    beam_param_file = tr.DelegatesTo('dic_grid')
 
-    kappa_TEmr = tr.List()
-    omega_TEmr = tr.List()
-    sig_TEmab = tr.List()
-    U_To = tr.List()
-    def eval(self):
+    kappa_omega_sig_U = tr.Property(depends_on='state_changed')
+    @cached_array(source_name="beam_param_file",
+                  names=['kappa_TEmr', 'omega_TEmr', 'eps_TEmab', 'sig_TEmab', 'U_To'],
+                  data_dir_trait='data_dir')
+    def _get_kappa_omega_sig_U(self):
         '''Run the FE analysis for the dic load levels
         '''
         # self.hist.init_state()
-        self.kappa_TEmr = []
-        self.omega_TEmr = []
-        self.sig_TEmr = []
-        self.U_To = []
+        kappa_TEmr = []
+        omega_TEmr = []
+        eps_TEmab = []
+        sig_TEmab = []
+        U_To = []
         self.t_n = 0
         self.fe_domain[0].state_k = copy.deepcopy(self.fe_domain[0].state_n)
         for T in range(0, self.dic_grid.n_T):
@@ -74,14 +78,40 @@ class DICStateFields(ib.TStepBC):
             sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, **self.fe_domain[0].state_k)
             self.U_k[:] = U_o[:]
             self.U_n[:] = self.U_k[:]
-            self.kappa_TEmr.append(copy.deepcopy(self.fe_domain[0].state_k['kappa']))
-            self.omega_TEmr.append(copy.deepcopy(self.fe_domain[0].state_k['omega']))
-            self.sig_TEmab.append(sig_Emab)
-            self.U_To.append(np.copy(U_o))
+            kappa_TEmr.append(copy.deepcopy(self.fe_domain[0].state_k['kappa']))
+            omega_TEmr.append(copy.deepcopy(self.fe_domain[0].state_k['omega']))
+            eps_TEmab.append(eps_Emab)
+            sig_TEmab.append(sig_Emab)
+            U_To.append(np.copy(U_o))
             # domain_states = [self.fe_domain[0].state_k]
             # self.hist.record_timestep(self.t_n1, self.U_k, self.F_k, domain_states)
             self.t_n = self.t_n1
 
+        return (np.array(kappa_TEmr),
+                np.array(omega_TEmr),
+                np.array(eps_TEmab),
+                np.array(sig_TEmab),
+                np.array(U_To))
+
+    kappa_TEmr = tr.Property
+    def _get_kappa_TEmr(self):
+        return self.kappa_omega_sig_U[0]
+
+    omega_TEmr = tr.Property
+    def _get_omega_TEmr(self):
+        return self.kappa_omega_sig_U[1]
+
+    eps_TEmab = tr.Property
+    def _get_eps_TEmab(self):
+        return self.kappa_omega_sig_U[2]
+
+    sig_TEmab = tr.Property
+    def _get_sig_TEmab(self):
+        return self.kappa_omega_sig_U[3]
+
+    U_To = tr.Property
+    def _get_U_To(self):
+        return self.kappa_omega_sig_U[4]
 
     verbose_eval = bu.Bool(False)
     '''Report time step in simulation'''
@@ -212,11 +242,11 @@ class DICStateFields(ib.TStepBC):
     #######################################################################
 
     eps_fe_fields = tr.Property(depends_on='state_changed')
-
     @tr.cached_property
     def _get_eps_fe_fields(self):
-        U_o = self.U_To[self.dic_grid.T_t]
-        eps_Emab = self.xmodel.map_U_to_field(U_o)
+        # U_o = self.U_To[self.dic_grid.T_t]
+        # eps_Emab = self.xmodel.map_U_to_field(U_o)
+        eps_Emab = self.eps_TEmab[self.dic_grid.T_t]
         eps_KLab = self.transform_mesh_to_grid(eps_Emab)
         eps_KLa, _ = np.linalg.eig(eps_KLab)
         max_eps_KL = np.max(eps_KLa, axis=-1)
@@ -226,13 +256,16 @@ class DICStateFields(ib.TStepBC):
     eps_fe_TKLab = tr.Property(depends_on='state_changed')
     """History of strains in the quadrature points
     """
-    @tr.cached_property
+    @cached_array(source_name="beam_param_file",
+                  names='eps_KLab',
+                  data_dir_trait='data_dir')
     def _get_eps_fe_TKLab(self):
         # state variables
         eps_KLab_list = []
         for T in range(self.dic_grid.n_T):
-            U_o = self.U_To[T]
-            eps_Emab = self.xmodel.map_U_to_field(U_o)
+            # U_o = self.U_To[T]
+            # eps_Emab = self.xmodel.map_U_to_field(U_o)
+            eps_Emab = self.eps_TEmab[self.dic_grid.T_t]
             eps_KLab = self.transform_mesh_to_grid(eps_Emab)
             eps_KLab_list.append(np.copy(eps_KLab))
         return np.array(eps_KLab_list, dtype=np.float_)
@@ -254,10 +287,11 @@ class DICStateFields(ib.TStepBC):
     """
     @tr.cached_property
     def _get_sig_fe_fields(self):
-        kappa_TEmr = self.kappa_TEmr[self.dic_grid.T_t]
-        omega_TEmr = self.omega_TEmr[self.dic_grid.T_t]
-        eps_Emab, _, _, _ = self.eps_fe_fields
-        sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, kappa=kappa_TEmr, omega=omega_TEmr)
+        # kappa_TEmr = self.kappa_TEmr[self.dic_grid.T_t]
+        # omega_TEmr = self.omega_TEmr[self.dic_grid.T_t]
+        # eps_Emab, _, _, _ = self.eps_fe_fields
+        # sig_Emab, _ = self.tmodel_.get_corr_pred(eps_Emab, 1, kappa=kappa_TEmr, omega=omega_TEmr)
+        sig_Emab = self.sig_TEmab[self.dic_grid.T_t]
         sig_KLab = self.transform_mesh_to_grid(sig_Emab)
         sig_KLa, _ = np.linalg.eig(sig_KLab)
         max_sig_KL = np.max(sig_KLa, axis=-1)
@@ -270,22 +304,28 @@ class DICStateFields(ib.TStepBC):
     omega_fe_TKL = tr.Property(depends_on='state_changed')
     """Maximum damage value in each material point of the fe_KL grid
     """
-    @tr.cached_property
+    @cached_array(source_name="beam_param_file",
+                  names=['omega_fe_TKL', 'phi_ev_KLab'],
+                  data_dir_trait='data_dir')
     def _get_omega_fe_TKL(self):
         # state variables
         omega_fe_KL_list = []
         x_fe_KL, y_fe_KL = np.einsum('KLa->aKL', self.X_fe_KLa)
         for T in range(self.dic_grid.n_T):
+            print('omega_fe_TKL', 2)
             kappa_Emr = self.kappa_TEmr[T] # self.hist.state_vars[T][0]['kappa']
-            phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
-            phi_MNab = self.transform_mesh_to_grid(phi_Emab)
-            phi_MNa, _ = np.linalg.eig(phi_MNab)
-            min_phi_MN = np.min(phi_MNa, axis=-1)
-            omega_fe_KL = 1 - min_phi_MN
+            omega_Emr = self.tmodel_.omega_fn_(kappa_Emr)
+            omega_fe_KL = self.transform_mesh_to_grid(omega_Emr)
+
+            # phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
+            # phi_KLab = self.transform_mesh_to_grid(phi_Emab)
+            # phi_KLa, phi_ev_KLab = np.linalg.eig(phi_KLab)
+            # min_phi_KL = np.min(phi_KLa, axis=-1)
+            # omega_fe_KL = 1 - min_phi_KL
             #omega_fe_KL = self.get_z_MN_ironed(x_fe_KL, y_fe_KL, omega_fe_KL)
             omega_fe_KL[omega_fe_KL < self.omega_threshold] = 0
             omega_fe_KL_list.append(np.copy(omega_fe_KL))
-        return np.array(omega_fe_KL_list, dtype=np.float_)
+        return np.array(omega_fe_KL_list, dtype=np.float_), None # phi_ev_KLab
 
     f_omega_fe_txy = tr.Property(depends_on='state_changed')
     """Interpolator of maximum damage value in time-space domain"""
@@ -295,7 +335,17 @@ class DICStateFields(ib.TStepBC):
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_fe_KLa)
         dic_t = dic_T / (self.dic_grid.n_T - 1)
         args = (dic_t, x_MN[:, 0], y_MN[0, :])
-        return RegularGridInterpolator(args, self.omega_fe_TKL[:, :, :])
+        omega_fe_TKL, _ = self.omega_fe_TKL
+        return RegularGridInterpolator(args, omega_fe_TKL)
+
+    f_phi_fe_txy = tr.Property(depends_on='state_changed')
+    """Interpolator of maximum damage value in time-space domain"""
+    @tr.cached_property
+    def _get_f_phi_fe_txy(self):
+        x_MN, y_MN = np.einsum('MNa->aMN', self.X_fe_KLa)
+        args = (x_MN[:, 0], y_MN[0, :])
+        _, phi_fe_TKL = self.omega_fe_TKL
+        return RegularGridInterpolator(args, phi_fe_TKL)
 
     n_ipl_T = tr.Property
     def _get_n_ipl_T(self):
@@ -317,7 +367,9 @@ class DICStateFields(ib.TStepBC):
     omega_ipl_TMN = tr.Property(depends_on='+ALG')
     """Maximum principal damage field in interpolated time-domain
     """
-    @tr.cached_property
+    @cached_array(source_name="beam_param_file",
+                  names='omega_ipl_TMN',
+                  data_dir_trait='data_dir')
     def _get_omega_ipl_TMN(self):
         # state variables
         t_TMN, X_TMN, Y_TMN = self.mgrid_ipl_TMN
@@ -334,7 +386,7 @@ class DICStateFields(ib.TStepBC):
     @tr.cached_property
     def _get_omega_fe_KL(self):
         # state variables
-        return self.omega_fe_TKL[-1]
+        return self.omega_fe_TKL[0][-1]
 
     ###########################################################################
     # Crack detection related services
@@ -369,7 +421,9 @@ class DICStateFields(ib.TStepBC):
     omega_irn_TMN = tr.Property(depends_on='+ALG')
     """Maximum damage value in each material point of the ipl_MN grid in each step
     """
-    @tr.cached_property
+    @cached_array(source_name="beam_param_file",
+                  names='omega_irn_TMN',
+                  data_dir_trait='data_dir')
     def _get_omega_irn_TMN(self):
         # state variables
         omega_irn_MN_list = []
@@ -474,22 +528,30 @@ class DICStateFields(ib.TStepBC):
             cbar_cracks.set_label(r'$\omega = 1 - \min(\phi_I)$')
 
     def update_plot(self, axes):
+        print('update plot')
         ((ax_eps, ax_FU), (ax_sig, ax_sig_eps), (ax_omega, ax_cracks)) = axes
         fig = self.fig
         # spatial coordinates
+        print('update plot 2')
         X_fe_KLa = self.X_fe_KLa
-        X_fe_aKL = np.einsum('MNa->aMN', X_fe_KLa)
+#        X_fe_aKL = np.einsum('MNa->aMN', X_fe_KLa)
         # strain fields
+        print('update plot 3')
         eps_Emab, eps_MNab, eps_MNa, max_eps_MN = self.eps_fe_fields
         # stress fields
+        print('update plot 4')
         sig_Emab, sig_MNab, sig_MNa, max_sig_MN = self.sig_fe_fields
         # damage field
         omega_fe_KL = self.omega_fe_KL
         # plot
+        print('update plot 5')
         self.plot_eps_field(ax_eps, fig)
 
+        print('update plot 6')
         self.plot_sig_field(ax_sig, fig)
 
+        return
+        print('update plot 7')
         self.plot_crack_detection_field(ax_omega, fig)
         ax_omega.axis('equal');
         ax_omega.axis('off')

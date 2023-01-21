@@ -8,6 +8,7 @@ from scipy.signal import argrelextrema
 import numpy as np
 import matplotlib.gridspec as gridspec
 from matplotlib import cm
+from .cached_array import cached_array
 
 
 class DICCrackList(bu.ModelDict):
@@ -18,6 +19,9 @@ class DICCrackList(bu.ModelDict):
     displacement, strain and damage within the grid.
     '''
     depends_on = ['dsf']
+
+    data_dir = tr.DelegatesTo('dsf')
+    beam_param_file = tr.DelegatesTo('dsf')
 
     a_grid = tr.Property(depends_on='dsf')
     '''Grid aligned to a specified fixed frame - used 
@@ -121,7 +125,7 @@ class DICCrackList(bu.ModelDict):
     primary_cracks = tr.Property(depends_on='MESH, ALG')
     """Get the cracks at the near-failure load level
     """
-    @tr.cached_property
+    @cached_array("beam_param_file",names=['x_NC', 'y_NC', 'N_tip_C', 'M_NC'])
     def _get_primary_cracks(self):
         # spatial coordinates
         xx_MN, yy_MN, omega_irn_1_MN = self.dsf.omega_irn_1_MN
@@ -165,7 +169,7 @@ class DICCrackList(bu.ModelDict):
             ax_cracks.plot(xx_NC[:y_tip, C], yy_NC[:y_tip, C], color='black',
                            linewidth=1);
         ax_cracks.axis('equal')
-        ax_cracks.axis('off');
+#        ax_cracks.axis('off');
 
     def plot_cracking_hist2(self, ax_cracks):
         for crack in self.items.values():
@@ -190,14 +194,14 @@ class DICCrackList(bu.ModelDict):
 
     def update_plot(self, axes):
         ax_dsf, ax_FU, ax_u, ax_eps, ax_F, ax_sig = axes
-        self.dsf.dic_grid.plot_bounding_box(ax_dsf)
-        self.dsf.dic_grid.plot_box_annotate(ax_dsf)
+#        self.dsf.dic_grid.plot_bounding_box(ax_dsf)
+        # self.dsf.dic_grid.plot_box_annotate(ax_dsf)
         self.bd.plot_sz_bd(ax_dsf)
         self.dsf.plot_crack_detection_field(ax_dsf, self.fig)
         self.plot_cracking_hist2(ax_dsf)
         self.critical_crack.plot_x_t_crc_Ka(ax_dsf, line_width=2, line_color='red', tip_color='red')
         ax_dsf.axis('equal')
-        ax_dsf.axis('off');
+        ax_dsf.axis('on');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
         return
         # plot the kinematic profile

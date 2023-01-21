@@ -1,15 +1,15 @@
 
 import bmcs_utils.api as bu
 import traits.api as tr
+from pathlib import Path
 from os.path import join, expanduser
 import os
 import numpy as np
 import pandas as pd
 from bmcs_shear.beam_design import RCBeamDesign
 from bmcs_shear.matmod import CrackBridgeAdv
-from scipy.spatial import Delaunay
-from scipy.interpolate import LinearNDInterpolator
-from .i_dic_grid import IDICGrid
+from .i_dic_inp import IDICInp
+from .cached_array import cached_array
 
 def convert_to_bool(str_bool):
     """Helper method for the parsing of input file with boalean values
@@ -23,8 +23,8 @@ def convert_to_bool(str_bool):
                  'false' : False}
     return value_map[str_bool]
 
-@tr.provides(IDICGrid)
-class DICGridTri(bu.Model):
+@tr.provides(IDICInp)
+class DICInpUnstructuredPoints(bu.Model):
     """
     History of displacment grids imported from the DIC measurement.
     """
@@ -93,28 +93,6 @@ class DICGridTri(bu.Model):
         self.sz_bd.Rectangle = True
         self.sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
 
-    n_I = tr.Property(bu.Int, depends_on='state_changed')
-    """Number of horizontal nodes of the DIC input displacement grid.
-    """
-    @tr.cached_property
-    def _get_n_I(self):
-        return int(self.L_x / self.d_x)
-
-    n_J = tr.Property(bu.Int, depends_on='state_changed')
-    """Number of vertical nodes of the DIC input displacement grid
-    """
-    @tr.cached_property
-    def _get_n_J(self):
-        return int(self.L_y / self.d_y)
-
-    d_x = bu.Float(5 , ALG=True)
-    """Horizontal spacing between nodes of the DIC input displacement grid.
-    """
-
-    d_y = bu.Float(5 , ALG=True)
-    """Vertical spacing between nodes of the DIC input displacement grid.
-    """
-
     x_offset = tr.Property(bu.Float, depends_on='state_changed')
     """Horizontal offset of the DIC input displacement grid from the left
     boundary of the beam.
@@ -173,30 +151,25 @@ class DICGridTri(bu.Model):
         d_t = (1 / self.n_T)
         self.T_t = int( (self.n_T - 1) * (self.t + d_t/2))
 
-    t_dic_T = tr.Property(depends_on='state_changed')
-    """Time steps of ascending DIC snapshots
-    """
-    @tr.cached_property
-    def _get_t_dic_T(self):
-        return np.linspace(0, 1, self.n_T_max)
-
-
-    t_crack_detection = bu.Float(1, ALG=True)
+    # t_dic_T = tr.Property(depends_on='state_changed')
+    # """Time steps of ascending DIC snapshots
+    # """
+    # @tr.cached_property
+    # def _get_t_dic_T(self):
+    #     return np.linspace(0, 1, self.n_T_max)
+    #
+    # t_crack_detection = bu.Float(1, ALG=True)
 
     ipw_view = bu.View(
-        bu.Item('d_x'),
-        bu.Item('d_y'),
         bu.Item('n_T_max'),
         bu.Item('U_factor'),
-        bu.Item('t_crack_detection'),
+        # bu.Item('t_crack_detection'),
         bu.Item('T_stepping'),
         bu.Item('T_t', readonly=True),
         bu.Item('pad_t', readonly=True),
         bu.Item('pad_b', readonly=True),
         bu.Item('pad_l', readonly=True),
         bu.Item('pad_r', readonly=True),
-        bu.Item('n_I', readonly=True),
-        bu.Item('n_J', readonly=True),
         bu.Item('n_m', readonly=True),
         bu.Item('n_dic', readonly=True),
         bu.Item('x_offset', readonly=True),
@@ -210,6 +183,19 @@ class DICGridTri(bu.Model):
     def _get_X_outer_frame(self):
         return np.min(self.X_Qa, axis=0), np.max(self.X_Qa, axis=0)
 
+    X_inner_frame = tr.Property(depends_on='state_changed')
+    def _get_X_inner_frame(self):
+        X_min_a, X_max_a = self.X_outer_frame
+        pad_l, pad_r, pad_b, pad_t = (
+            self.pad_l, self.pad_r, self.pad_b, self.pad_t
+        )
+        min_x, min_y, _ = X_min_a
+        max_x, max_y, _ = X_max_a
+        return (
+            np.array([min_x + pad_l, min_y + pad_b]),
+            np.array([max_x - pad_r, max_y - pad_t])
+        )
+
     L_x = tr.Property
     """Width of the domain"""
     def _get_L_x(self):
@@ -221,18 +207,6 @@ class DICGridTri(bu.Model):
     def _get_L_y(self):
         X_min, X_max = self.X_outer_frame
         return X_max[1] - X_min[1]
-
-    X_frame = tr.Property
-    """Define the bottom left and top right corners"""
-    def _get_X_frame(self):
-        L_x, L_y = self.L_x, self.L_y
-        x_offset, y_offset = self.x_offset, self.y_offset
-        x_min, y_min = self.X_IJa[0,0,(0,1)] #x_offset + self.pad_l
-        #x_max = x_min + L_x - self.pad_r
-        x_max, y_max = self.X_IJa[-1,-1,(0,1)]
-        # y_max = y_min + L_y - self.pad_t
-        return x_min, y_min, x_max, y_max
-
 
     data_dir = tr.Property
     """Directory with the data"""
@@ -397,7 +371,10 @@ class DICGridTri(bu.Model):
     tstring_time_F_T = tr.Property(depends_on='state_changed')
     """synchronized times and forces for specified resolution n_T
     """
+    @cached_array(source_name="beam_param_file", names=['tstring', 'time', 'F'],
+                  data_dir_trait='data_dir')
     def _get_tstring_time_F_T(self):
+
         time_m, F_m = self.time_F_m # machine time and force
         argmax_F_m = self.argmax_F_m
         time_dic, F_dic = self.time_F_dic # dic time and force
@@ -451,6 +428,8 @@ class DICGridTri(bu.Model):
         return np.interp(F_T, F_m[:argmax_F_m], w_m[:argmax_F_m])
 
     pxyz_file_T = tr.Property(depends_on='state_changed')
+    """List of file names corresponding to the synchronized time index T
+    """
     @tr.cached_property
     def _get_pxyz_file_T(self):
         return [os.path.join(self.dic_data_dir, r'Flächenkomponente 1_{} s.csv'.format(tstring)) for
@@ -473,10 +452,12 @@ class DICGridTri(bu.Model):
     def _get_u_T(self):
         return -self.U_TIJa[:,0,-1,1]
 
-    X_TQa = tr.Property(depends_on='state_changed')
+    X_TQa = tr.Property(depends_on='dir_name')
     """Read the displacement data from the individual csv files"""
-    @tr.cached_property
+    #@tr.cached_property
+    @cached_array("beam_param_file",'X_TQa')
     def _get_X_TQa(self):
+
         pxyz_file_T = self.pxyz_file_T
         pxyz_list = [
             np.loadtxt(pxyz_file, dtype=np.float_,
@@ -495,7 +476,10 @@ class DICGridTri(bu.Model):
         X_TPa = np.zeros((self.n_T, max_n_P, 3), dtype=np.float_)
         for T in range(self.n_T):
             X_TPa[T, P_list[T]] = pxyz_list[T][:, 1:]
-        return X_TPa[:, P_Q]
+
+        X_TQa = X_TPa[:, P_Q]
+
+        return X_TQa
 
     U_TQa = tr.Property(depends_on='state_changed')
     """Get the displacement history"""
@@ -511,51 +495,6 @@ class DICGridTri(bu.Model):
     def _get_X_Qa(self):
         return self.X_TQa[0]
 
-    X0_IJa = tr.Property(depends_on='state_changed')
-    """Coordinates of the DIC markers in the grid"""
-    @tr.cached_property
-    def _get_X0_IJa(self):
-        n_I, n_J = self.n_I, self.n_J
-        X_min_a, X_max_a = self.X_outer_frame
-        min_x, min_y, _ = X_min_a
-        max_x, max_y, _ = X_max_a
-        X_aIJ = np.mgrid[
-                min_x + self.pad_l:max_x - self.pad_r:complex(n_I),
-                min_y + self.pad_b:max_y - self.pad_t:complex(n_J)]
-        x_IJ, y_IJ = X_aIJ
-        X0_IJa = np.einsum('aIJ->IJa', np.array([x_IJ, y_IJ]))
-        return X0_IJa
-
-    delaunay = tr.Property(depends_on='state_changed')
-    @tr.cached_property
-    def _get_delaunay(self):
-        points = self.X_Qa[:, :-1]
-        return Delaunay(points)
-
-    U_TIJa = tr.Property(depends_on='state_changed')
-    """Read the displacement data from the individual csv files"""
-    @tr.cached_property
-    def _get_U_TIJa(self):
-        x0_IJ, y0_IJ = np.einsum('IJa->aIJ', self.X0_IJa)
-        U_IJa_list = []
-        for T in range(self.n_T):
-            values = self.U_TQa[T, :, :]
-            get_U = LinearNDInterpolator(self.delaunay, values)
-            U_IJa = get_U(x0_IJ, y0_IJ)
-            U_IJa_list.append(U_IJa)
-        U_TIJa = np.array(U_IJa_list)
-        return U_TIJa[...,:-1]
-
-    X_IJa = tr.Property(depends_on='state_changed')
-    """Coordinates of the DIC markers in the grid"""
-    @tr.cached_property
-    def _get_X_IJa(self):
-        X0_IJa = self.X0_IJa
-        x_min, y_min = X0_IJa[0,0,(0, 1)]
-        x0_IJ, y0_IJ = np.einsum('...a->a...', X0_IJa)
-        X_aIJ = np.array([x0_IJ-x_min+self.x_offset, y0_IJ-y_min+self.y_offset])
-        return np.einsum('a...->...a', X_aIJ)
-
     n_T_max = bu.Int(30, ALG=True)
     """Number of dic snapshots up to the maximum load"""
 
@@ -570,26 +509,6 @@ class DICGridTri(bu.Model):
         time_T, _ = self.time_F_T
         return len(time_T)
 
-
-    def get_T_t(self, t = 0.9):
-        """Get the T index correponding to the specified fraction
-        of ultimate load.
-        """
-        _, F_m = self.time_F_m
-        max_F_m = np.max(F_m)
-        F_t = t * max_F_m
-        _, F_T = self.time_F_T
-        T_T = np.arange(self.n_T)
-        T = np.interp(F_t, F_T, T_T)
-        return int(T)
-
-    U_IJa = tr.Property(depends_on='state_changed')
-    """Total displacement at step T_t w.r.t. T0
-    """
-    @tr.cached_property
-    def _get_U_IJa(self):
-        return self.U_TIJa[self.T_t] - self.U_TIJa[self.T0]
-
     F_T_t = tr.Property(depends_on='state_changed')
     """Current load
     """
@@ -598,45 +517,51 @@ class DICGridTri(bu.Model):
         _, F_T = self.time_F_T
         return F_T[self.T_t]
 
-    def plot_grid_on_triangulation(self, ax):
-        triangles = self.delaunay.simplices
-        x, y = self.delaunay.points.T
-        ax.triplot(x, y, triangles, linewidth=0.5)
-        X0_aIJ = np.einsum('IJa->aIJ', self.X0_IJa)
-        ax.scatter(*X0_aIJ.reshape(2, -1), s=15, marker='o', color='orange')
+    def plot_points(self, ax):
+        U_Qa = self.U_TQa[self.T_t] * self.U_factor
+        X_Qa = self.X_Qa + U_Qa
+        ax.scatter(*X_Qa[:,:-1].T, s=15, marker='o', color='orange')
         ax.axis('equal')
+        ax.axis('off')
 
-    def plot_grid(self, ax_u):
-        XU_aIJ = np.einsum('IJa->aIJ', self.X_IJa + self.U_IJa * self.U_factor)
-        ax_u.scatter(*XU_aIJ.reshape(2, -1), s=15, marker='o', color='darkgray')
-        ax_u.axis('equal')
+    X_Ca = tr.Property
+    def _get_X_Ca(self):
+        min_X_a, max_X_a = self.X_outer_frame
+        X_Ca = np.array([
+            [min_X_a[0], min_X_a[1]],
+            [max_X_a[0], min_X_a[1]],
+            [max_X_a[0], max_X_a[1]],
+            [min_X_a[0], max_X_a[1]],
+            [min_X_a[0], min_X_a[1]],
+        ])
+        return X_Ca
 
     def plot_bounding_box(self, ax):
-        X_Ca = self.X_IJa[(0, 0, -1, -1, 0), (0, -1, -1, 0, 0), :]
+        X_Ca = self.X_Ca
         X_iLa = np.array([X_Ca[:-1], X_Ca[1:]], dtype=np.float_)
         X_aiL = np.einsum('iLa->aiL', X_iLa)
         ax.plot(*X_aiL, color='black', lw=0.5)
 
     def plot_box_annotate(self, ax):
-        X_Ca = self.X_IJa[(0, 0, -1, -1, 0), (0, -1, -1, 0, 0), :]
+        X_Ca = self.X_Ca
         X_iLa = np.array([X_Ca[:-1], X_Ca[1:]], dtype=np.float_)
         X_La = np.sum(X_iLa, axis=0) / 2
-        x, y = X_La[0, :]
-        ax.annotate("{:.0f} mm".format(self.L_y),
-                    xy=(x, y), xytext=(5, 0), xycoords='data',
-                    textcoords='offset pixels',
-                    horizontalalignment='left',
-                    verticalalignment='center',
-                    rotation=90
-                    )
-        x, y = X_La[1, :]
+        x, y = X_La[2, :]
         ax.annotate('{:.0f} mm'.format(self.L_x),
                     xy=(x, y), xytext=(0, 1), xycoords='data',
                     textcoords='offset pixels',
                     horizontalalignment='center',
                     verticalalignment='bottom',
                     )
-        x, y = X_Ca[1, :]
+        x, y = X_La[3, :]
+        ax.annotate("{:.0f} mm".format(self.L_y),
+                    xy=(x, y), xytext=(-17, 0), xycoords='data',
+                    textcoords='offset pixels',
+                    horizontalalignment='left',
+                    verticalalignment='center',
+                    rotation=90
+                    )
+        x, y = X_Ca[2, :]
         ax.annotate(f'{self.dir_name}',
                     xy=(x, y), xytext=(-2, -2), xycoords='data',
                     textcoords='offset pixels',
@@ -672,9 +597,11 @@ class DICGridTri(bu.Model):
                     )
 
     def subplots(self, fig):
-        return fig.subplots(1,2)
+        return fig.subplots(2,)
 
     def update_plot(self, axes):
         ax_u, ax_load = axes
-        self.plot_grid(ax_u)
+        self.plot_points(ax_u)
+        self.plot_bounding_box(ax_u)
+        self.plot_box_annotate(ax_u)
         self.plot_load_deflection(ax_load)

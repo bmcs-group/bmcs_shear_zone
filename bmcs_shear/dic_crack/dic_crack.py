@@ -8,7 +8,7 @@ import matplotlib.gridspec as gridspec
 from .dic_stress_profile import DICStressProfile
 from .dic_crack_cor import DICCrackCOR
 from .i_dic_crack import IDICCrack
-from .i_dic_grid import IDICGrid
+from .dic_grid import DICGrid
 
 
 def get_f_ironed_weighted(x_, y_, r=10):
@@ -79,7 +79,7 @@ class DICCrack(bu.Model):
     def _cor_default(self):
         return DICCrackCOR(dic_crack=self)
 
-    dic_grid = bu.Instance(IDICGrid)
+    dic_grid = bu.Instance(DICGrid)
     '''Input data grid.
     '''
 
