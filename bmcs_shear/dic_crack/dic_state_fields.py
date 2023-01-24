@@ -208,6 +208,12 @@ class DICStateFields(ib.TStepBC):
         X_ipl_KLa = np.einsum('aNM->MNa', X_aNM)
         return X_ipl_KLa
 
+    X_ipl_bb_Ca = tr.Property(depends_on='state_changed')
+    """Bounding box of the interpolated field"""
+    @tr.cached_property
+    def _get_X_ipl_bb_Ca(self):
+        return self.X_ipl_MNa[(0,-1),(0,-1)]
+
     U_ipl_MNa = tr.Property(depends_on='state_changed')
     '''Displacement on the ipl_MN grid
     '''
@@ -281,6 +287,34 @@ class DICStateFields(ib.TStepBC):
         args = (dic_t, x_fe_KL[:, 0], y_fe_KL[0, :])
         return RegularGridInterpolator(args, self.eps_fe_TKLab[:, :, :])
 
+    kappa_fe_TKLab = tr.Property(depends_on='state_changed')
+    """History of strains in the quadrature points
+    """
+    @cached_array(source_name="beam_param_file",
+                  names='kappa_KLab',
+                  data_dir_trait='data_dir')
+    def _get_kappa_fe_TKLab(self):
+        # state variables
+        kappa_KLab_list = []
+        for T in range(self.dic_grid.n_T):
+            # U_o = self.U_To[T]
+            # eps_Emab = self.xmodel.map_U_to_field(U_o)
+            kappa_Emab = self.kappa_TEmr[self.dic_grid.T_t]
+            kappa_KLab = self.transform_mesh_to_grid(kappa_Emab)
+            kappa_KLab_list.append(np.copy(kappa_KLab))
+        return np.array(kappa_KLab_list, dtype=np.float_)
+
+    f_kappa_fe_txy = tr.Property(depends_on='state_changed')
+    """Time-space interpolator for strains
+    """
+    @tr.cached_property
+    def _get_f_kappa_fe_txy(self):
+        dic_T = np.arange(self.dic_grid.n_T)
+        x_fe_KL, y_fe_KL = np.einsum('KLa->aKL', self.X_fe_KLa)
+        dic_t = dic_T / (self.dic_grid.n_T - 1)
+        args = (dic_t, x_fe_KL[:, 0], y_fe_KL[0, :])
+        return RegularGridInterpolator(args, self.kappa_fe_TKLab[:, :, :])
+
 
     sig_fe_fields = tr.Property(depends_on='state_changed')
     """Stress fields on fe_KL grid
@@ -305,7 +339,7 @@ class DICStateFields(ib.TStepBC):
     """Maximum damage value in each material point of the fe_KL grid
     """
     @cached_array(source_name="beam_param_file",
-                  names=['omega_fe_TKL', 'phi_ev_KLab'],
+                  names='omega_fe_TKL',
                   data_dir_trait='data_dir')
     def _get_omega_fe_TKL(self):
         # state variables
@@ -325,7 +359,7 @@ class DICStateFields(ib.TStepBC):
             #omega_fe_KL = self.get_z_MN_ironed(x_fe_KL, y_fe_KL, omega_fe_KL)
             omega_fe_KL[omega_fe_KL < self.omega_threshold] = 0
             omega_fe_KL_list.append(np.copy(omega_fe_KL))
-        return np.array(omega_fe_KL_list, dtype=np.float_), None # phi_ev_KLab
+        return np.array(omega_fe_KL_list, dtype=np.float_)# , None # phi_ev_KLab
 
     f_omega_fe_txy = tr.Property(depends_on='state_changed')
     """Interpolator of maximum damage value in time-space domain"""
@@ -335,17 +369,17 @@ class DICStateFields(ib.TStepBC):
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_fe_KLa)
         dic_t = dic_T / (self.dic_grid.n_T - 1)
         args = (dic_t, x_MN[:, 0], y_MN[0, :])
-        omega_fe_TKL, _ = self.omega_fe_TKL
+        omega_fe_TKL = self.omega_fe_TKL
         return RegularGridInterpolator(args, omega_fe_TKL)
 
-    f_phi_fe_txy = tr.Property(depends_on='state_changed')
-    """Interpolator of maximum damage value in time-space domain"""
-    @tr.cached_property
-    def _get_f_phi_fe_txy(self):
-        x_MN, y_MN = np.einsum('MNa->aMN', self.X_fe_KLa)
-        args = (x_MN[:, 0], y_MN[0, :])
-        _, phi_fe_TKL = self.omega_fe_TKL
-        return RegularGridInterpolator(args, phi_fe_TKL)
+    # f_phi_fe_txy = tr.Property(depends_on='state_changed')
+    # """Interpolator of maximum damage value in time-space domain"""
+    # @tr.cached_property
+    # def _get_f_phi_fe_txy(self):
+    #     x_MN, y_MN = np.einsum('MNa->aMN', self.X_fe_KLa)
+    #     args = (x_MN[:, 0], y_MN[0, :])
+    #     _, phi_fe_TKL = self.omega_fe_TKL
+    #     return RegularGridInterpolator(args, phi_fe_TKL)
 
     n_ipl_T = tr.Property
     def _get_n_ipl_T(self):
@@ -456,21 +490,21 @@ class DICStateFields(ib.TStepBC):
 
     def plot_sig_eps(self, ax_sig_eps, color='white'):
         # plot the stress strain curve
-        state_var_shape = self.tmodel_.state_var_shapes['kappa']
+        state_var_shape = (1,) + self.tmodel_.state_var_shapes['kappa']
         kappa_zero = np.zeros(state_var_shape)
         omega_zero = np.zeros_like(kappa_zero)
-        eps_test = np.zeros((2, 2), dtype=np.float_)
+        eps_test = np.zeros((1, 2, 2), dtype=np.float_)
         eps_range = np.linspace(0, 0.5, 1000)
         sig_range = []
         for eps_i in eps_range:
-            eps_test[0, 0] = eps_i
+            eps_test[0, 0, 0] = eps_i
             arg_sig, _ = self.tmodel_.get_corr_pred(eps_test, 1, kappa_zero, omega_zero)
             sig_range.append(arg_sig)
         arg_max_eps = np.argwhere(eps_range > self.max_eps)[0][0]
         sig_range = np.array(sig_range, dtype=np.float_)
-        G_f = np.trapz(sig_range[:, 0, 0], eps_range)
+        G_f = np.trapz(sig_range[:, 0, 0, 0], eps_range)
 
-        ax_sig_eps.plot(eps_range[:arg_max_eps], sig_range[:arg_max_eps, 0, 0],
+        ax_sig_eps.plot(eps_range[:arg_max_eps], sig_range[:arg_max_eps, 0, 0, 0],
                         color=color, lw=2, label='$G_f$ = %g [N/mm]' % G_f)
         ax_sig_eps.set_xlabel(r'$\varepsilon$ [-]')
         ax_sig_eps.set_ylabel(r'$\sigma$ [MPa]')
@@ -550,7 +584,6 @@ class DICStateFields(ib.TStepBC):
         print('update plot 6')
         self.plot_sig_field(ax_sig, fig)
 
-        return
         print('update plot 7')
         self.plot_crack_detection_field(ax_omega, fig)
         ax_omega.axis('equal');

@@ -48,7 +48,7 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_x_1_La(self):
-        x_1_Ka = self.dic_crack.x_1_Ka
+        x_1_Ka = self.dic_crack.X_1_Ka
         # add the top point
         x_top = x_1_Ka[-1, 0]
         return np.vstack([x_1_Ka, [[x_top, self.bd.H]]])
@@ -58,10 +58,10 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_x_t_unc_La(self):
-        if len(self.dic_crack.x_t_unc_Ka) == 0:
-            return np.zeros_like(self.dic_crack.x_t_unc_Ka)
+        if len(self.dic_crack.X_unc_t_Ka) == 0:
+            return np.zeros_like(self.dic_crack.X_unc_t_Ka)
         else:
-            x_t_unc_La = np.copy(self.dic_crack.x_t_unc_Ka)
+            x_t_unc_La = np.copy(self.dic_crack.X_unc_t_Ka)
             # add the top point
             x_top = x_t_unc_La[-1, 0]
             return np.vstack([x_t_unc_La, [[x_top, self.bd.H]]])
@@ -74,7 +74,7 @@ class DICStressProfile(bu.Model):
         # To correctly reflect the stress state, shift the
         # grid points by the offsets within the beam
         # X_min, Y_min, X_max, Y_max = self.dic_grid.X_frame
-        x_t_crc_Ka = np.copy(self.dic_crack.x_t_crc_Ka)
+        x_t_crc_Ka = np.copy(self.dic_crack.X_crc_t_Ka)
         return x_t_crc_Ka
 
     eps_t_unc_Lab = tr.Property(depends_on='state_changed')
@@ -86,7 +86,7 @@ class DICStressProfile(bu.Model):
         # Add the upper point by copying the top most measured strain tensor
         # This is a simplification. An extrapolation of strain should be used
         # instead or a local strain controlled IBVP along the ligament
-        x_t_unc_La = self.dic_crack.x_t_unc_Ka
+        x_t_unc_La = self.dic_crack.X_unc_t_Ka
         if len(x_t_unc_La) == 0:
             # the crack
             return np.zeros_like(eps_t_Kab)
@@ -106,14 +106,14 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_u_t_crc_Ka(self):
-        return self.dic_crack.u_t_crc_Ka
+        return self.dic_crack.u_crc_t_Ka
 
     u_t_crc_Kb = tr.Property(depends_on='state_changed')
     '''Displacement of the nodes'''
 
     @tr.cached_property
     def _get_u_t_crc_Kb(self):
-        return self.dic_crack.u_t_crc_Kb
+        return self.dic_crack.u_crc_t_Kb
 
     # =========================================================================
     # Stress transformation and integration
@@ -143,7 +143,7 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_sig_t_crc_Lb(self):
-        u_t_crc_Kb = self.dic_crack.u_t_crc_Kb
+        u_t_crc_Kb = self.dic_crack.u_crc_t_Kb
         cmm = self.bd.matrix_
         sig_t_Kb = cmm.get_sig_a(u_t_crc_Kb)
         return sig_t_Kb
@@ -156,7 +156,7 @@ class DICStressProfile(bu.Model):
     @tr.cached_property
     def _get_sig_t_crc_La(self):
         sig_t_crc_Lb = self.sig_t_crc_Lb
-        T_t_crc_Kab = self.dic_crack.T_t_crc_Kab
+        T_t_crc_Kab = self.dic_crack.T_crc_t_Kab
         sig_t_crc_La = np.einsum('Lb,Lab->La', sig_t_crc_Lb, T_t_crc_Kab)
         return sig_t_crc_La
 
@@ -193,7 +193,7 @@ class DICStressProfile(bu.Model):
     @tr.cached_property
     def _get_u_t_Na(self):
         # handle the case that the crack did not cross the reinforcement yet
-        z_tip = self.dic_crack.x_t_tip_a[1]
+        z_tip = self.dic_crack.X_tip_t_a[1]
         self.z_N[z_tip < self.z_N] = z_tip
         w_t_N = self.get_w_t_N(self.z_N)
         s_t_N = self.get_s_t_N(self.z_N)
