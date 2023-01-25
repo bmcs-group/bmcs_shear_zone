@@ -104,14 +104,6 @@ class DICCrackList(bu.ModelDict):
         # global position of candidate crack tips
         X_r1ga = X_r0a[:, np.newaxis, :] + delta_X_r1ga
         x_r1g, y_r1g = np.einsum('...a->a...', X_r1ga)
-        # test if the points are within the domain
-        x_min, y_min, x_max, y_max = self.dsf.X_ipl_bb_Ca[(0,0,1,1),(0,1,0,1)]
-        cross_conditions = (x_r1g < x_min, x_r1g > x_max, y_r1g < y_min, y_r1g > y_max)
-        cross_crg = [np.array(np.where(cc)) for cc in cross_conditions]
-        cross_count = np.sum(np.array([cross_rg.shape[-1] for cross_rg in cross_crg]))
-        if cross_count > 0:
-            print('cond', cross_count)
-            return X_C0a, [], alpha_C0
         # damage values in candidate crack tips
         t_r1g = np.ones_like(x_r1g)
         args = (t_r1g, x_r1g, y_r1g)
@@ -123,10 +115,19 @@ class DICCrackList(bu.ModelDict):
         alpha_r1 = alpha_r1g[r_r, arg_g_omega_r1]
         # Update active crack tips
         C_C = np.arange(len(X_C0a))
-        r_running = np.where(max_omega_r1 > self.dsf.omega_threshold)
-        C_r = C_C[C_r[r_running]]
+        r_running = max_omega_r1 > self.dsf.omega_threshold
         # new crack tip
         X_r1a = X_r1ga[r_r, arg_g_omega_r1]
+        x_r1, y_r1 = np.einsum('...a->a...', X_r1a)
+        # exclude cracks that are less than delta_s from the boundary
+        d_s = self.delta_s * 1.01
+        x_min, y_min, x_max, y_max = self.dsf.X_ipl_bb_Ca[(0,0,1,1),(0,1,0,1)]
+        cross_conditions = (x_r1 < x_min + d_s, x_r1 > x_max - d_s, y_r1 > y_max - d_s)
+        cross_cr = [np.array(np.where(cc)) for cc in cross_conditions]
+        for cross_r in cross_cr:
+            r_running[cross_r] = False
+        # update global indexes of active cracks
+        C_r = C_C[C_r[r_running]]
         X_C1a = np.copy(X_C0a)
         X_C1a[C_r] = X_r1a[r_running]
         # update last crack angle
