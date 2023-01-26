@@ -68,19 +68,22 @@ class DICCrackList(bu.ModelDict):
 
 
 
-    cracks = tr.Property(depends_on='MESH, ALG')
+    items = tr.Property(depends_on='MESH, ALG')
     @tr.cached_property
-    def _get_cracks(self):
+    def _get_items(self):
         X_CKa = self.X_CKa
         K_tip_C = self.K_tip_C
         n_C = len(X_CKa)
         C_C = np.arange(n_C)
-        self.items = {
+        items = {
             str(C): DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C], :])
             for C in C_C
         }
-        return self.items
+        return items
 
+    cracks = tr.Property
+    def _get_cracks(self):
+        return self.items
     def get_X_C1a(self, X_C0a, C_r, alpha_C0):
         """
         X_C0a - initial positions of the crack tip

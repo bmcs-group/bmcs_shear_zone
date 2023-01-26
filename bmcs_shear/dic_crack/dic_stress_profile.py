@@ -333,10 +333,10 @@ class DICStressProfile(bu.Model):
         # x1 = self.x_La[:, 1][irange]
         return int_F_L0, np.sum(range_normed_F_L0 * range_x_L0)
 
-    get_SY = tr.Property
+    f_SY = tr.Property
 
     @tr.cached_property
-    def _get_get_SY(self):
+    def _get_f_SY(self):
         y, S1, S2, y1, y2 = sp.symbols('y, S1, S2, y1, y2')
         S = sp.integrate(S1 + (S2 - S1) / (y2 - y1) * (y - y1), (y, y1, y2))
         SY = sp.integrate((S1 + (S2 - S1) / (y2 - y1) * (y - y1)) * y, (y, y1, y2))
@@ -345,39 +345,79 @@ class DICStressProfile(bu.Model):
         get_S = sp.lambdify((S1, S2, y1, y2), S)
         return get_S, get_Y
 
-    neg_F_y = tr.Property
-
-    def _get_neg_F_y(self):
-        if len(self.x_t_unc_La) == 0:
+    def get_SY(self, S_, y_):
+        if len(y_) == 0:
             return 0, 0
+        get_S, get_Y = self.f_SY
+        y_L = get_Y(S_[:-1], S_[1:], y_[:-1], y_[1:])
+        S_L = get_S(S_[:-1], S_[1:], y_[:-1], y_[1:])
+        sum_S = np.sum(S_L)
+        abs_S_L = np.fabs(S_L)
+        sum_abs_S = np.sum(abs_S_L)
+        sum_abs_Sy = np.sum(abs_S_L * y_L)
+        if sum_S == 0:
+            cg_y = 0
+        else:
+            cg_y = sum_abs_Sy / sum_abs_S
+        SB = sum_S * self.bd.B
+        if np.fabs(SB) < 1e-5:
+            SB = 0
+        return SB, cg_y
+
+
+    S_zero_level = bu.Float(1e-15)
+    """Switch for the negative and positive values of stress as 
+    a separator between pos and neg resultants of the uncracked
+    and cracked part of the cross section. The separation of positive
+    and negative part is introduced as a potential plausibility check.
+    """
+    neg_unc_F_y = tr.Property
+
+    def _get_neg_unc_F_y(self):
         S_ = self.sig_t_unc_Lab[:, 0, 0]
-        y_ = self.x_t_unc_La[:, 1] - self.x_t_unc_La[0, 1]
-        get_S, get_Y = self.get_SY
-        y_L = get_Y(S_[:-1], S_[1:], y_[:-1], y_[1:])
-        S_L = get_S(S_[:-1], S_[1:], y_[:-1], y_[1:])
-        sum_S = np.sum(S_L)
-        sum_Sy = np.sum(S_L * y_L)
-        if sum_S == 0:
-            cg_y = 0
-        else:
-            cg_y = sum_Sy / sum_S
-        return sum_S * self.bd.B, cg_y + self.x_t_unc_La[0, 1]
+        S_[S_>-self.S_zero_level] = -self.S_zero_level
+        y_ = self.x_t_unc_La[:, 1]
+        return self.get_SY(S_, y_)
 
-    pos_F_y = tr.Property
+    pos_unc_F_y = tr.Property
 
-    def _get_pos_F_y(self):
-        S_ = self.sig_t_crc_La[:, 0]
-        y_ = self.x_t_crc_La[:, 1] - self.x_t_unc_La[-1, 1]
-        get_S, get_Y = self.get_SY
-        y_L = get_Y(S_[:-1], S_[1:], y_[:-1], y_[1:])
-        S_L = get_S(S_[:-1], S_[1:], y_[:-1], y_[1:])
-        sum_S = np.sum(S_L)
-        sum_Sy = np.sum(S_L * y_L)
-        if sum_S == 0:
-            cg_y = 0
-        else:
-            cg_y = sum_Sy / sum_S
-        return sum_S * self.bd.B, cg_y + self.x_t_unc_La[-1, 1]
+    def _get_pos_unc_F_y(self):
+        S_ = self.sig_t_unc_Lab[:, 0, 0]
+        S_[S_<self.S_zero_level] = self.S_zero_level
+        y_ = self.x_t_unc_La[:, 1]
+        return self.get_SY(S_, y_)
+
+    neg_crc_F_y = tr.Property
+
+    def _get_neg_crc_F_y(self):
+        S_ = np.copy(self.sig_t_crc_La[:, 0])
+        S_[S_>-self.S_zero_level] = -self.S_zero_level
+        y_ = self.x_t_crc_La[:, 1]
+        return self.get_SY(S_, y_)
+
+    pos_crc_F_y = tr.Property
+
+    def _get_pos_crc_F_y(self):
+        S_ = np.copy(self.sig_t_crc_La[:, 0])
+        S_[S_<self.S_zero_level] = self.S_zero_level
+        y_ = self.x_t_crc_La[:, 1]
+        return self.get_SY(S_, y_)
+
+    V_crc_y = tr.Property
+
+    def _get_V_crc_y(self):
+        S_ = np.copy(self.sig_t_crc_La[:, 1])
+        S_[S_<self.S_zero_level] = self.S_zero_level
+        y_ = self.x_t_crc_La[:, 1]
+        return self.get_SY(S_, y_)
+
+    V_unc_y = tr.Property
+
+    def _get_V_unc_y(self):
+        S_ = np.copy(self.sig_t_unc_Lab[:, 0, 1])
+        S_[S_<self.S_zero_level] = self.S_zero_level
+        y_ = self.x_t_unc_La[:, 1]
+        return self.get_SY(S_, y_)
 
     # =========================================================================
     # Plotting methods
@@ -447,23 +487,46 @@ class DICStressProfile(bu.Model):
     def plot_F_t_a(self, ax_F_a):
         # ax_F_a.plot(*self.x_1_La.T, color='black')
         ax_F_a.plot([0, 0], [0, self.bd.H], color='black', linewidth=0.4)
-        # compression zone
-        neg_F, neg_y = self.neg_F_y
-        neg_F_kN = neg_F / 1000
-        head_length = np.fabs(neg_F_kN * 0.2)
-        head_width = 10
-        if neg_F_kN != 0:
-            ax_F_a.annotate('{0:.3g} kN'.format(neg_F_kN),
-                            xy=(0, neg_y), xycoords='data',
-                            xytext=(neg_F_kN, neg_y), textcoords='data',
+        # uncracked region - compression
+        neg_unc_F, neg_unc_y = self.neg_unc_F_y
+        neg_unc_F_kN = neg_unc_F / 1000
+        if neg_unc_F_kN != 0:
+            ax_F_a.annotate('{0:.3g} kN'.format(neg_unc_F_kN),
+                            xy=(0, neg_unc_y), xycoords='data',
+                            xytext=(neg_unc_F_kN, neg_unc_y), textcoords='data',
                             horizontalalignment='left',
                             verticalalignment='bottom',
                             color='blue',
                             # arrowprops=dict(arrowstyle="->",
                             #                 connectionstyle="arc3"),
                             )
+        # uncracked region - tension
+        pos_unc_F, pos_unc_y = self.pos_unc_F_y
+        pos_unc_F_kN = pos_unc_F / 1000
+        if pos_unc_F_kN != 0:
+            ax_F_a.annotate('{0:.3g} kN'.format(pos_unc_F_kN),
+                            xy=(0, pos_unc_y), xycoords='data',
+                            xytext=(pos_unc_F_kN, pos_unc_y), textcoords='data',
+                            horizontalalignment='left',
+                            verticalalignment='bottom',
+                            color='blue',
+                            # arrowprops=dict(arrowstyle="->",
+                            #                 connectionstyle="arc3"),
+                            )
+        # tensile zone interlocking
+        neg_crc_F, neg_crc_y = self.neg_crc_F_y
+        neg_crc_F_kN = neg_crc_F / 1000
+        if neg_crc_F_kN != 0:
+            ax_F_a.annotate('{0:.3g} kN'.format(neg_crc_F_kN),
+                            xy=(0, neg_crc_y), xycoords='data',
+                            xytext=(neg_crc_F_kN, neg_crc_y), textcoords='data',
+                            horizontalalignment='left',
+                            verticalalignment='bottom',
+                            # arrowprops=dict(arrowstyle="->",
+                            #                 connectionstyle="arc3"),
+                            )
         # tensile zone
-        pos_F, pos_y = self.pos_F_y
+        pos_F, pos_y = self.pos_crc_F_y
         pos_F_kN = pos_F / 1000
         if pos_F_kN != 0:
             ax_F_a.annotate('{0:.3g} kN'.format(pos_F_kN),
@@ -487,16 +550,16 @@ class DICStressProfile(bu.Model):
                             #                 connectionstyle="arc3"),
                             )
 
-        x = np.hstack([[neg_F_kN, pos_F_kN], F_N0_kN])
-        y = np.hstack([[neg_y, pos_y], (y_N0)])
+        x = np.hstack([[neg_unc_F_kN, pos_F_kN], F_N0_kN])
+        y = np.hstack([[neg_unc_y, pos_y], (y_N0)])
         x1 = np.hstack([[0, 0], np.zeros_like(F_N0_kN)])
-        y1 = np.hstack([[neg_y, pos_y], (y_N0)])
+        y1 = np.hstack([[neg_unc_y, pos_y], (y_N0)])
         ax_F_a.quiver(x, y, x1 - x, y1 - y, scale=1, scale_units='x')
 
         ax_F_a.set_xlabel(r'$F$ [kN]')
         ax_F_a.set_ylabel(r'$y$ [mm]')
         max_F_N0_kN = np.max(F_N0_kN)
-        ax_F_a.set_xlim(neg_F_kN * 1.3, np.max([pos_F_kN, max_F_N0_kN]) * 1.3)
+        ax_F_a.set_xlim(neg_unc_F_kN * 1.3, np.max([pos_F_kN, max_F_N0_kN]) * 1.3)
 
     def subplots(self, fig):
         gs = gridspec.GridSpec(1, 4)

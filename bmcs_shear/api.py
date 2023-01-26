@@ -8,3 +8,4 @@ from .dic_crack import DICStateFields
 from .dic_crack import DICGrid
 from .dic_crack import DICInpUnstructuredPoints
 from .dic_crack import DICAlignedGrid
+from .dic_crack import DICCrackList
