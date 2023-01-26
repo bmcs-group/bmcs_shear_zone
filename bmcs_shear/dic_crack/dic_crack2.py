@@ -507,9 +507,9 @@ class DICCrack(bu.Model):
         """Helper function for plotting the strain along the ligament
         at an intermediate state.
         """
-        x_t_unc_La = self.sp.x_t_unc_La
-        ax.plot(eps_t_Kab[:, a, b], x_t_unc_La[:, 1], linestyle=linestyle, color=color, label=label)
-        ax.fill_betweenx(x_t_unc_La[:, 1], eps_t_Kab[:, a, b], 0, color=color, alpha=0.1)
+        X_unc_t_La = self.sp.X_unc_t_La
+        ax.plot(eps_t_Kab[:, a, b], X_unc_t_La[:, 1], linestyle=linestyle, color=color, label=label)
+        ax.fill_betweenx(X_unc_t_La[:, 1], eps_t_Kab[:, a, b], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
         min_eps_1 = self.min_eps_1
@@ -521,8 +521,8 @@ class DICCrack(bu.Model):
         """Plot the displacement (u_x, u_y) in local crack coordinates
         at an intermediate state.
         """
-        self._plot_eps_t(ax_eps, self.sp.eps_t_unc_Lab, 0, 0, linestyle='dotted', color='blue')
-        self._plot_eps_t(ax_eps, self.sp.eps_t_unc_Lab, 0, 1, linestyle='dotted', color='green')
+        self._plot_eps_t(ax_eps, self.sp.eps_unc_t_Lab, 0, 0, linestyle='dotted', color='blue')
+        self._plot_eps_t(ax_eps, self.sp.eps_unc_t_Lab, 0, 1, linestyle='dotted', color='green')
         ax_eps.set_xlabel(r'$\varepsilon$ [-]', fontsize=10)
         # ax_eps.legend()
         # ax_eps.set_ylim(self.y_N[0], self.y_N[-1])

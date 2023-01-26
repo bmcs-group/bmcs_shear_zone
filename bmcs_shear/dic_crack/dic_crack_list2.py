@@ -199,15 +199,15 @@ class DICCrackList(bu.ModelDict):
     def _get_critical_crack(self):
         u_1_max_C = []
         for dc in self.items.values():
-            u_1_max = np.max(dc.u_1_crc_Ka[:, 1])
+            u_1_max = np.max(dc.u_crc_1_Ka[:, 1])
             u_1_max_C.append(u_1_max)
         critical_C = np.argmax(np.array(u_1_max_C))
         return self.items[str(critical_C)]
 
     def plot_cracking_hist2(self, ax_cracks):
         for crack in self.items.values():
-            crack.plot_x_1_crc_Ka(ax_cracks)
-            crack.plot_x_t_crc_Ka(ax_cracks)
+            crack.plot_X_crc_1_Ka(ax_cracks)
+            crack.plot_X_crc_t_Ka(ax_cracks)
 
     def subplots(self, fig):
         self.fig = fig
