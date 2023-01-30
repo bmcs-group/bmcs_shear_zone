@@ -383,7 +383,6 @@ class DICCrack(bu.Model):
         tX_right_K = np.array([t_K, x_K + d_x, y_K], dtype=np.float_).T
         tX_left_K = np.array([t_K, x_K - d_x, y_K], dtype=np.float_).T
         # handle the situation with coordinates outside the bounding box
-        self.cl.dsf
         u_Ka = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
 
         # eps_Kab, K_eps = self.get_eps_Kab(t, X_Ka)
