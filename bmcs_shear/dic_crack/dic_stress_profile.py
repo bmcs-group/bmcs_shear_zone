@@ -280,6 +280,27 @@ class DICStressProfile(bu.Model):
         M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_t_Na[:, 1])
         return -(M + M_z + M_da)
 
+
+    M_ext_kN_t = tr.Property(bu.Float, depends_on='state_changed')
+    '''Coefficient of variation for the angles of rotation.
+    '''
+    @tr.cached_property
+    def _get_M_ext_kN_t(self):
+        x_cc = self.X_1_La[-1, 0]
+        L_right = self.dic_grid.sz_bd.L_right
+        M = (self.V_ext_t * (L_right - x_cc))
+        return M
+
+    V_ext_kN_t = tr.Property(bu.Float, depends_on='state_changed')
+    '''Coefficient of variation for the angles of rotation.
+    '''
+    @tr.cached_property
+    def _get_V_ext_kN_t(self):
+        L_right = self.dic_grid.sz_bd.L_right
+        L_left = self.dic_grid.sz_bd.L_left
+        F_right = self.dic_grid.F_T_t * L_left / (L_left + L_right)
+        return F_right
+
     sig_x_tip_ak = tr.Property(depends_on='state_changed')
     '''Normal stress component in global $x$ direction in the fracture .
     process segment.
