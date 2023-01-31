@@ -247,7 +247,7 @@ class DICStressProfile(bu.Model):
     @tr.cached_property
     def _get_X_neutral_a(self):
         idx = np.argmax(self.u_crc_t_Ka[:, 0] < 0) - 1
-        x_1, x_2 = self.X_1_La[(idx, idx + 1), 1]
+        x_1, x_2 = self.X_crc_t_La[(idx, idx + 1), 1]
         u_1, u_2 = self.u_crc_t_Ka[(idx, idx + 1), 0]
         d_x = -(x_2 - x_1) / (u_2 - u_1) * u_1
         y_neutral = x_1 + d_x

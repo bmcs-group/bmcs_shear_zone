@@ -83,8 +83,8 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
     sig_w = sp.Piecewise(
         (-f_c, w / L_cr <= - f_c / E_c),
         (E_c * w / L_cr, w <= w_cr),
-        (f_w, w <= w_x),
-        (sigma_ag, True)
+        # (f_w, w <= w_x),
+        (-sigma_ag, True)
     )
 
     d_sig_w = sig_w.diff(w)
