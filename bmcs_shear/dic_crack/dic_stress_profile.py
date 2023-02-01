@@ -243,7 +243,6 @@ class DICStressProfile(bu.Model):
     X_neutral_a = tr.Property(depends_on='state_changed')
     '''Vertical position of the neutral axis
     '''
-
     @tr.cached_property
     def _get_X_neutral_a(self):
         idx = np.argmax(self.u_crc_t_Ka[:, 0] < 0) - 1
@@ -281,6 +280,47 @@ class DICStressProfile(bu.Model):
         return -(M + M_z + M_da)
 
 
+    X_mid_unc_t_a = tr.Property(depends_on='state_changed')
+    '''Vertical position of the neutral axis
+    '''
+    @tr.cached_property
+    def _get_X_mid_unc_t_a(self):
+        return np.average(self.X_unc_t_La)
+
+    M_mid_unc_t_a = tr.Property(depends_on='state_changed')
+    '''Internal bending moment obtained by integrating the
+    normal stresses with the lever arm rooted at the height of the neutral
+    axis.
+    '''
+
+    @tr.cached_property
+    def _get_M_mid_unc_t_a(self):
+        # horizontal distance between dowel action and crack tip.
+
+        X_mid_unc_t_a = np.average(self.X_unc_t_La, axis=0)
+        # horizontal distance between dowel action and crack tip.
+        x_La = self.X_crc_t_La
+        if len(x_La) == 0:
+            return 0, 0, 0
+        x_rot, y_rot = X_mid_unc_t_a
+        delta_x_crc_La = x_rot - x_La[:, 0]  # - x_rot
+        delta_y_crc_La = y_rot - x_La[:, 1]
+        B = self.dic_grid.sz_bd.B
+        M_L_0 = np.trapz(delta_y_crc_La * self.sig_crc_t_La[:, 0], x_La[:, 1]) * B
+        M_L_1 = np.trapz(delta_x_crc_La * self.sig_crc_t_La[:, 1], x_La[:, 0]) * B
+        M_agg = np.sum(M_L_0, axis=0) + np.sum(M_L_1, axis=0)
+
+        delta_y_N = y_rot - self.z_N
+        M_cb = np.einsum('i,i', delta_y_N, self.F_t_Na[:, 0])
+        # assuming that the horizontal position of the crack bridge
+        # is almost equal to the initial position of the crack x_00
+        # x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
+        x_00 = self.dic_crack.C_cubic_spline(self.z_N)
+        delta_x_N = x_00 - x_rot
+        M_da = np.einsum('i,i', delta_x_N, self.F_t_Na[:, 1])
+
+        return M_cb, M_da, M_agg
+
     M_ext_kN_t = tr.Property(bu.Float, depends_on='state_changed')
     '''Coefficient of variation for the angles of rotation.
     '''
@@ -288,7 +328,7 @@ class DICStressProfile(bu.Model):
     def _get_M_ext_kN_t(self):
         x_cc = self.X_1_La[-1, 0]
         L_right = self.dic_grid.sz_bd.L_right
-        M = (self.V_ext_t * (L_right - x_cc))
+        M = (self.V_ext_kN_t * (L_right - x_cc))
         return M
 
     V_ext_kN_t = tr.Property(bu.Float, depends_on='state_changed')
@@ -305,7 +345,6 @@ class DICStressProfile(bu.Model):
     '''Normal stress component in global $x$ direction in the fracture .
     process segment.
     '''
-
     def _get_sig_x_tip_ak(self):
         # TODO - use this to evaluate the crack propagation trend in the individual cracks along the specimen
         sz_cp = self.sz_cp
