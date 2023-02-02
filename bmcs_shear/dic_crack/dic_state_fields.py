@@ -120,9 +120,11 @@ class DICStateFields(ib.TStepBC):
     '''Averaging radius'''
 
     n_ipl_M = bu.Int(116, ALG=True)
+    #n_ipl_M = tr.DelegatesTo('dic_grid', 'n_I') # .Int(116, ALG=True)
     '''Number of interpolation points in x direction'''
 
     n_ipl_N = bu.Int(28, ALG=True)
+    #n_ipl_N = tr.DelegatesTo('dic_grid', 'n_J')
     '''Number of interpolation points in y direction'''
 
     T_t = tr.Property(bu.Int, depends_on='state_changed')

@@ -35,6 +35,10 @@ class DICGrid(bu.Model):
     beam_param_file = tr.DelegatesTo('dic_inp')
     sz_bd = tr.DelegatesTo('dic_inp')
     F_T_t = tr.DelegatesTo('dic_inp')
+    Q_t = tr.DelegatesTo('dic_inp')
+    Q_1 = tr.DelegatesTo('dic_inp')
+    M_t = tr.DelegatesTo('dic_inp')
+    M_1 = tr.DelegatesTo('dic_inp')
 
     n_I = tr.Property(bu.Int, depends_on='state_changed')
     """Number of horizontal nodes of the DIC input displacement grid.

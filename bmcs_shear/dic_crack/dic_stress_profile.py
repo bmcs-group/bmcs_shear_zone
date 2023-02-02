@@ -194,9 +194,12 @@ class DICStressProfile(bu.Model):
     def _get_u_t_Na(self):
         # handle the case that the crack did not cross the reinforcement yet
         z_tip = self.dic_crack.X_tip_t_a[1]
-        self.z_N[z_tip < self.z_N] = z_tip
-        w_t_N = self.fn_w_t_N(self.z_N)
-        s_t_N = self.fn_s_t_N(self.z_N)
+        # self.z_N[z_tip < self.z_N] = z_tip
+        w_t_N, s_t_N = np.zeros_like(self.z_N), np.zeros_like(self.z_N)
+        z_I = z_tip >= self.z_N
+        if len(self.z_N[z_I]) > 0:
+            w_t_N[z_I] = self.fn_w_t_N(self.z_N[z_I] )
+            s_t_N[z_I]  = self.fn_s_t_N(self.z_N[z_I] )
         return np.array([w_t_N, s_t_N], dtype=np.float_).T
 
     z_N = tr.Property
@@ -275,8 +278,8 @@ class DICStressProfile(bu.Model):
         # assuming that the horizontal position of the crack bridge
         # is almost equal to the initial position of the crack x_00
         # x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
-        x_00 = self.dic_crack.C_cubic_spline(self.z_N)
-        M_da = np.einsum('i,i', (x_00 - x_rot_0k), self.F_t_Na[:, 1])
+        x_N = self.dic_crack.x_N
+        M_da = np.einsum('i,i', (x_N - x_rot_0k), self.F_t_Na[:, 1])
         return -(M + M_z + M_da)
 
 
@@ -285,7 +288,7 @@ class DICStressProfile(bu.Model):
     '''
     @tr.cached_property
     def _get_X_mid_unc_t_a(self):
-        return np.average(self.X_unc_t_La)
+        return np.average(self.X_unc_t_La, axis=0)
 
     M_mid_unc_t_a = tr.Property(depends_on='state_changed')
     '''Internal bending moment obtained by integrating the
@@ -297,7 +300,7 @@ class DICStressProfile(bu.Model):
     def _get_M_mid_unc_t_a(self):
         # horizontal distance between dowel action and crack tip.
 
-        X_mid_unc_t_a = np.average(self.X_unc_t_La, axis=0)
+        X_mid_unc_t_a = self.X_mid_unc_t_a
         # horizontal distance between dowel action and crack tip.
         x_La = self.X_crc_t_La
         if len(x_La) == 0:
@@ -315,8 +318,8 @@ class DICStressProfile(bu.Model):
         # assuming that the horizontal position of the crack bridge
         # is almost equal to the initial position of the crack x_00
         # x_00 = np.ones_like(self.z_N) * self.sz_cp.x_00
-        x_00 = self.dic_crack.C_cubic_spline(self.z_N)
-        delta_x_N = x_00 - x_rot
+        x_N = self.dic_crack.x_N
+        delta_x_N = x_N - x_rot
         M_da = np.einsum('i,i', delta_x_N, self.F_t_Na[:, 1])
 
         return M_cb, M_da, M_agg

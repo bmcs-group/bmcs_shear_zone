@@ -49,6 +49,8 @@ class DICCrackList(bu.ModelDict):
 
     crack_fraction = bu.Float(0.2, ALG=True)
 
+    show_cracks = bu.Enum(options=('primary', 'secondary', 'all'), ALG=True)
+
     ipw_view = bu.View(
         bu.Item('delta_alpha_min'),
         bu.Item('delta_alpha_max'),
@@ -56,6 +58,7 @@ class DICCrackList(bu.ModelDict):
         bu.Item('n_G'),
         bu.Item('x_boundary'),
         bu.Item('crack_fraction'),
+        bu.Item('show_cracks'),
         bu.Item('T_t', readonly=True),
         time_editor=bu.HistoryEditor(var='dsf.dic_grid.t')
     )
@@ -67,23 +70,73 @@ class DICCrackList(bu.ModelDict):
         return self.dsf.X_ipl_bb_Ca[(0,1),(1,1)]
 
 
-
-    items = tr.Property(depends_on='MESH, ALG')
+    cracks = tr.Property(depends_on='MESH, ALG')
     @tr.cached_property
-    def _get_items(self):
+    def _get_cracks(self):
         X_CKa = self.X_CKa
         K_tip_C = self.K_tip_C
         n_C = len(X_CKa)
         C_C = np.arange(n_C)
-        items = {
-            str(C): DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C], :])
-            for C in C_C
-        }
-        return items
+        return np.array([ DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C], :])
+            for C in C_C ])
 
-    cracks = tr.Property
-    def _get_cracks(self):
-        return self.items
+    items = tr.Property(depends_on='MESH, ALG')
+    @tr.cached_property
+    def _get_items(self):
+        return {
+            str(C): crack for C, crack in enumerate(self.cracks)
+        }
+        # X_CKa = self.X_CKa
+        # K_tip_C = self.K_tip_C
+        # n_C = len(X_CKa)
+        # C_C = np.arange(n_C)
+        # items = {
+        #     str(C): DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C], :])
+        #     for C in C_C
+        # }
+        # return items
+
+    primary_cracks = tr.Property
+    def _get_primary_cracks(self):
+        primary_cracks, _ = self.sorted_cracks
+        return primary_cracks
+
+    secondary_cracks = tr.Property
+    def _get_secondary_cracks(self):
+        _, secondary_cracks = self.sorted_cracks
+        return secondary_cracks
+
+    sorted_cracks = tr.Property
+    def _get_sorted_cracks(self):
+        # get the array of crack tips
+        x_tip_1_Ca = np.array([
+            crack.X_tip_1_a for crack in self.cracks
+        ])
+        # constract the array of vectors connecting each with each crack tip
+        diff_x_tip_1_CDa = x_tip_1_Ca[np.newaxis, :, :] - x_tip_1_Ca[:, np.newaxis, :]
+        # get the distances
+        delta_tip_1_CD = np.linalg.norm(diff_x_tip_1_CDa, axis=-1)
+        # identify close crack tips below the threshold values
+        close_CD = delta_tip_1_CD < 30
+        # pick up the upper diagonal, the row index is smaller than col index
+        triu_row, triu_col = np.triu_indices_from(close_CD)
+        # select those that are close
+        close_rc = close_CD[triu_row, triu_col]
+        # realize that each crack tip is close to itself so that
+        # its index will definitely appear in the active list
+        # Other occurrences of the same index indicate that
+        # there is a close crack that needs to be skipped.
+        # Thus, the primary cracks can be obtained by subtracting
+        # indexes col index from the row index of the close cracks.
+        # If it is negative, it denotes the next crack on the right
+        # with close crack tip. These cracks are facotred out from
+        # the array
+        secondary_C = triu_row[close_rc] - triu_col[close_rc] < 0
+        secondary_D = np.unique(triu_col[close_rc][secondary_C])
+        prim_C = np.ones_like(self.cracks, dtype=np.bool_)
+        prim_C[secondary_D] = False
+        return self.cracks[prim_C], self.cracks[np.invert(prim_C)]
+
     def get_X_C1a(self, X_C0a, C_r, alpha_C0):
         """
         X_C0a - initial positions of the crack tip
@@ -163,7 +216,7 @@ class DICCrackList(bu.ModelDict):
         K_tip_C = np.zeros_like(x_C0, dtype=np.int_)
         X_KCa_ = [X_C0a]
         alpha_C0 = np.zeros((len(X_C0a),))
-        K = 0
+        K = 1
         while len(C_r) > 0:
             K += 1
             X_C1a, C_r, alpha_C0 = self.get_X_C1a(X_C0a, C_r, alpha_C0)
@@ -189,25 +242,65 @@ class DICCrackList(bu.ModelDict):
     def _get_K_tip_C(self):
         return self.crack_paths[1]
 
-    def plot_primary_cracks(self, ax_cracks):
+    def plot_all_cracks(self, ax_cracks):
         X_aKC = np.einsum('CKa->aKC', self.X_CKa)
         ax_cracks.plot(*X_aKC, color='black', linewidth=1)
         ax_cracks.axis('equal')
+
+    def plot_primary_cracks(self, ax_cracks):
+        for crack in self.primary_cracks:
+            crack.plot_X_crc_1_Ka(ax_cracks)
+            crack.plot_X_crc_t_Ka(ax_cracks)
+
+    def plot_secondary_cracks(self, ax_cracks):
+        for crack in self.secondary_cracks:
+            crack.plot_X_crc_1_Ka(ax_cracks)
+            crack.plot_X_crc_t_Ka(ax_cracks)
 
     critical_crack = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_critical_crack(self):
         u_1_max_C = []
-        for dc in self.items.values():
+        for dc in self.cracks:
             u_1_max = np.max(dc.u_crc_1_Ka[:, 1])
             u_1_max_C.append(u_1_max)
         critical_C = np.argmax(np.array(u_1_max_C))
         return self.items[str(critical_C)]
 
-    def plot_cracking_hist2(self, ax_cracks):
-        for crack in self.items.values():
-            crack.plot_X_crc_1_Ka(ax_cracks)
-            crack.plot_X_crc_t_Ka(ax_cracks)
+    def plot_MQ(self, ax_M, ax_Q):
+        dg = self.dsf.dic_grid
+        L_right = dg.sz_bd.L_right
+        M_1_kN = -dg.M_1 / 1000
+        ax_M.plot([0, L_right], [M_1_kN, 0], color='gray')
+        ax_M.fill_between([0, L_right], [M_1_kN, 0], 0, color='gray', alpha=0.1)
+        M_t_kN = -dg.M_t / 1000
+        ax_M.plot([0, L_right], [M_t_kN, 0], color='brown')
+        ax_M.fill_between([0, L_right], [M_t_kN, 0], 0, color='brown', alpha=0.2)
+
+        x_CN = np.array([
+            crack.x_N for crack in self.primary_cracks
+        ])
+        A_CN = np.array([
+            crack.A_N for crack in self.primary_cracks
+        ])
+        F_t_CNa = np.array([
+            crack.sp.F_t_Na for crack in self.primary_cracks
+        ])
+        sig_t_CN0 = F_t_CNa[:,0,0] / A_CN[:,0]
+        ax_Q.plot(x_CN[:,0], sig_t_CN0, 'o-', color='orange')
+        ax_Q.fill_between(x_CN[:,0], sig_t_CN0, 0, color='orange', alpha=0.1)
+
+        X_mid_unc_t_Ca = np.array([
+            crack.sp.X_mid_unc_t_a for crack in self.primary_cracks
+        ])
+        M_mid_unc_t_Cf = np.array([
+            crack.sp.M_mid_unc_t_a for crack in self.primary_cracks
+        ])
+        M_cb_C, M_da_C, M_ag_C = M_mid_unc_t_Cf.T
+        ax_M.plot(X_mid_unc_t_Ca[:,0], -M_cb_C/1e+6, 'o-', color='orange')
+
+        bu.mpl_align_yaxis_to_zero(ax_M, ax_Q)
+        ax_Q.get_shared_x_axes().join(ax_Q, ax_M)
 
     def subplots(self, fig):
         self.fig = fig
@@ -215,28 +308,31 @@ class DICCrackList(bu.ModelDict):
                                width_ratios=[1, 1, 1],
                                wspace=0.5,
                                # hspace=0.5,
-                               height_ratios=[2, 1]
+                               height_ratios=[1, 1]
                                )
-        ax_dsf = fig.add_subplot(gs[0, :])
-        ax_FU = fig.add_subplot(gs[1, 0])
-        ax_u = fig.add_subplot(gs[1, 1])
-        ax_eps = ax_u.twiny()
-        ax_F = fig.add_subplot(gs[1, 2])
-        ax_sig = ax_F.twiny()
-        return ax_dsf, ax_FU, ax_u, ax_eps, ax_F, ax_sig
+        ax_cl = fig.add_subplot(gs[0, :-1])
+        ax_FU = fig.add_subplot(gs[:, -1])
+        ax_M = fig.add_subplot(gs[1, :-1])
+        ax_Q = ax_M.twinx()
+        return ax_cl, ax_FU, ax_M, ax_Q
 
     def update_plot(self, axes):
-        ax_cl, ax_FU, ax_u, ax_eps, ax_F, ax_sig = axes
+        ax_cl, ax_FU, ax_M, ax_Q = axes
 #        self.dsf.dic_grid.plot_bounding_box(ax_dsf)
         # self.dsf.dic_grid.plot_box_annotate(ax_dsf)
         self.bd.plot_sz_bd(ax_cl)
         self.dsf.plot_crack_detection_field(ax_cl, self.fig)
         #self.plot_cracking_hist2(ax_cl)
         #self.critical_crack.plot_x_t_crc_Ka(ax_cl, line_width=2, line_color='red', tip_color='red')
-        self.plot_primary_cracks(ax_cl)
+        if self.show_cracks in ['primary', 'all']:
+            self.plot_primary_cracks(ax_cl)
+        if self.show_cracks in ['secondary', 'all']:
+            self.plot_secondary_cracks(ax_cl)
         ax_cl.axis('equal')
-        ax_cl.axis('on');
+        ax_cl.axis('off');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
+
+        self.plot_MQ(ax_M, ax_Q)
         return
         # plot the kinematic profile
         #self.critical_crack.plot_u_t_crc_Ka(ax_u)

@@ -514,8 +514,15 @@ class DICInpUnstructuredPoints(bu.Model):
     """
     @tr.cached_property
     def _get_F_T_t(self):
+        return self.F_T[self.T_t]
+
+    F_T = tr.Property(depends_on='state_changed')
+    """Loading history
+    """
+    @tr.cached_property
+    def _get_F_T(self):
         _, F_T = self.time_F_T
-        return F_T[self.T_t]
+        return F_T
 
     def plot_points(self, ax):
         U_Qa = self.U_TQa[self.T_t] * self.U_factor
@@ -568,6 +575,42 @@ class DICInpUnstructuredPoints(bu.Model):
                     horizontalalignment='right',
                     verticalalignment='top',
                     )
+
+
+    Q_T = tr.Property(depends_on='state_changed')
+
+    @tr.cached_property
+    def _get_Q_T(self):
+        L_right = self.sz_bd.L_right
+        L_left = self.sz_bd.L_left
+        return self.F_T * L_left / (L_left + L_right)
+
+    M_T = tr.Property(depends_on='state_changed')
+
+    @tr.cached_property
+    def _get_M_T(self):
+        L_right = self.sz_bd.L_right
+        return self.Q_T * L_right
+
+    Q_1 = tr.Property
+
+    def _get_Q_1(self):
+        return self.Q_T[-1]
+
+    M_1 = tr.Property
+
+    def _get_M_1(self):
+        return self.M_T[-1]
+
+    Q_t = tr.Property
+
+    def _get_Q_t(self):
+        return self.Q_T[self.T_t]
+
+    M_t = tr.Property
+
+    def _get_M_t(self):
+        return self.M_T[self.T_t]
 
     def plot_load_deflection(self, ax_load):
         w_m = self.w_m

@@ -202,14 +202,14 @@ class DICCrack(bu.Model):
         # number of discretization nodes in the uncracked part
         n_K_unc = self.n_K_ligament - n_K_crc
         # discretize the ligament from the bottom to the crack tip
-        y_crc_range = np.linspace(y_bot, y_bot + y_tip, n_K_crc)
+        y_crc_range = np.linspace(y_bot, y_tip, n_K_crc)
         # horizontal coordinates of the ligament nodes cracked
         X_crc_Ka = np.array([self.C_cubic_spline(y_crc_range), y_crc_range], dtype=np.float_).T
         # discretize the ligament from the crack tip to the top
-        y_unc_range = np.linspace(y_bot + y_tip + d_y, y_top, n_K_unc)
+        y_unc_range = np.linspace(y_tip + d_y, y_top, n_K_unc)
         # horizontal coordinates of the ligament nodes uncracked
         X_unc_Ka = np.array([
-            np.ones_like(y_unc_range) * self.C_cubic_spline(y_bot + y_tip),
+            np.ones_like(y_unc_range) * self.C_cubic_spline(y_tip),
             y_unc_range], dtype=np.float_).T
         # horizontal coordinates of the whole ligament
         X_Ka = np.vstack([X_crc_Ka, X_unc_Ka])
@@ -438,6 +438,17 @@ class DICCrack(bu.Model):
         # reshape the dimension of the result array back to TK
         return self.cl.dsf.f_omega_irn_txy(tx_Pb).reshape(len(self.t_T), -1)
 
+    @staticmethod
+    def get_z_MN_ironed(x_K, y_K, RR):
+        delta_x_JK = x_K[None, ...] - x_K[..., None]
+        r2_n = (delta_x_JK ** 2) / (2 * RR ** 2)
+        alpha_r_MK = np.exp(-r2_n)
+        a_M = np.trapz(alpha_r_MK, x_K[:], axis=-1)
+        normed_a_MK = np.einsum('MK,M->MK', alpha_r_MK, 1 / a_M)
+        z_MK = np.einsum('MK,K...->MK...', normed_a_MK, y_K)
+        z_M = np.trapz(z_MK, x_K, axis=-1)
+        return z_M
+
     K_tip_T = tr.Property(depends_on='state_changed')
     '''Vertical index of the crack tip at time index T.
     '''
@@ -453,9 +464,20 @@ class DICCrack(bu.Model):
         # damage reaches the overall damage threshold omega_threshold.
         K_omega_tip_T = np.argmax(self.omega_TK[K_omega_T][:, :self.K_tip_1+1] <
                             self.omega_threshold, axis=-1)
+        # K_omega_tip_T = self.K_tip_1 - np.argmax(self.omega_TK[K_omega_T][:, self.K_tip_1::-1] > self.omega_threshold,
+        #                                          axis=-1)
         # identify the fully cracked ligaments - the argmax search did not identify them
         # since they did not drop below the omega_threshold
-        fully_cracked = np.where(self.omega_TK[K_omega_T][:,self.K_tip_1] >= self.omega_threshold)
+        #fully_cracked = np.where(self.omega_TK[K_omega_T][:,self.K_tip_1] >= self.omega_threshold)
+        fully_cracked = self.omega_TK[K_omega_T][:, self.K_tip_1] >= self.omega_threshold
+        # Ensure that the damage at tip is not a single random point with higher damage
+        # At least n_K_top number of segments must be at the same level of damage
+        n_K_tip = 5
+        cum_omega_TK_tip = np.sum(
+            self.omega_TK[K_omega_T][fully_cracked][:, self.K_tip_1:self.K_tip_1 - n_K_tip:-1],
+            axis=-1)
+        fully_cracked[fully_cracked] = cum_omega_TK_tip > (n_K_tip * self.omega_threshold)
+        # finally assign the active cracks
         K_omega_tip_T[fully_cracked] = self.K_tip_1
         # place the found indexes into the time array
         K_tip_T[K_omega_T] = K_omega_tip_T
@@ -468,12 +490,27 @@ class DICCrack(bu.Model):
     def _get_X_tip_t_a(self):
         return self.X_crc_1_Ka[self.K_tip_T[self.T_t]]
 
-    omega_t_N = tr.Property(depends_on='state_changed')
+    omega_t_K = tr.Property(depends_on='state_changed')
     '''Damage along the ligament at current time t.
     '''
     @tr.cached_property
-    def _get_omega_t_N(self):
+    def _get_omega_t_K(self):
         return self.omega_TK[self.T_t]
+
+    z_N = tr.Property
+
+    def _get_z_N(self):
+        return self.bd.csl.z_j
+
+    A_N = tr.Property
+
+    def _get_A_N(self):
+        return self.bd.csl.A_j
+
+    x_N = tr.Property(bu.Float, depends_on='state_changed')
+    @tr.cached_property
+    def _get_x_N(self):
+        return self.C_cubic_spline(self.z_N)
 
     # ----------------------------------------------------------
     # Plot functions
@@ -587,7 +624,7 @@ class DICCrack(bu.Model):
         h_ligament = y_top - y_bot
         w_max_plot_size = h_ligament * self.w_H_plot_ratio
         w_plot_factor = w_max_plot_size
-        omega_Nb = self.omega_t_N[:, np.newaxis] * self.T_1_Kab[..., 0, :] * w_plot_factor
+        omega_Nb = self.omega_t_K[:, np.newaxis] * self.T_1_Kab[..., 0, :] * w_plot_factor
         X_1_omega_Kb = self.X_1_Ka + omega_Nb
         l_iNb = np.array([self.X_1_Ka, X_1_omega_Kb], dtype=np.float_)
         l_biN = np.einsum('iNb->biN', l_iNb)
