@@ -46,15 +46,16 @@ class DICCrackList(bu.ModelDict):
     delta_s = bu.Float(10, ALG=True)
     n_G = bu.Int(40, ALG=True)
     x_boundary = bu.Float(20, ALG=True)
-
     crack_fraction = bu.Float(0.2, ALG=True)
+    t_detect = bu.Float(0.7, ALG=True)
 
-    show_cracks = bu.Enum(options=('primary', 'secondary', 'all'), ALG=True)
+    show_cracks = bu.Enum(options=('primary', 'secondary', 'all', 'raw'), ALG=True)
 
     ipw_view = bu.View(
         bu.Item('delta_alpha_min'),
         bu.Item('delta_alpha_max'),
         bu.Item('delta_s'),
+        bu.Item('t_detect'),
         bu.Item('n_G'),
         bu.Item('x_boundary'),
         bu.Item('crack_fraction'),
@@ -70,50 +71,26 @@ class DICCrackList(bu.ModelDict):
         return self.dsf.X_ipl_bb_Ca[(0,1),(1,1)]
 
 
-    cracks = tr.Property(depends_on='MESH, ALG')
+    cracks = tr.Property(depends_on='+MESH, +ALG')
     @tr.cached_property
     def _get_cracks(self):
         X_CKa = self.X_CKa
         K_tip_C = self.K_tip_C
         n_C = len(X_CKa)
         C_C = np.arange(n_C)
-        return np.array([ DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C], :])
+        return np.array([ DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C]+1, :])
             for C in C_C ])
 
-    items = tr.Property(depends_on='MESH, ALG')
+    items = tr.Property(depends_on='+MESH, +ALG')
     @tr.cached_property
     def _get_items(self):
         return {
             str(C): crack for C, crack in enumerate(self.cracks)
         }
-        # X_CKa = self.X_CKa
-        # K_tip_C = self.K_tip_C
-        # n_C = len(X_CKa)
-        # C_C = np.arange(n_C)
-        # items = {
-        #     str(C): DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C], :])
-        #     for C in C_C
-        # }
-        # return items
 
-    primary_cracks = tr.Property
-    def _get_primary_cracks(self):
-        primary_cracks, _ = self.sorted_cracks
-        return primary_cracks
-
-    secondary_cracks = tr.Property
-    def _get_secondary_cracks(self):
-        _, secondary_cracks = self.sorted_cracks
-        return secondary_cracks
-
-    sorted_cracks = tr.Property
-    def _get_sorted_cracks(self):
-        # get the array of crack tips
-        x_tip_1_Ca = np.array([
-            crack.X_tip_1_a for crack in self.cracks
-        ])
+    def get_primary_cracks(self, X_tip_1_Ca):
         # constract the array of vectors connecting each with each crack tip
-        diff_x_tip_1_CDa = x_tip_1_Ca[np.newaxis, :, :] - x_tip_1_Ca[:, np.newaxis, :]
+        diff_x_tip_1_CDa = X_tip_1_Ca[np.newaxis, :, :] - X_tip_1_Ca[:, np.newaxis, :]
         # get the distances
         delta_tip_1_CD = np.linalg.norm(diff_x_tip_1_CDa, axis=-1)
         # identify close crack tips below the threshold values
@@ -133,11 +110,11 @@ class DICCrackList(bu.ModelDict):
         # the array
         secondary_C = triu_row[close_rc] - triu_col[close_rc] < 0
         secondary_D = np.unique(triu_col[close_rc][secondary_C])
-        prim_C = np.ones_like(self.cracks, dtype=np.bool_)
+        prim_C = np.ones((len(X_tip_1_Ca),), dtype=np.bool_)
         prim_C[secondary_D] = False
-        return self.cracks[prim_C], self.cracks[np.invert(prim_C)]
+        return prim_C
 
-    def get_X_C1a(self, X_C0a, C_r, alpha_C0):
+    def get_X_C1a(self, X_C0a, C_r, alpha_C0, t_detect):
         """
         X_C0a - initial positions of the crack tip
         alpha_C0 - previous angle of the crack behind the crack tip
@@ -161,7 +138,7 @@ class DICCrackList(bu.ModelDict):
         X_r1ga = X_r0a[:, np.newaxis, :] + delta_X_r1ga
         x_r1g, y_r1g = np.einsum('...a->a...', X_r1ga)
         # damage values in candidate crack tips
-        t_r1g = np.ones_like(x_r1g)
+        t_r1g = np.ones_like(x_r1g) * t_detect
         args = (t_r1g, x_r1g, y_r1g)
         omega_r1g = self.dsf.f_omega_irn_txy(args)
         # index of candidate with maximum damage in each active tip
@@ -191,41 +168,27 @@ class DICCrackList(bu.ModelDict):
         alpha_C1[C_r] = alpha_r1[r_running]
         return X_C1a, C_r, alpha_C1
 
-    crack_paths = tr.Property#(depends_on='MESH, ALG')
-    """Get the crack paths as an array `X_CKa` of a crack $C \in [0, n_C]$
-    with defined by the points $K \in [0, n_K$ with coordinates $a \in [0,1]$
-    """
-    #@cached_array("beam_param_file",names=['X_CKa', 'X_tip_C'])
-    #@tr.cached_property
-    def _get_crack_paths(self):
 
-        # spatial coordinates
-        xx_MN, yy_MN, omega_irn_1_MN = self.dsf.omega_irn_1_MN
-        # number of points to skip on the left and right side based on the x_boundary parameters
-        d_x = xx_MN[1, 0] - xx_MN[0, 0]
-        M_offset = int(self.x_boundary / d_x)
-        # initial crack positions at the bottom of the zone
-        M_C_with_offset = argrelextrema(omega_irn_1_MN[M_offset:-M_offset, 0], np.greater)[0]
-        M_C = M_C_with_offset + M_offset
-        # running and stopped cracks
-        n_C = len(M_C)
+    def get_X_t_KCa(self, X_C0a, t_detect):
+
+        # index of running cracks
+        n_C = X_C0a.shape[0]
         C_r = np.arange(n_C)
-        # initial points
-        x_C0, y_C0 = xx_MN[M_C, 0], yy_MN[M_C, 0]
-        X_C0a = np.array([x_C0, y_C0]).T
-        K_tip_C = np.zeros_like(x_C0, dtype=np.int_)
+        C_C = np.arange(n_C)
+        K_tip_C = np.zeros((n_C,), dtype=np.int_)
+        alpha_C0 = np.zeros((n_C,), dtype=np.float_)
+
         X_KCa_ = [X_C0a]
-        alpha_C0 = np.zeros((len(X_C0a),))
-        K = 1
+        K = 0
         while len(C_r) > 0:
             K += 1
-            X_C1a, C_r, alpha_C0 = self.get_X_C1a(X_C0a, C_r, alpha_C0)
+            X_C1a, C_r, alpha_C0 = self.get_X_C1a(X_C0a, C_r, alpha_C0,
+                                                  t_detect=t_detect)
             K_tip_C[C_r] = K
             X_KCa_.append(X_C1a)
             X_C0a = X_C1a
 
         X_CKa = np.einsum('KCa->CKa', np.array(X_KCa_))
-        C_C = np.arange(len(X_CKa))
         # discard two short cracks
         y_bot, y_top = self.y_range
         h = y_top - y_bot
@@ -234,6 +197,48 @@ class DICCrackList(bu.ModelDict):
         C_long_enough = (y_tip / h) > self.crack_fraction
         return X_CKa[C_long_enough], K_tip_C[C_long_enough]
 
+    crack_paths = tr.Property(depends_on='+MESH,+ALG')
+    """Get the crack paths as an array `X_CKa` of a crack $C \in [0, n_C]$
+    with defined by the points $K \in [0, n_K$ with coordinates $a \in [0,1]$
+    """
+    #@cached_array("beam_param_file",names=['X_CKa', 'X_tip_C'])
+    @tr.cached_property
+    def _get_crack_paths(self):
+        # spatial coordinates
+        xx_MN, yy_MN, omega_irn_1_MN = self.dsf.omega_irn_1_MN
+        # number of points to skip on the left and right side based on the x_boundary parameters
+        d_x = xx_MN[1, 0] - xx_MN[0, 0]
+        M_offset = int(self.x_boundary / d_x)
+        # initial crack positions at the bottom of the zone
+        M_C_with_offset = argrelextrema(omega_irn_1_MN[M_offset:-M_offset, 0], np.greater)[0]
+        M_C = M_C_with_offset + M_offset
+        # initial points
+        x_C0, y_C0 = xx_MN[M_C, 0], yy_MN[M_C, 0]
+        X_C0a = np.array([x_C0, y_C0]).T
+        # run detection at the state t_detect
+        X_CKa, K_tip_C = self.get_X_t_KCa(X_C0a, self.t_detect)
+        # detect primary cracks by removing identical crack tips
+        C_C = np.arange(len(K_tip_C))
+        prim_C = self.get_primary_cracks(X_CKa[C_C, K_tip_C, :])
+        K_tip_prim_C = K_tip_C[prim_C]
+        X_tip_prim_Ca = X_CKa[prim_C, K_tip_prim_C]
+        X_prim_CKa = X_CKa[prim_C]
+        # run detection of primary cracks at the ultimate state t = 1
+        X_prim_CLa, L_tip_prim_C = self.get_X_t_KCa(X_tip_prim_Ca, 1)
+        n_prim_C = len(np.where(prim_C)[0])
+        n_K, n_L = X_CKa.shape[1], X_prim_CLa.shape[1]
+        X_prim_CMa = np.zeros((n_prim_C, n_K+n_L, 2,), dtype=np.float_)
+        C_prim_C = np.arange(n_prim_C)
+        X_prim_CMa[C_prim_C, :n_K, :] = X_CKa[prim_C, :]
+
+        for C, M_start in enumerate(K_tip_prim_C):
+            M_end = M_start+n_L
+            X_prim_CMa[C, M_start:M_end, :] = X_prim_CLa[C]
+            X_prim_CMa[C, M_end:, :] = X_prim_CLa[C, -1, :]
+
+        M_tip_C = K_tip_prim_C + L_tip_prim_C
+        return X_prim_CMa, M_tip_C
+
     X_CKa = tr.Property
     def _get_X_CKa(self):
         return self.crack_paths[0]
@@ -241,6 +246,25 @@ class DICCrackList(bu.ModelDict):
     K_tip_C = tr.Property
     def _get_K_tip_C(self):
         return self.crack_paths[1]
+
+    primary_cracks = tr.Property
+    def _get_primary_cracks(self):
+        # primary_cracks, _ = self.sorted_cracks
+        return self.cracks
+    #
+    # secondary_cracks = tr.Property
+    # def _get_secondary_cracks(self):
+    #     _, secondary_cracks = self.sorted_cracks
+    #     return secondary_cracks
+
+    # sorted_cracks = tr.Property
+    # def _get_sorted_cracks(self):
+    #     # get the array of crack tips
+    #     X_tip_1_Ca = np.array([
+    #         crack.X_tip_1_a for crack in self.cracks
+    #     ])
+    #     prim_C = self.get_primary_cracks(X_tip_1_Ca)
+    #     return self.cracks[prim_C], self.cracks[np.invert(prim_C)]
 
     def plot_all_cracks(self, ax_cracks):
         X_aKC = np.einsum('CKa->aKC', self.X_CKa)
@@ -251,11 +275,11 @@ class DICCrackList(bu.ModelDict):
         for crack in self.primary_cracks:
             crack.plot_X_crc_1_Ka(ax_cracks)
             crack.plot_X_crc_t_Ka(ax_cracks)
-
-    def plot_secondary_cracks(self, ax_cracks):
-        for crack in self.secondary_cracks:
-            crack.plot_X_crc_1_Ka(ax_cracks)
-            crack.plot_X_crc_t_Ka(ax_cracks)
+    #
+    # def plot_secondary_cracks(self, ax_cracks):
+    #     for crack in self.secondary_cracks:
+    #         crack.plot_X_crc_1_Ka(ax_cracks)
+    #         crack.plot_X_crc_t_Ka(ax_cracks)
 
     critical_crack = tr.Property(depends_on='state_changed')
     @tr.cached_property
@@ -322,12 +346,15 @@ class DICCrackList(bu.ModelDict):
         # self.dsf.dic_grid.plot_box_annotate(ax_dsf)
         self.bd.plot_sz_bd(ax_cl)
         self.dsf.plot_crack_detection_field(ax_cl, self.fig)
-        #self.plot_cracking_hist2(ax_cl)
         #self.critical_crack.plot_x_t_crc_Ka(ax_cl, line_width=2, line_color='red', tip_color='red')
-        if self.show_cracks in ['primary', 'all']:
-            self.plot_primary_cracks(ax_cl)
-        if self.show_cracks in ['secondary', 'all']:
-            self.plot_secondary_cracks(ax_cl)
+
+        # if self.show_cracks in ['primary', 'all']:
+        self.plot_primary_cracks(ax_cl)
+        # if self.show_cracks in ['secondary', 'all']:
+        #     self.plot_secondary_cracks(ax_cl)
+        # if self.show_cracks in ['raw']:
+        self.plot_all_cracks(ax_cl)
+
         ax_cl.axis('equal')
         ax_cl.axis('off');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
