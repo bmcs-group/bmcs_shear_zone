@@ -381,10 +381,6 @@ class DICCrack(bu.Model):
         # handle the situation with coordinates outside the bounding box
         self.cl.dsf
         u_Ka = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
-
-        # eps_Kab, K_eps = self.get_eps_Kab(t, X_Ka)
-        # U_Ka[K_eps, 0] = eps_Kab[K_eps, 0, 0] * self.bd.matrix_.L_cr
-        # U_Ka[K_eps, 1] = eps_Kab[K_eps, 0, 1] * self.bd.matrix_.L_cr
         return u_Ka
 
     u_crc_1_Ka = tr.Property(depends_on='state_changed')

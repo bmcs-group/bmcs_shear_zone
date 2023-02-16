@@ -72,6 +72,13 @@ class RCBeamDesign(BeamDesign):
                           options=[('rectangle', Rectangle)],
                           CS=True )
 
+    depends_on = [
+        'matrix',
+        'cross_section_shape',
+        'cross_section_layout',
+        'system'
+    ]
+
     tree = [
         'matrix',
         'cross_section_shape',

@@ -46,56 +46,49 @@ class DICCrackCOR(bu.Model):
 
     depends_on = ['dic_crack']
 
-    delta_M = bu.Int(2, ALG=True)
+    delta_x = bu.Float(30, ALG=True)
+    delta_y = bu.Float(30, ALG=True)
 
-    M0 = tr.Property(bu.Int, depends_on='state_changed')
-    '''Horizontal index defining the start position fixed line.
+    X0_0_a = tr.Property(bu.Float, depends_on='state_changed')
+    '''Point relative to the crack tip defining the rigid frame on left tooth
     '''
     @tr.cached_property
-    def _get_M0(self):
+    def _get_X0_0_a(self):
+        X_crc_1_0a, X_crc_1_1a = self.dic_crack.X_crc_1_Ka[(0, -1), :]
         if self.frame_position == 'vertical':
-            return self.dic_crack.M_N[self.dic_crack.N_tip] - self.delta_M
+            X0_0_a = np.array([X_crc_1_1a[0] - self.delta_x,
+                               X_crc_1_0a[1] + self.delta_y])
         elif self.frame_position == 'inclined':
-            return self.dic_crack.M_N[0] - self.delta_M
+            X0_0_a = X_crc_1_0a + np.array([-self.delta_x, self.delta_y])
+        return X0_0_a
 
-    N0 = bu.Int(1, ALG=True)
-    '''Vertical index defining the start position of the fixed line.
-    '''
-
-    M1 = tr.Property(bu.Int, depends_on='state_changed')
-    '''Horizontal index defining the end position the fixed line.
+    X1_0_a = tr.Property(bu.Float, depends_on='state_changed')
+    '''Point relative to the crack tip defining the rigid frame on left tooth
     '''
     @tr.cached_property
-    def _get_M1(self):
-        if self.frame_position == 'vertical':
-            return self.dic_crack.M_N[self.dic_crack.N_tip] - self.delta_M
-        elif self.frame_position == 'inclined':
-            return self.dic_crack.M_N[self.dic_crack.N_tip] - self.delta_M
+    def _get_X1_0_a(self):
+        X_tip_1_a = self.dic_crack.X_crc_1_Ka[-1, :]
+        return X_tip_1_a - np.array([self.delta_x, 0])
 
-    N1 = tr.Property(bu.Int, depends_on='state_changed')
-    '''Vertical index defining the end position of the fixed line.
-    '''
-    @tr.cached_property
-    def _get_N1(self):
-        return self.dic_crack.N_tip
 
-    M_N = tr.Property(bu.Int, depends_on='state_changed')
-    '''Horizontal indexes of the crack segments.
-    '''
-    @tr.cached_property
-    def _get_M_N(self):
-        return self.dic_crack.M_N
-
+    # M_N = tr.Property(bu.Int, depends_on='state_changed')
+    # '''Horizontal indexes of the crack segments.
+    # '''
+    # @tr.cached_property
+    # def _get_M_N(self):
+    #     return self.dic_crack.M_N
+    #
     frame_position = bu.Enum(options=[
-        'vertical','inclined'
+        'inclined', 'vertical'
     ], ALG=True)
 
     ipw_view = bu.View(
-        bu.Item('delta_M'),
-        bu.Item('M0', readonly=True),
-        bu.Item('N0', readonly=True),
-        bu.Item('M1', readonly=True),
-        bu.Item('N1', readonly=True),
+        bu.Item('delta_x'),
+        bu.Item('delta_y'),
+        # bu.Item('x0', readonly=True),
+        # bu.Item('y0', readonly=True),
+        # bu.Item('x1', readonly=True),
+        # bu.Item('y1', readonly=True),
         bu.Item('step_N_COR'),
         bu.Item('frame_position'),
         bu.Item('phi_t', readonly=True),
@@ -109,27 +102,52 @@ class DICCrackCOR(bu.Model):
     '''Vertical index distance between the markers included in the COR calculation
     '''
 
-    MN_selection = tr.Property(depends_on='state_changed')
+
+    x_bandwidth = bu.Float(70, ALG=True)
+    x_spacing = bu.Float(20, ALG=True)
+    y_spacing = bu.Float(20, ALG=True)
+    y_offset = bu.Float(20, ALG=True)
+    x_offset = bu.Float(20, ALG=True)
+
+    X_OPa = tr.Property(depends_on='state_changed')
     @tr.cached_property
-    def _get_MN_selection(self):
-        upper_N = self.dic_crack.N_tip_T
-        slice_N = slice(None, upper_N, self.step_N_COR)
-        n_N = len(self.M_N)
-        m = self.M_N[slice_N,np.newaxis] + np.arange(1,6)
-        n = np.zeros_like(m) + np.arange(n_N)[slice_N, np.newaxis]
-        return m.flatten(), n.flatten()
+    def _get_X_OPa(self):
+        if len(self.dic_crack.X_crc_t_Ka) == 0:
+            return np.zeros((0, 0, 2), np.float_)
+        X_start_a, X_end_a = self.dic_crack.X_crc_t_Ka[(0, -1), :]
+        delta_y = X_end_a[1] - (X_start_a[1] + self.y_offset)
+        n_P = int(delta_y / self.y_spacing) + 1
+        y_P = X_start_a[1] + self.y_offset + np.arange(n_P) * self.y_spacing
+        x_P = self.dic_crack.C_cubic_spline(y_P)
+
+        n_O = int(self.x_bandwidth / self.x_spacing)
+        x_O = self.x_offset + np.arange(n_O) * self.x_spacing
+        y_O = np.zeros_like(x_O)
+
+        x_OP = x_O[:, np.newaxis] + x_P[np.newaxis, :]
+        y_OP = y_O[:, np.newaxis] + y_P[np.newaxis, :]
+        X_aOP = np.array([x_OP, y_OP])
+        return np.einsum('a...->...a', X_aOP)
+
+    crack_exists = tr.Property
+    def _get_crack_exists(self):
+        return self.X_OPa.shape[1] > 0
 
     VW_rot_t_pa = tr.Property(depends_on='state_changed')
     '''Displacement vector and the normal to its midpoint 
     '''
     @tr.cached_property
     def _get_VW_rot_t_pa(self):
+        if not self.crack_exists:
+            return np.zeros((0, 2), np.float_), np.zeros((0, 2), np.float_)
+        x0, y0 = self.X0_0_a
+        x1, y1 = self.X1_0_a
         self.a_grid.trait_set(
-            M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
-            MN_selection=self.MN_selection
+            x0=x0, y0=y0, x1=x1, y1=y1,
+            X_0_MNa = self.X_OPa
         )
         V_rot_t_pa, W_rot_t_pa = self.a_grid.VW_rot_t_MNa
-        return V_rot_t_pa, W_rot_t_pa
+        return V_rot_t_pa.reshape(-1,2), W_rot_t_pa.reshape(-1,2)
 
     X_cor_rot_t_pa_sol = tr.Property(depends_on='state_changed')
     '''Center of rotation determined for each patch point separately
@@ -170,9 +188,11 @@ class DICCrackCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_X_cor_t_pa(self):
+        x0, y0 = self.X0_0_a
+        x1, y1 = self.X1_0_a
         self.a_grid.trait_set(
-            M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
-            MN_selection=self.MN_selection
+            x0=x0, y0=y0, x1=x1, y1=y1,
+            X_0_MNa = self.X_OPa
         )
         X_cor_pull_t_pa = np.einsum('ba,...b->...a',
             self.a_grid.T_t_ab, self.X_cor_rot_t_pa_sol
@@ -186,11 +206,13 @@ class DICCrackCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_X_cor_t_a(self):
-        if len(self.dic_crack.x_t_crc_Ka) == 0:
+        if not self.crack_exists:
             return np.array([0,0], dtype=np.float_)
+        x0, y0 = self.X0_0_a
+        x1, y1 = self.X1_0_a
         self.a_grid.trait_set(
-            M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
-            MN_selection=self.MN_selection
+            x0=x0, y0=y0, x1=x1, y1=y1,
+            X_0_MNa = self.X_OPa
         )
         X_cor_pull_t_a = np.einsum('ba,...b->...a',
             self.a_grid.T_t_ab, self.X_cor_rot_t_a
@@ -203,11 +225,11 @@ class DICCrackCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_stat_phi_t(self):
-        M_, N_ = self.MN_selection
-        if len(M_) == 0:
+        if not self.crack_exists:
             return 0, 0
         V_rot_t_pa, W_rot_t_pa = self.VW_rot_t_pa
-        norm_U2_t_p = np.linalg.norm(self.a_grid.U_rot_t_MNa, axis=-1) / 2
+        norm_U2_t_MN = np.linalg.norm(self.a_grid.U_rot_t_MNa, axis=-1) / 2
+        norm_U2_t_p = norm_U2_t_MN.flatten()
         norm_V2_t_p = np.linalg.norm(self.X_cor_rot_t_a - V_rot_t_pa, axis=-1)
         phi_p = 2 * np.arctan(norm_U2_t_p / norm_V2_t_p)
         mean_phi = np.mean(phi_p)
@@ -231,20 +253,17 @@ class DICCrackCOR(bu.Model):
         _, cov_phi = self.stat_phi_t
         return cov_phi
 
-    def plot_X_cor_rot_t(self, ax):
-        ax.plot(*self.X_cor_rot_t_pa_sol.T, 'o', color = 'blue')
-        ax.plot([self.X_cor_rot_t_a[0]], [self.X_cor_rot_t_a[1]], 'o', color='red')
-        ax.axis('equal');
-
     M_t = tr.Property(bu.Float, depends_on='state_changed')
     '''Coefficient of variation for the angles of rotation.
     '''
     @tr.cached_property
     def _get_M_t(self):
-        if self.dic_crack.N_tip_T > 0:
+        if self.crack_exists:
             X_cor_r = self.X_cor_t_a[0]
         else:
-            X_cor_r = self.dic_crack.x_t_tip_a[0]
+            # if the crack does not exist yet, take it's initial position
+            # at the bottom layer
+            X_cor_r = self.dic_crack.X_crc_1_Ka[0,0]
         L_right = self.dic_grid.sz_bd.L_right
         L_left = self.dic_grid.sz_bd.L_left
         F_right = self.dic_grid.F_T_t * L_left / (L_left + L_right)
@@ -261,13 +280,24 @@ class DICCrackCOR(bu.Model):
         F_right = self.dic_grid.F_T_t * L_left / (L_left + L_right)
         return F_right
 
+    def plot_X_cor_rot_t(self, ax):
+        if not self.crack_exists:
+            return
+        ax.plot(*self.X_cor_rot_t_pa_sol.T, 'o', color = 'blue')
+        ax.plot([self.X_cor_rot_t_a[0]], [self.X_cor_rot_t_a[1]], 'o', color='yellow')
+        ax.axis('equal');
+
 
     def plot_X_cor_t(self, ax):
+        if not self.crack_exists:
+            return
         ax.plot(*self.X_cor_t_pa.T, 'o', color = 'blue')
-        ax.plot([self.X_cor_t_a[0]], [self.X_cor_t_a[1]], 'o', color='red')
+        ax.plot([self.X_cor_t_a[0]], [self.X_cor_t_a[1]], 'o', color='yellow')
         ax.axis('equal');
 
     def plot_VW_rot_t(self, ax_x):
+        if not self.crack_exists:
+            return
         V_rot_t_pa, W_rot_pa = self.VW_rot_t_pa
         ax_x.scatter(*V_rot_t_pa.T, s=20, color='orange')
 
@@ -279,17 +309,19 @@ class DICCrackCOR(bu.Model):
         self.dic_grid.plot_bounding_box(ax_x)
         self.dic_grid.plot_box_annotate(ax_x)
 
-        M_sel, N_sel = self.MN_selection
-        if len(M_sel) > 0:
+        if self.crack_exists:
+            x0, y0 = self.X0_0_a
+            x1, y1 = self.X1_0_a
             self.a_grid.trait_set(
-                M0=self.M0, N0=self.N0, M1=self.M1, N1=self.N1,
-                MN_selection=self.MN_selection
+                x0=x0, y0=y0, x1=x1, y1=y1,
+                X_0_MNa = self.X_OPa
             )
-            #self.a_grid.plot_rot(ax_x)
-            self.a_grid.plot_selection_init(ax_x)
+            self.a_grid.plot_init(ax_x)
             self.plot_X_cor_t(ax_x)
 
-        self.dic_crack.plot_x_1_Ka(ax_x)
-        self.dic_crack.plot_x_t_Ka(ax_x)
+        self.a_grid.plot_frame(ax_x)
+
+        self.dic_crack.plot_X_1_Ka(ax_x)
+        self.dic_crack.plot_X_t_Ka(ax_x)
 
         ax_x.axis('equal');
