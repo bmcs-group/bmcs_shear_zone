@@ -288,11 +288,14 @@ class DICCrackCOR(bu.Model):
         ax.axis('equal');
 
 
+    cor_marker_size = bu.Int(10, ALG=True)
+    cor_marker_color = bu.Str('magenta', ALG=True)
     def plot_X_cor_t(self, ax):
         if not self.crack_exists:
             return
         ax.plot(*self.X_cor_t_pa.T, 'o', color = 'blue')
-        ax.plot([self.X_cor_t_a[0]], [self.X_cor_t_a[1]], 'o', color='yellow')
+        ax.plot([self.X_cor_t_a[0]], [self.X_cor_t_a[1]], 'o',
+                color=self.cor_marker_color, markersize=self.cor_marker_size)
         ax.axis('equal');
 
     def plot_VW_rot_t(self, ax_x):
