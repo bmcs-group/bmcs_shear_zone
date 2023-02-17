@@ -54,6 +54,7 @@ class DICCrackCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_X0_0_a(self):
+        x_min, y_min, x_max, y_max = self.dic_grid.X_frame
         X_crc_1_0a, X_crc_1_1a = self.dic_crack.X_crc_1_Ka[(0, -1), :]
         if self.frame_position == 'vertical':
             X0_0_a = np.array([X_crc_1_1a[0] - self.delta_x,
@@ -67,17 +68,12 @@ class DICCrackCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_X1_0_a(self):
+        x_min, y_min, x_max, y_max = self.dic_grid.X_frame
         X_tip_1_a = self.dic_crack.X_crc_1_Ka[-1, :]
-        return X_tip_1_a - np.array([self.delta_x, 0])
+        x1 = np.max([X_tip_1_a[0] - self.delta_x, x_min])
+        y1 = X_tip_1_a[1] - self.delta_y
+        return np.array([x1, y1])
 
-
-    # M_N = tr.Property(bu.Int, depends_on='state_changed')
-    # '''Horizontal indexes of the crack segments.
-    # '''
-    # @tr.cached_property
-    # def _get_M_N(self):
-    #     return self.dic_crack.M_N
-    #
     frame_position = bu.Enum(options=[
         'inclined', 'vertical'
     ], ALG=True)
@@ -290,6 +286,7 @@ class DICCrackCOR(bu.Model):
 
     cor_marker_size = bu.Int(10, ALG=True)
     cor_marker_color = bu.Str('magenta', ALG=True)
+
     def plot_X_cor_t(self, ax):
         if not self.crack_exists:
             return
@@ -313,13 +310,15 @@ class DICCrackCOR(bu.Model):
         self.dic_grid.plot_box_annotate(ax_x)
 
         if self.crack_exists:
+            X_aOP = np.einsum('...a->a...', self.X_OPa)
+            ax_x.scatter(*X_aOP.reshape(2, -1), s=15, marker='o', color='orange')
+
             x0, y0 = self.X0_0_a
             x1, y1 = self.X1_0_a
             self.a_grid.trait_set(
                 x0=x0, y0=y0, x1=x1, y1=y1,
                 X_0_MNa = self.X_OPa
             )
-            self.a_grid.plot_init(ax_x)
             self.plot_X_cor_t(ax_x)
 
         self.a_grid.plot_frame(ax_x)

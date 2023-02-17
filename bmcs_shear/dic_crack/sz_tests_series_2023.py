@@ -1,6 +1,35 @@
 
 import numpy as np
 
+B1_TV1 = dict(
+    dir_name = 'B1_TV1',
+    U_factor=10,
+    n_t_max = 40,
+    T_stepping = 'delta_T',
+    R=5, omega_threshold=0.2, verbose_eval=True, tmodel='scalar_damage',
+    E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
+    t_detect = 0.92,
+    delta_alpha_min = -0.2,
+    delta_alpha_max = np.pi/3,
+    delta_s = 20,
+    x_boundary = 30
+)
+
+B1_TV2 = dict(
+    dir_name = 'B1_TV2',
+    U_factor=10,
+    n_t_max = 40,
+    T_stepping = 'delta_T',
+    R=5, omega_threshold=0.2, verbose_eval=True, tmodel='scalar_damage',
+    E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
+    t_detect = 0.72,
+    delta_alpha_min = -0.3,
+    delta_alpha_max = np.pi/3,
+    delta_s = 20,
+    x_boundary = 30
+)
+
+
 B6_TV1 = dict(
     dir_name = 'B6_TV1',
     U_factor=10,
