@@ -22,7 +22,7 @@ class CrackExtension(bu.InteractiveModel):
     """
     name = "Crack extension"
 
-    sz_cto = tr.Instance(SZCrackTipOrientation, ())
+    sz_cto = bu.Instance(SZCrackTipOrientation, ())
 
     sz_ctss = tr.DelegatesTo('sz_cto')
     sz_sp = tr.DelegatesTo('sz_ctss')

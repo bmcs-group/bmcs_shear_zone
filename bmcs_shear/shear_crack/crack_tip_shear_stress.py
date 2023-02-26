@@ -2,15 +2,14 @@
 
 import traits.api as tr
 import numpy as np
-import sympy as sp
-from bmcs_utils.api import Model, View, Item, Float, SymbExpr, InjectSymbExpr
+from bmcs_utils.api import Model, View, Item, Float, Instance
 from bmcs_shear.shear_crack.stress_profile import \
     SZStressProfile
 
 class SZCrackTipShearStress(Model):
     name = 'Crack tip stress state'
 
-    sz_sp = tr.Instance(SZStressProfile, ())
+    sz_sp = Instance(SZStressProfile, ())
     sz_cp = tr.DelegatesTo('sz_sp')
     sz_bd = tr.DelegatesTo('sz_cp', 'sz_bd')
 

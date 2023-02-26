@@ -14,7 +14,7 @@ class CrackPropagation(CrackExtension):
     """
     name = "Crack Propagation"
 
-    hist = tr.Instance(CrackPropagationHist)
+    hist = bu.Instance(CrackPropagationHist)
     '''Viewer to the inelastic state evolution'''
     def _hist_default(self):
         return CrackPropagationHist(crack_prop_model=self)

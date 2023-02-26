@@ -29,7 +29,7 @@ M = \int \sigma_0 \left(x_1 - x^\mathrm{rot}_1\right) \; \mathrm{d}x_1
 
 import traits.api as tr
 import numpy as np
-from bmcs_utils.api import InteractiveModel, View, Item, mpl_align_xaxis
+from bmcs_utils.api import InteractiveModel, Instance, View, Item, mpl_align_xaxis
 from bmcs_shear.shear_crack.deformed_state import \
     SZDeformedState
 from scipy.interpolate import interp1d
@@ -40,7 +40,7 @@ class SZStressProfile(InteractiveModel):
     '''
     name = "Profiles"
 
-    sz_ds = tr.Instance(SZDeformedState, ())
+    sz_ds = Instance(SZDeformedState, ())
     sz_cp = tr.DelegatesTo('sz_ds')
     sz_bd = tr.DelegatesTo('sz_cp')
 
@@ -166,8 +166,9 @@ class SZStressProfile(InteractiveModel):
         u_Na = self.u_Na
         if len(u_Na) == 0:
             return np.zeros((0,2), dtype=np.float_)
-        F_Na = np.array([r.get_F_a(u_a) for r, u_a in zip(self.sz_bd.csl.items, u_Na)],
+        F_Na = np.array([r.get_F_a(u_a) for r, u_a in zip(self.sz_bd.csl.items.values(), u_Na)],
                  dtype=np.float_)
+
         #F_Na = self.sz_bd.smm.get_F_a(u_Na)
         return F_Na
 

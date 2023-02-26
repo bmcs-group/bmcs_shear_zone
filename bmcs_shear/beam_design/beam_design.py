@@ -158,6 +158,10 @@ class RCBeamDesign(BeamDesign):
         ax.set_xlim(0, self.B)
         ax.set_ylim(0, self.H)
 
+    z_N = tr.Property
+    def _get_z_N(self):
+        return self.csl.z_j
+
     def subplots(self, fig):
         return fig.subplots(1,2)
 

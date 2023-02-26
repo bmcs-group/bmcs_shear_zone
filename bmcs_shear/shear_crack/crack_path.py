@@ -22,7 +22,7 @@ A starting example of a crack geometry is defined as follows
 
 import numpy as np
 import traits.api as tr
-from bmcs_utils.api import Model, InteractiveWindow, View, Item, Float, Int
+from bmcs_utils.api import Model, Instance, View, Item, Float, Int
 from bmcs_shear.shear_crack.crack_tip_rotation import \
     SZCrackTipRotation
 from bmcs_shear.beam_design import \
@@ -126,13 +126,15 @@ class SZCrackPath(Model):
         Item('x_00', latex=r'x_{00}')
     )
 
+    depends_on = ['sz_bd', 'sz_ctr']
+
     tree = ['sz_bd', 'sz_ctr']
 
-    sz_bd = tr.Instance(RCBeamDesign ,())
+    sz_bd = Instance(RCBeamDesign ,())
     '''Beam design object provides geometrical data and material data.
     '''
 
-    sz_ctr = tr.Instance(SZCrackTipRotation)
+    sz_ctr = Instance(SZCrackTipRotation)
     '''Center of tip rotation - private model component 
        representing the crack tip kinematics.
     '''

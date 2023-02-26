@@ -37,7 +37,7 @@ Transformation to the global coordinate system
 
 import traits.api as tr
 import numpy as np
-from bmcs_utils.api import Model, View, Item
+from bmcs_utils.api import Model, View, Instance
 from bmcs_shear.shear_crack.crack_path import \
     SZCrackPath
 
@@ -47,7 +47,7 @@ class SZDeformedState(Model):
 
     ipw_view = View()
 
-    sz_cp = tr.Instance(SZCrackPath)
+    sz_cp = Instance(SZCrackPath)
     def _sz_cp_default(self):
         return SZCrackPath()
 
