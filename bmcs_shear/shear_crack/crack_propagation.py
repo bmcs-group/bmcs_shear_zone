@@ -19,6 +19,10 @@ class CrackPropagation(CrackExtension):
     def _hist_default(self):
         return CrackPropagationHist(crack_prop_model=self)
 
+    depends_on = [
+        'sz_cto',
+    ]
+
     tree = [
         # 'sz_bd',
         'sz_cto',

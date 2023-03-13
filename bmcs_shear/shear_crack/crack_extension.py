@@ -30,9 +30,12 @@ class CrackExtension(bu.InteractiveModel):
     sz_ctr = tr.DelegatesTo('sz_cp')
     sz_bd = tr.DelegatesTo('sz_cp')
 
+    depends_on = [
+        'sz_cto',
+    ]
+
     tree = [
         'sz_cto',
-        'sz_bd'
     ]
 
     psi = tr.DelegatesTo('sz_ctr')
@@ -82,8 +85,10 @@ class CrackExtension(bu.InteractiveModel):
         '''
         X0 = np.copy(self.X_iter[:])
         def get_R_X(X):
+            print('X', X)
             self.X_iter = X
             R = self.get_R()
+            print('R', R)
             return R
         res = root(get_R_X, X0, method='hybr',
                    options={'xtol': self.xtol,})

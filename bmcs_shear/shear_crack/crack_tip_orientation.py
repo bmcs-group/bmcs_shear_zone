@@ -24,6 +24,7 @@ class SZCrackTipOrientation(bu.InteractiveModel):
     sz_cp = tr.DelegatesTo('sz_ctss')
     sz_bd = tr.DelegatesTo('sz_ctss')
 
+    depends_on = ['sz_ctss']
     tree = ['sz_ctss']
 
     def get_psi(self):

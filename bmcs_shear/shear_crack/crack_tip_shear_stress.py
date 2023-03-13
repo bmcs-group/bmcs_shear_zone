@@ -13,6 +13,7 @@ class SZCrackTipShearStress(Model):
     sz_cp = tr.DelegatesTo('sz_sp')
     sz_bd = tr.DelegatesTo('sz_cp', 'sz_bd')
 
+    depends_on = ['sz_sp']
     tree = ['sz_sp']
 
     L_cs = Float(200, MAT=True)  ##distance between cracks [mm]

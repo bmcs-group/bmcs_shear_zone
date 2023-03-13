@@ -54,6 +54,7 @@ class SZDeformedState(Model):
     sz_ctr = tr.DelegatesTo('sz_cp')
     sz_bd = tr.DelegatesTo('sz_cp')
 
+    depends_on = ['sz_cp']
     tree = ['sz_cp']
 
     x1_Ia = tr.Property(depends_on='state_changed')

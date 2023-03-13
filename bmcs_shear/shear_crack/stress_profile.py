@@ -44,6 +44,7 @@ class SZStressProfile(InteractiveModel):
     sz_cp = tr.DelegatesTo('sz_ds')
     sz_bd = tr.DelegatesTo('sz_cp')
 
+    depends_on = ['sz_ds']
     tree = ['sz_ds']
 
     show_stress = Bool(True)
