@@ -82,6 +82,8 @@ class SZCrackTipShearStressLocal(SZCrackTipShearStress):
 
     def update_plot(self, axes):
        ax1, ax2 = axes
+       return
+
        # sig_x_var = np.linspace(0, 3, 100)
        # sig_y_fix = 3
        f_t = 3
@@ -126,7 +128,6 @@ class SZCrackTipShearStressLocal(SZCrackTipShearStress):
        # #ax2.legend()
        # # ax2.fill_betweenx(z_arr, tau_z_arr, 0, color='blue', alpha=0.1)
        # #  @todo
-
 
        sigma_x_num = 100
        sigma_x_range = np.linspace(-33.3, 3.099999, sigma_x_num)
