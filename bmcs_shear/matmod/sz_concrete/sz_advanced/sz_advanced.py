@@ -93,7 +93,8 @@ class ConcreteMaterialModelAdvExpr(bu.SymbExpr):
 
     symb_expressions = [('sig_w', ('w', 's',)),
                         ('tau_s', ('w', 's',)),
-                        ('tau_s_wal', ('w', 's',))]
+                        ('tau_s_wal', ('w', 's',)),
+                        ]
 
 
 @tr.provides(IMaterialModel)
@@ -120,6 +121,7 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         Item('E_c', latex=r'E_c'),
         Item('f_t', latex=r'f_t'),
         Item('f_c', latex=r'f_c'),
+        Item('L_cr', latex=r'L_\mathrm{cr}'),
         Item('c_1', latex=r'c_1'),
         Item('c_2', latex=r'c_2'),
         Item('L_fps', latex=r'L_\mathrm{fps}'),
@@ -127,8 +129,8 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
         Item('b', latex=r'b'),
         Item('interlock_factor', latex=r'\gamma_\mathrm{ag}', editor=FloatRangeEditor(low=0, high=1)),
         Item('w_cr', latex=r'w_\mathrm{cr}', readonly=True),
-        Item('L_c', latex=r'L_\mathrm{c}', readonly=True),
-        Item('G_f', latex=r'G_\mathrm{f}', readonly=True)
+        # Item('L_c', latex=r'L_\mathrm{c}', readonly=True),
+        # Item('G_f', latex=r'G_\mathrm{f}', readonly=True)
     )
 
     # G_f_baz = tr.Property(depends_on='_ITR, _INC, _GEO, _MAT, _DSC')
@@ -137,36 +139,36 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     #     xi = self.sz_crack_tip_orientation.
     #     return self.symb.G_f_baz
 
-    L_c = tr.Property(Float, depends_on='state_changed')
-
-    @tr.cached_property
-    def _get_L_c(self):
-        return self.E_c * self.G_f / self.f_t ** 2
-
+    # L_c = tr.Property(Float, depends_on='state_changed')
+    #
+    # @tr.cached_property
+    # def _get_L_c(self):
+    #     return self.E_c * self.G_f / self.f_t ** 2
+    #
     w_cr = tr.Property(Float, depends_on='state_changed')
 
     @tr.cached_property
     def _get_w_cr(self):
-        return (self.f_t / self.E_c) * self._get_L_c()
+        return self.eps_cr * self.L_cr
 
-    G_f = tr.Property(Float, depends_on='state_changed')
-
-    @tr.cached_property
-    def _get_G_f(self):
-        """Calculating fracture energy
-        """
-        return (0.028 * self.f_c ** 0.18 * self.d_a ** 0.32)
+    # G_f = tr.Property(Float, depends_on='state_changed')
+    #
+    # @tr.cached_property
+    # def _get_G_f(self):
+    #     """Calculating fracture energy
+    #     """
+    #     return (0.028 * self.f_c ** 0.18 * self.d_a ** 0.32)
 
     eps_cr = tr.Property(Float, depends_on='state_changed')
 
     @tr.cached_property
     def _get_eps_cr(self):
-        return (self.f_t / self.E_c)
+        return self.f_t / self.E_c
 
-    def get_w_tc(self):
-        """Calculating point of softening curve resulting in 0 stress
-        """
-        return (5.14 * self.G_f_baz / self.f_t)
+    # def get_w_tc(self):
+    #     """Calculating point of softening curve resulting in 0 stress
+    #     """
+    #     return (5.14 * self.G_f_baz / self.f_t)
 
     def get_sig_a(self, u_a):  # w, s
         """Calculating stresses
@@ -186,7 +188,7 @@ class ConcreteMaterialModelAdv(ConcreteMatMod, bu.InjectSymbExpr):
     w_max_factor = Float(15)
 
     def plot3d_sig_w(self, ax3d, vot=1.0):
-        w_min = -(self.f_c / self.E_c * self._get_L_c()) * self.w_min_factor
+        w_min = -self.w_cr * self.w_min_factor
         w_max = self.w_cr * self.w_max_factor
         w_range = np.linspace(w_min, w_max, 100)
         s_max = 3

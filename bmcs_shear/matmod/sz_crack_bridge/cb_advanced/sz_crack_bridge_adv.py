@@ -17,7 +17,7 @@ class CrackBridgeModelAdvExpr(bu.SymbExpr):
     sig_y = sp.symbols('\sigma_y', positive=True)
     A = sp.Symbol(r'A', nonnegative = True)
 
-    Pw_pull = sp.sqrt(2 * w * tau * E * A * p)
+    Pw_pull = sp.sqrt(w * tau * E * A * p)
 
     P_max = A * sig_y
 
