@@ -280,10 +280,15 @@ class SZCrackPath(Model):
     def _get_T_Lab(self):
         return get_T_Lab(self.x_t_Ia)
 
+
     T_tip_k_ab = tr.Property(depends_on='state_changed')
     '''Orthonormal base of the crack tip segment'''
     @tr.cached_property
     def _get_T_tip_k_ab(self):
+        T_tip_ab = get_T_Lab(self.x_Ia[-2:, :])[0]
+        return T_tip_ab
+
+    def _xget_T_tip_k_ab(self):
         T_tip_ab = get_T_Lab(self.x_Ia[-2:, :])[0]
         return T_tip_ab
 

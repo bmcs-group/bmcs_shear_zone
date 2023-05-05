@@ -249,6 +249,8 @@ class SZStressProfile(InteractiveModel):
         T_ab = sz_cp.T_tip_k_ab
         u_b = np.einsum('a,ab->b', u_a, T_ab)
         sig_b = self.sz_ds.sz_bd.matrix_.get_sig_a(u_b)
+        sig_b[0] = self.sz_bd.matrix_.f_t
+        #sig_b[1] = 0
         sig_a = np.einsum('b,ab->a', sig_b, T_ab)
         return sig_a
 
@@ -369,9 +371,9 @@ class SZStressProfile(InteractiveModel):
         if self.show_force:
             neg_F, neg_y = self.neg_F_y
             ax_sig.arrow(neg_F, neg_y,-neg_F, 0, color='red')
-            print(neg_F, neg_y)
+            #print(neg_F, neg_y)
             pos_F, pos_y = self.pos_F_y
-            print(pos_F, pos_y)
+            #print(pos_F, pos_y)
             ax_sig.arrow(pos_F, pos_y, -pos_F, 0, color='red')
         ax_sig.set_ylim(0, self.sz_bd.H )
 

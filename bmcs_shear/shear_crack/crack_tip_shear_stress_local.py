@@ -72,9 +72,12 @@ class SZCrackTipShearStressLocal(SZCrackTipShearStress):
         # calculate the biaxial stress
         f_ct = self.f_t
         f_cm = self.f_c
-        sigma_x = min(self.sig_x_tip_0, f_ct)
-        sigma_y = min(self.sig_z_tip_1, f_ct)
+        sigma_x = min(self.sig_x_tip_0, f_ct - 1e-8)
+        sigma_y = min(self.sig_z_tip_1, f_ct - 1e-8)
         psi_k = get_psi(sigma_x, sigma_y, f_cm, f_ct)
+        # print("tooth", sigma_x, sigma_y, psi_k)
+        # sigma_y = 0
+        # psi_k = get_psi(sigma_x, sigma_y, f_cm, f_ct)
         return psi_k
 
     def subplots(self, fig):

@@ -140,7 +140,7 @@ class CrackPropagation(CrackExtension):
 
 
         while self.seg <= self.n_seg:
-            print('seg', self.seg)
+            print('seg ========================================', self.seg)
             if self.interrupt:
                 break
             try:

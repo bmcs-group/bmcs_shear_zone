@@ -57,7 +57,7 @@ class CrackExtension(bu.InteractiveModel):
     '''Algorithmic parameter - tolerance
     '''
 
-    psi_tol = bu.Float(0.02)
+    psi_tol = bu.Float(0.1)
     '''Crack inclination criterion tolerance
     '''
 
@@ -101,9 +101,9 @@ class CrackExtension(bu.InteractiveModel):
         self.U_n[:] = self.U_k[:]
         R_k = self.get_R()
         psi_bar = self.sz_cto.get_psi()
-        if np.fabs(self.psi - psi_bar) > np.pi/2 * self.psi_tol:
-            print('non-matching crack direction')
-            raise StopIteration('non-matching crack direction')
+        # if np.fabs(self.psi - psi_bar) > np.pi/2 * self.psi_tol:
+        #     print('non-matching crack direction', self.psi, psi_bar)
+        #     raise StopIteration('non-matching crack direction')
         if res.success == False:
             print('no convergence')
             raise StopIteration('no solution found')
@@ -129,8 +129,9 @@ class CrackExtension(bu.InteractiveModel):
         M = self.sz_sp.M
         psi_bar = self.sz_cto.get_psi()
         # work of unbalanced moment devided by lever arm to obtain the right order
-        #N_M = M*(self.psi - psi_bar) / (self.sz_bd.H / 2)
-        N_M = (self.psi - psi_bar)
+        N_M = M*(self.psi - psi_bar) / (self.sz_bd.H / 2)
+        # print('psi', self.psi, 'psi_bar', psi_bar)
+        #N_M = (self.psi - psi_bar)
         R = np.array([N_M, N], dtype=np.float_)
         # print('psi', self.psi, psi_bar, R)
         return R
@@ -144,4 +145,3 @@ class CrackExtension(bu.InteractiveModel):
     def update_plot(self, ax):
         self.X
         self.plot_geo(ax)
-
