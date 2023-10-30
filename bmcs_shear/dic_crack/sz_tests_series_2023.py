@@ -80,9 +80,9 @@ B7_TV2 = dict(
     T_stepping = 'delta_T',
     R=8, omega_threshold=0.1, verbose_eval=True, tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
-    t_detect = 0.9,
+    t_detect = 0.99,
     delta_alpha_min = -np.pi/6,
-    delta_alpha_max = np.pi/3,
+    delta_alpha_max = np.pi/6,
     delta_s = 23,
     x_boundary = 30
 )
@@ -176,7 +176,7 @@ B10_TV2 = dict(
 from bmcs_shear.dic_crack import\
     DICInpUnstructuredPoints, DICStateFields, \
     DICGrid
-from bmcs_shear.dic_crack.dic_crack_list2 import DICCrackList
+from bmcs_shear.dic_crack.dic_crack_list import DICCrackList
 import numpy as np
 np.seterr(divide ='ignore', invalid='ignore');
 def new_dcl(test):

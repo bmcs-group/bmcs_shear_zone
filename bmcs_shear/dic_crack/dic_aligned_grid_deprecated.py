@@ -31,28 +31,20 @@ class DICAlignedGrid(bu.Model):
     depends_on = ['dsf']
     # tree = ['dsf']
 
-    # X0_a = bu.Float(0, ALG=True)
-    # '''Origin of the reference system
-    # '''
-    #
-    # X1_a = bu.Float(0, ALG=True)
-    # '''Point on the vertical axis of the reference system
-    # '''
-    #
-    x0 = bu.Float(0, ALG=True)
-    '''Horizontal coordinate of the origin of the reference system
+    M0 = bu.Int(0, ALG=True)
+    '''Horizontal index of the origin marker
     '''
 
-    y0 = bu.Float(0, ALG=True)
-    '''Vertical coordinate of the origin of the reference system
+    N0 = bu.Int(0, ALG=True)
+    '''Vertical index of the origin marker
     '''
 
-    x1 = bu.Float(0, ALG=True)
-    '''Horizontal coordinate of the point on the vertical axis of the reference system
+    M1 = bu.Int(0, ALG=True)
+    '''Horizontal index of the origin marker
     '''
 
-    y1 = bu.Float(0, ALG=True)
-    '''Vertical coordinate of the point on the vertical axis of the reference system
+    N1 = bu.Int(-1, ALG=True)
+    '''Vertical index of the origin marker
     '''
 
     U_factor = bu.Float(1, ALG=True)
@@ -62,95 +54,58 @@ class DICAlignedGrid(bu.Model):
     show_init = bu.Bool(False, ALG=True)
     show_pull = bu.Bool(True, ALG=True)
     show_rot = bu.Bool(False, ALG=True)
-    show_VW = bu.Bool(False, ALG=True)
 
     ipw_view = bu.View(
-        bu.Item('x0'),
-        bu.Item('y0'),
-        bu.Item('x1'),
-        bu.Item('y1'),
+        bu.Item('M0'),
+        bu.Item('N0'),
+        bu.Item('M1'),
+        bu.Item('N1'),
         bu.Item('show_init'),
         bu.Item('show_pull'),
         bu.Item('show_rot'),
-        bu.Item('show_VW'),
         bu.Item('U_factor'),
         time_editor=bu.HistoryEditor(var='dsf.dic_grid.t')
     )
 
-    X_0_MNa = tr.Array(dtype=np.float_, ALG=True)
-    U_t_MNa = tr.Property(depends_on='state_changed')
-    @tr.cached_property
-    def _get_U_t_MNa(self):
-        return self.dsf.f_dic_U_xy(self.X_0_MNa)
-
-    X_t_MNa = tr.Property(depends_on='state_changed')
-
-    @tr.cached_property
-    def _get_X_t_MNa(self):
-        return self.X_0_MNa + self.U_t_MNa
-
-    X0_0_a = tr.Property(depends_on='state_changed')
-    '''Current position of the reference frame origin
-    '''
-    @tr.cached_property
-    def _get_X0_0_a(self):
-        return np.array([self.x0, self.y0])
-
-    U0_t_a = tr.Property(depends_on='state_changed')
-    '''Fixed frame rotation at intermediate state.
-    '''
-    @tr.cached_property
-    def _get_U0_t_a(self):
-        return self.dsf.f_dic_U_xy(self.x0, self.y0)
+    X_MNa = tr.DelegatesTo('dsf', 'X_ipl_MNa')
+    U_t_MNa = tr.DelegatesTo('dsf', 'U_ipl_MNa')
 
     X0_t_a = tr.Property(depends_on='state_changed')
-    '''Current position of the reference frame origin
+    '''Fixed frame rotation at intermediate state.
     '''
     @tr.cached_property
     def _get_X0_t_a(self):
-        return self.X0_0_a + self.U0_t_a
+        return self.X_t_MNa[self.M0, self.N0]
 
-    X1_0_a = tr.Property(depends_on='state_changed')
-    '''Current position of the reference frame origin
-    '''
-    @tr.cached_property
-    def _get_X1_0_a(self):
-        return np.array([self.x1, self.y1])
+    # U0_a = tr.Property(depends_on='state_changed')
+    # '''Displacement of the origin of the reference frame
+    # '''
+    # @tr.cached_property
+    # def _get_U0_a(self):
+    #     return self.U_MNa[self.M0,self.N0,:]
 
-    U1_t_a = tr.Property(depends_on='state_changed')
-    '''Fixed frame rotation at intermediate state.
-    '''
-    @tr.cached_property
-    def _get_U1_t_a(self):
-        return self.dsf.f_dic_U_xy(self.x1, self.y1)
+    MN_selection = tr.Any(Ellipsis)
 
-    X1_t_a = tr.Property(depends_on='state_changed')
-    '''Current position of the point on the vertical axis of the reference frame 
-    '''
-    @tr.cached_property
-    def _get_X1_t_a(self):
-        return self.X1_0_a + self.U1_t_a
-
-    X_pull_0_MNa = tr.Property(depends_on='state_changed')
+    X_pull_MNa = tr.Property(depends_on='state_changed')
     '''Position relative to the pull point
     '''
     @tr.cached_property
-    def _get_X_pull_0_MNa(self):
-        return self.X_0_MNa - self.X0_0_a
+    def _get_X_pull_MNa(self):
+        return self.X_MNa[self.MN_selection] - self.X_MNa[self.M0, self.N0]
 
     X_t_MNa = tr.Property(depends_on='state_changed')
-    '''Global positions of the grid at the current time
+    '''Displacement relative to the pull point
     '''
     @tr.cached_property
     def _get_X_t_MNa(self):
-        return self.X_0_MNa + self.U_t_MNa
+        return self.X_MNa + self.U_t_MNa
 
     X_t_MNa_scaled = tr.Property(depends_on='state_changed')
     '''Coordinates of pulled grid points relative to the origin X0_a.
     '''
     @tr.cached_property
     def _get_X_t_MNa_scaled(self):
-        X_t_MNa = self.X_0_MNa + self.U_t_MNa * self.U_factor
+        X_t_MNa = self.X_MNa + self.U_t_MNa * self.U_factor
         return X_t_MNa
 
     X_pull_t_MNa = tr.Property(depends_on='state_changed')
@@ -158,35 +113,30 @@ class DICAlignedGrid(bu.Model):
     '''
     @tr.cached_property
     def _get_X_pull_t_MNa(self):
-        return self.X_t_MNa - self.X0_t_a
+        return self.X_t_MNa[self.MN_selection] - self.X_t_MNa[self.M0, self.N0]
 
     U_pull_t_MNa = tr.Property(depends_on='state_changed')
     '''Displacement relative to the pull point
     '''
     @tr.cached_property
     def _get_U_pull_t_MNa(self):
-        return self.X_pull_t_MNa - self.X_pull_0_MNa
-
-    U_pull_t_MNa_scaled = tr.Property(depends_on='state_changed')
-    '''Displacement relative to the pull point
-    '''
-    @tr.cached_property
-    def _get_U_pull_t_MNa_scaled(self):
-        return self.U_pull_t_MNa * self.U_factor
+        return self.U_t_MNa[self.MN_selection] - self.U_t_MNa[self.M0, self.N0]
 
     X_pull_t_MNa_scaled = tr.Property(depends_on='state_changed')
     '''Coordinates of pulled grid points relative to the origin X0_a.
     '''
     @tr.cached_property
     def _get_X_pull_t_MNa_scaled(self):
-        return self.X_pull_0_MNa + self.U_pull_t_MNa_scaled
+        return self.X_pull_MNa + self.U_pull_t_MNa * self.U_factor
 
-    alpha_0 = tr.Property(depends_on='state_changed')
+    alpha = tr.Property(depends_on='state_changed')
     '''Fixed frame rotation at initial state.
     '''
     @tr.cached_property
-    def _get_alpha_0(self):
-        X01_a = self.X1_0_a - self.X0_0_a
+    def _get_alpha(self):
+        X0_a = self.X_MNa[self.M0, self.N0]
+        X1_a = self.X_MNa[self.M1, self.N1]
+        X01_a = X1_a - X0_a
         return np.arctan(X01_a[0] / X01_a[1])
 
     alpha_t = tr.Property(depends_on='state_changed')
@@ -194,15 +144,17 @@ class DICAlignedGrid(bu.Model):
     '''
     @tr.cached_property
     def _get_alpha_t(self):
-        X01_a = self.X1_t_a - self.X0_t_a
+        X0_a = self.X_t_MNa[self.M0, self.N0]
+        X1_a = self.X_t_MNa[self.M1, self.N1]
+        X01_a = X1_a - X0_a
         return np.arctan(X01_a[0] / X01_a[1])
 
-    T_0_ab = tr.Property(depends_on='state_changed')
+    T_ab = tr.Property(depends_on='state_changed')
     '''Rotation matrix.
     '''
     @tr.cached_property
-    def _get_T_0_ab(self):
-        alpha = self.alpha_0
+    def _get_T_ab(self):
+        alpha = self.alpha
         sa, ca = np.sin(alpha), np.cos(alpha)
         return np.array([[ca,-sa],
                          [sa,ca]])
@@ -217,12 +169,12 @@ class DICAlignedGrid(bu.Model):
         return np.array([[ca,-sa],
                          [sa,ca]])
 
-    X_rot_0_MNa = tr.Property(depends_on='state_changed')
+    X_rot_MNa = tr.Property(depends_on='state_changed')
     '''Grid points rotated around X_0-X_1.
     '''
     @tr.cached_property
-    def _get_X_rot_0_MNa(self):
-        return np.einsum('ba,...a->...b', self.T_0_ab, self.X_pull_0_MNa)
+    def _get_X_rot_MNa(self):
+        return np.einsum('ba,...a->...b', self.T_ab, self.X_pull_MNa)
 
     X_rot_t_MNa = tr.Property(depends_on='state_changed')
     '''Positions of grid points relative the line alpha_ref.
@@ -236,21 +188,14 @@ class DICAlignedGrid(bu.Model):
     '''
     @tr.cached_property
     def _get_U_rot_t_MNa(self):
-        return self.X_rot_t_MNa - self.X_rot_0_MNa
-
-    U_rot_t_MNa_scaled = tr.Property(depends_on='state_changed')
-    '''Displacement increment relative to the rotated reference frame.
-    '''
-    @tr.cached_property
-    def _get_U_rot_t_MNa_scaled(self):
-        return self.U_rot_t_MNa * self.U_factor
+        return self.X_rot_t_MNa - self.X_rot_MNa
 
     X_rot_t_MNa_scaled = tr.Property(depends_on='state_changed')
     '''Scaled positions of grid points relative the line X0-X1.
     '''
     @tr.cached_property
     def _get_X_rot_t_MNa_scaled(self):
-        return self.X_rot_0_MNa + self.U_rot_t_MNa_scaled
+        return self.X_rot_MNa + self.U_rot_t_MNa * self.U_factor
 
     VW_rot_t_MNa = tr.Property(depends_on='state_changed')
     '''Get the midpoint on the displacement line and perpendicular
@@ -259,7 +204,7 @@ class DICAlignedGrid(bu.Model):
     @tr.cached_property
     def _get_VW_rot_t_MNa(self):
         # get the midpoint on the line X_rot - X_rot_t
-        V_rot_t_nMNa = np.array([self.X_rot_0_MNa, self.X_rot_t_MNa])
+        V_rot_t_nMNa = np.array([self.X_rot_MNa, self.X_rot_t_MNa])
         V_rot_t_MNa = np.average(V_rot_t_nMNa, axis=0)
         # construct the perpendicular vector w
         U_rot_t_MNa = self.U_rot_t_MNa
@@ -274,7 +219,7 @@ class DICAlignedGrid(bu.Model):
     @tr.cached_property
     def _get_VW_rot_t_MNa_scaled(self):
         # construct the scaled displacement vector v
-        V_rot_t_nMNa_scaled = np.array([self.X_rot_0_MNa, self.X_rot_t_MNa_scaled])
+        V_rot_t_nMNa_scaled = np.array([self.X_rot_MNa, self.X_rot_t_MNa_scaled])
         V_rot_t_anMN_scaled = np.einsum('n...a->an...', V_rot_t_nMNa_scaled)
         V_rot_anp_scaled = V_rot_t_anMN_scaled.reshape(2, 2, -1)
         # construct the perpendicular vector w
@@ -289,44 +234,44 @@ class DICAlignedGrid(bu.Model):
         return V_rot_anp_scaled, W_rot_t_anp_scaled
 
     def plot_selection_init(self, ax_u):
-        X_aij = np.einsum('...a->a...', self.X_0_MNa)
+        X_aij = np.einsum('...a->a...', self.X_MNa)
         x_MN, y_MN = X_aij
-        ax_u.scatter(x_MN, y_MN, s=15, marker='o', color='orange')
-        X0_a = self.X0_t_a
-        X1_a = self.X1_t_a
+        ax_u.scatter(x_MN[self.MN_selection], y_MN[self.MN_selection], s=15, marker='o', color='orange')
+        X0_a = self.X_MNa[self.M0, self.N0, :]
+        X1_a = self.X_MNa[self.M1, self.N1, :]
         X01_na = np.array([X0_a, X1_a])
         ax_u.plot(*X01_na.T, lw=2, color='green')
-
-    def plot_frame(self, ax_u):
-        """
-        """
-        X0_a = self.X0_0_a
-        X1_a = self.X1_0_a
-        U0_t_a = self.dsf.f_dic_U_xy(self.x0, self.y0)
-        U1_t_a = self.dsf.f_dic_U_xy(self.x1, self.y1)
-        X0_t_scaled_a = X0_a + self.U_factor * U0_t_a
-        X1_t_scaled_a = X1_a + self.U_factor * U1_t_a
-        X01_na = np.array([X0_a, X1_a])
-        #X01_na = np.array([X0_t_scaled_a, X1_t_scaled_a])
-        ax_u.plot(*X01_na.T, lw=3, color='green')
 
     def plot_init(self, ax_u):
         X_t_MNa_scaled = np.einsum('...a->a...', self.X_t_MNa_scaled)
         ax_u.scatter(*X_t_MNa_scaled.reshape(2,-1), s=15, marker='o', color='darkgray')
+        X_aij = np.einsum('...a->a...', self.X_MNa)
+#        ax_u.scatter(*X_aij.reshape(2,-1), s=15, marker='o', color='blue')
+        x_MN, y_MN = X_aij
+        ax_u.scatter(x_MN[self.MN_selection], y_MN[self.MN_selection], s=15, marker='o', color='orange')
+        X0_a = self.X_t_MNa_scaled[self.M0, self.N0, :]
+        X1_a = self.X_t_MNa_scaled[self.M1, self.N1, :]
+        X01_na = np.array([X0_a, X1_a])
+        ax_u.plot(*X01_na.T, lw=3, color='green')
 
     def plot_pull(self, ax_u):
-        X_t_aMN_scaled = np.einsum('...a->a...', self.X_pull_t_MNa_scaled)
-        ax_u.scatter(*X_t_aMN_scaled.reshape(2,-1), s=15, marker='o', color='darkgray')
+        X_t_MNa_scaled = np.einsum('...a->a...', self.X_pull_t_MNa_scaled)
+        ax_u.scatter(*X_t_MNa_scaled.reshape(2,-1), s=15, marker='o', color='darkgray')
+        X_MNj = np.einsum('...a->a...', self.X_pull_MNa)
+        ax_u.scatter(*X_MNj.reshape(2,-1), s=5, marker='o', color='blue')
+        # X0_a = self.X_pull_t_MNa_scaled[self.M0, self.N0, :]
+        # X1_a = self.X_pull_t_MNa_scaled[self.M1, self.N1, :]
+        # X01_na = np.array([X0_a, X1_a])
+        # ax_u.plot(*X01_na.T, lw=3, color='green')
 
     def plot_rot(self, ax_u):
-        X_rot_0_aMN = np.einsum('...a->a...', self.X_rot_0_MNa)
-        ax_u.scatter(*X_rot_0_aMN.reshape(2,-1), s=15, marker='o', color='green')
-        X_rot_t_aMN_scaled = np.einsum('...a->a...', self.X_rot_t_MNa_scaled)
-        ax_u.scatter(*X_rot_t_aMN_scaled.reshape(2,-1), s=15, marker='o', color='brown')
-
-    def plot_VW(self, ax_u):
         V_rot_anp_scaled, W_rot_t_anp_scaled = self.VW_rot_t_MNa_scaled
-        ax_u.scatter(*V_rot_anp_scaled[:, -1, :], s=15, marker='o', color='brown')
+        ax_u.scatter(*V_rot_anp_scaled[:, -1, :], s=15, marker='o', color='silver')
+        ax_u.plot(*V_rot_anp_scaled, color='silver', linewidth=0.5);
+        # X0_a = self.X_rot_t_MNa_scaled[self.M0, self.N0, :]
+        # X1_a = self.X_rot_t_MNa_scaled[self.M1, self.N1, :]
+        # X01_na = np.array([X0_a, X1_a])
+        # ax_u.plot(*X01_na.T, lw=3, color='green')
 
     def subplots(self, fig):
         return fig.subplots(1, 1)
@@ -334,9 +279,7 @@ class DICAlignedGrid(bu.Model):
     def update_plot(self, axes):
         ax_u = axes
 
-
         if self.show_init:
-            self.plot_frame(ax_u)
             self.plot_init(ax_u)
 
         if self.show_pull:
@@ -344,8 +287,5 @@ class DICAlignedGrid(bu.Model):
 
         if self.show_rot:
             self.plot_rot(ax_u)
-
-        if self.show_VW:
-            self.plot_VW(ax_u)
 
         ax_u.axis('equal');

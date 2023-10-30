@@ -208,11 +208,15 @@ class DICInpUnstructuredPoints(bu.Model):
         X_min, X_max = self.X_outer_frame
         return X_max[1] - X_min[1]
 
+    base_dir = tr.Directory
+    def _base_dir_default(self):
+        home_dir = expanduser('~')
+        return join(home_dir, 'simdb', 'data', 'shear_zone')
+
     data_dir = tr.Property
     """Directory with the data"""
     def _get_data_dir(self):
-        home_dir = expanduser('~')
-        data_dir = join(home_dir, 'simdb', 'data', 'shear_zone', self.dir_name)
+        data_dir = join(self.base_dir, self.dir_name)
         return data_dir
 
     dic_data_dir = tr.Property

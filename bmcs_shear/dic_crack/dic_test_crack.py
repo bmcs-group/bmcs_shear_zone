@@ -3,7 +3,7 @@ import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
 from bmcs_shear.beam_design import RCBeamDesign
-from .dic_crack import IDICCrack, get_T_Lab
+from .dic_crack_deprecated import IDICCrack, get_T_Lab
 import matplotlib.gridspec as gridspec
 from .dic_stress_profile import DICStressProfile
 

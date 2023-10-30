@@ -1,7 +1,25 @@
 @startuml
 'https://plantuml.com/class-diagram
 
-interface IDICGrid {
+
+package Beam {
+
+
+class CrossSection {
+}
+
+class BeamDesign
+}
+
+class Loading {
+}
+
+BeamDesign o--> CrossSection
+BeamDesign o--> Loading
+
+package ShearZone {
+
+interface DICGrid {
   X_IJa
   U_TIJa
   F_T
@@ -10,22 +28,22 @@ interface IDICGrid {
   t
 }
 
-class DICGrid {
+DICCrackList --> BeamDesign
+
+class DICUnstructuredPoints {
 }
 
-DICGrid --|> IDICGrid
+'class DICGrid {
+'}
 
-class DICGridTri {
-}
-
-DICGridTri --|> IDICGrid
+DICGrid --> DICUnstructuredPoints
 
 class DICStateFields{
   U_TMNa
   omega_TMN
 }
 
-DICStateFields --> IDICGrid
+DICStateFields --> DICGrid
 
 class DICCrack {
    index_range
@@ -35,16 +53,26 @@ DICCrackList --> DICStateFields
 
 DICCrackList *--> DICCrack
 
-DICCrack --> IDICGrid
+DICCrack ..> DICGrid
 
 DICCrack --> DICStressProfile
-
-DICStressProfile --> IDICGrid
 
 class DICAlign{
 }
 
 class DICCOR{
+}
+
+DICCrack --> DICCOR
+
+DICStateFields --> DICAlign
+
+DICCOR ..> DICGrid
+
+DICStressProfile ..> DICGrid
+
+DICAlign ..> DICGrid
+
 }
 
 @enduml
