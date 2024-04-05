@@ -61,6 +61,8 @@ class DICCrack(bu.Model):
     def _cl_changed(self):
         self.dic_grid = self.cl.dsf.dic_grid
 
+    color = bu.Str('black')
+    
     bd = tr.DelegatesTo('cl')
     '''Access to the beam design available through crack list.
     '''
@@ -368,21 +370,23 @@ class DICCrack(bu.Model):
         u_1 = np.max(u_1_Ka[:,:])
         return u_1
 
-    # Displacement jump evaluation
-
     def get_u_crc_Ka(self, t, X_crc_Ka):
         """Displacement jump across the crack.
         """
         d_x = self.d_x / 2
         x_K, y_K = X_crc_Ka.T
-        t_K = np.ones_like(x_K) * t
-        tX_right_K = np.array([t_K, x_K + d_x, y_K], dtype=np.float_).T
-        tX_left_K = np.array([t_K, x_K - d_x, y_K], dtype=np.float_).T
+        t = np.atleast_1d(t)
+        T = np.repeat(t[:, np.newaxis], X_crc_Ka.shape[0], axis=1)
+        tX_right_K = np.column_stack([T.flatten(), (x_K + d_x).repeat(len(t)), y_K.repeat(len(t))])
+        tX_left_K = np.column_stack([T.flatten(), (x_K - d_x).repeat(len(t)), y_K.repeat(len(t))])
         # handle the situation with coordinates outside the bounding box
         self.cl.dsf
-        u_Ka = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
-        return u_Ka
-
+        u_tKa = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
+        if len(t) == 1:
+            return u_tKa.reshape(X_crc_Ka.shape)
+        tKa_shape = (-1,) + X_crc_Ka.shape
+        return u_tKa.reshape(*tKa_shape)        
+    
     u_crc_1_Ka = tr.Property(depends_on='state_changed')
     '''Global relative displacement of points along the crack 
     at the ultimate state.

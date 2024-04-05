@@ -33,11 +33,13 @@ class DICInpUnstructuredPoints(bu.Model):
 
     name = 'DIC grid history'
 
+    force_array_refresh = bu.Bool(False)
+
     dir_name = bu.Str('<unnamed>', ALG=True)
     """Directory name containing the test data.
     """
     def _dir_name_change(self):
-        self.name = 'DIC grid %s' % self.name
+        self.name = f'DIC grid {self.name}'
         self._set_dic_params()
 
     dic_param_file_name = bu.Str('dic_params.txt', ALG=True)
@@ -80,16 +82,17 @@ class DICInpUnstructuredPoints(bu.Model):
         including the beam param types.
         """
         params_str = {}
-        f = open(self.beam_param_file)
-        data = f.readlines()
-        for line in data:
-            key, value = line.split(":")
-            params_str[key.strip()] = value.strip()
-        f.close()
-        # convert the strings to the paramater types specified in the param_types table
+        with open(self.beam_param_file) as f:
+            data = f.readlines()
+            for line in data:
+                key, value = line.split(":")
+                params_str[key.strip()] = value.strip()
+        # convert the strings to the parameter types specified in the param_types table
         params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
         self.sz_bd.trait_set(**{key: params[key] for key in ['H', 'B', 'L_right', 'L_left']})
-        self.sz_bd.L = self.sz_bd.L_right
+        self.sz_bd.L = self.sz_bd.L_left + self.sz_bd.L_right
+        self.sz_bd.X0 = -self.sz_bd.L_left
+        self.sz_bd.X_point_load = 0
         self.sz_bd.Rectangle = True
         self.sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
 
@@ -151,19 +154,9 @@ class DICInpUnstructuredPoints(bu.Model):
         d_t = (1 / self.n_T)
         self.T_t = int( (self.n_T - 1) * (self.t + d_t/2))
 
-    # t_dic_T = tr.Property(depends_on='state_changed')
-    # """Time steps of ascending DIC snapshots
-    # """
-    # @tr.cached_property
-    # def _get_t_dic_T(self):
-    #     return np.linspace(0, 1, self.n_T_max)
-    #
-    # t_crack_detection = bu.Float(1, ALG=True)
-
     ipw_view = bu.View(
         bu.Item('n_T_max'),
         bu.Item('U_factor'),
-        # bu.Item('t_crack_detection'),
         bu.Item('T_stepping'),
         bu.Item('T_t', readonly=True),
         bu.Item('pad_t', readonly=True),
@@ -216,8 +209,7 @@ class DICInpUnstructuredPoints(bu.Model):
     data_dir = tr.Property
     """Directory with the data"""
     def _get_data_dir(self):
-        data_dir = join(self.base_dir, self.dir_name)
-        return data_dir
+        return join(self.base_dir, self.dir_name)
 
     dic_data_dir = tr.Property
     """Directory with the DIC data"""
@@ -240,16 +232,16 @@ class DICInpUnstructuredPoints(bu.Model):
     dic_params = tr.Property(depends_on='dir_name')
     def _get_dic_params(self):
         params_str = {}
-        f = open(self.dic_param_file)
-        data = f.readlines()
-        for line in data:
-            # parse input, assign values to variables
-            key, value = line.split(":")
-            params_str[key.strip()] = value.strip()
-        f.close()
-        # convert the strings to the parameter types specified in the param_types table
-        params = { key : type_(params_str[key]) for key, type_ in self.dic_param_types.items()  }
-        return params
+        with open(self.dic_param_file) as f:
+            data = f.readlines()
+            for line in data:
+                # parse input, assign values to variables
+                key, value = line.split(":")
+                params_str[key.strip()] = value.strip()
+        return {
+            key: type_(params_str[key])
+            for key, type_ in self.dic_param_types.items()
+        }
 
     time_F_w_data_dir = tr.Property
     """Directory with the load deflection data"""
@@ -262,17 +254,25 @@ class DICInpUnstructuredPoints(bu.Model):
 
     time_m_skip = bu.Int(50, ALG=True )
 
-    time_F_w_m = tr.Property(depends_on='state_changed')
+    time_F_w_m_all = tr.Property(depends_on='state_changed')
     """Read the load displacement values from the individual 
     csv files from the test
     """
     @tr.cached_property
-    def _get_time_F_w_m(self):
+    def _get_time_F_w_m_all(self):
         time_F_w_file = join(self.time_F_w_data_dir, self.time_F_w_file_name)
         time_F_w_m = np.array(pd.read_csv(time_F_w_file, decimal=",", skiprows=1,
                               delimiter=None), dtype=np.float_)
         time_m, F_m, w_m = time_F_w_m[::self.time_m_skip, (0,1,2)].T
         F_m *= -1
+        return time_m, F_m, w_m
+    
+    time_F_w_m = tr.Property(depends_on='state_changed')
+    """Return the ascending branch of the monitored F-w response
+    """
+    @tr.cached_property
+    def _get_time_F_w_m(self):
+        time_m, F_m, w_m = self.time_F_w_m_all
         dF_mn = F_m[np.newaxis, :] - F_m[:, np.newaxis]
         dF_up_mn = np.triu(dF_mn > 0)
         argmin_m = np.argmin(dF_up_mn, axis=0)
@@ -313,8 +313,7 @@ class DICInpUnstructuredPoints(bu.Model):
     @tr.cached_property
     def _get_argmax_F_m(self):
         time_m, F_m = self.time_F_m
-        argmax_F_m = np.argmax(F_m)
-        return argmax_F_m
+        return np.argmax(F_m)
 
     time_F_dic_file = tr.Property(depends_on='state_changed')
     """File specifying the dic snapshot times and forces
@@ -323,20 +322,31 @@ class DICInpUnstructuredPoints(bu.Model):
     def _get_time_F_dic_file(self):
         return os.path.join(self.dic_data_dir, 'Kraft.DIM.csv')
 
-    tstring_time_F_dic = tr.Property(depends_on='state_changed')
+    tstring_time_F_dic_all = tr.Property(depends_on='state_changed')
     """times and forces for all snapshots with camera clock (dic index)
     """
     @tr.cached_property
-    def _get_tstring_time_F_dic(self):
-        rows_ = []
-        for row in open(self.time_F_dic_file):
-            rows_.append(row)
+    def _get_tstring_time_F_dic_all(self):
+        rows_ = list(open(self.time_F_dic_file))
         rows = np.array(rows_)
         time_entries_dic = rows[0].replace('name;type;attribute;id;', '').split(';')
         tstring_dic = np.array([time_entry_dic.split(' ')[0] for time_entry_dic in time_entries_dic])
         time_dic = np.array(tstring_dic, dtype=np.float_)
         F_entries_dic = rows[1].replace('Kraft.DIM;deviation;dimension;;', '')
         F_dic = -np.fromstring(F_entries_dic, sep=';', dtype=np.float_)
+        return tstring_dic, time_dic, F_dic
+
+    time_F_dic_all = tr.Property
+    def _get_time_F_dic_all(self):
+        _, time_dic, F_dic = self.tstring_time_F_dic_all
+        return time_dic, F_dic
+
+    tstring_time_F_dic = tr.Property(depends_on='state_changed')
+    """times and forces for all snapshots with camera clock (dic index)
+    """
+    @tr.cached_property
+    def _get_tstring_time_F_dic(self):
+        tstring_dic, time_dic, F_dic = self.tstring_time_F_dic_all
         dF_dic = F_dic[np.newaxis, :] - F_dic[:, np.newaxis]
         dF_up_dic = np.triu(dF_dic > 0, 0)
         argmin_dic = np.argmin(dF_up_dic, axis=0)
@@ -344,6 +354,7 @@ class DICInpUnstructuredPoints(bu.Model):
             dF_up_dic[argmin_dic[n]:, n] = False
         asc_dic = np.unique(np.argmax(np.triu(dF_up_dic, 0) > 0, axis=1))
         return tstring_dic[asc_dic], time_dic[asc_dic], F_dic[asc_dic]
+
 
     time_F_dic = tr.Property
     def _get_time_F_dic(self):
@@ -379,7 +390,7 @@ class DICInpUnstructuredPoints(bu.Model):
                   data_dir_trait='data_dir')
     def _get_tstring_time_F_T(self):
 
-        time_m, F_m = self.time_F_m # machine time and force
+        time_m, F_m, _ = self.time_F_w_m # machine time and force
         argmax_F_m = self.argmax_F_m
         time_dic, F_dic = self.time_F_dic # dic time and force
         argmax_F_dic = self.argmax_F_dic
@@ -471,7 +482,7 @@ class DICInpUnstructuredPoints(bu.Model):
         # Identify the points that are included in all time steps.
         P_list = [np.array(pxyz[:, 0], dtype=np.int_)
                   for pxyz in pxyz_list]
-        # Maximum number of points ocurring in one of the time steps to allocate the space
+        # Maximum number of points occurring in one of the time steps to allocate the space
         max_n_P = np.max(np.array([np.max(P_) for P_ in P_list])) + 1
         P_Q = P_list[0]
         for P_next in P_list[1:]:
@@ -481,9 +492,7 @@ class DICInpUnstructuredPoints(bu.Model):
         for T in range(self.n_T):
             X_TPa[T, P_list[T]] = pxyz_list[T][:, 1:]
 
-        X_TQa = X_TPa[:, P_Q]
-
-        return X_TQa
+        return X_TPa[:, P_Q]
 
     U_TQa = tr.Property(depends_on='state_changed')
     """Get the displacement history"""
@@ -504,7 +513,7 @@ class DICInpUnstructuredPoints(bu.Model):
 
     def _n_T_max_changed(self):
         if self.n_T_max > self.n_dic:
-            raise ValueError('n_T_max = {} larger than n_dic {}'.format(self.n_T_max, self.n_dic))
+            raise ValueError(f'n_T_max = {self.n_T_max} larger than n_dic {self.n_dic}')
 
     n_T = tr.Property(bu.Int, depends_on='state_changed')
     """Number of camera time sampling points up to the peak load 
@@ -538,14 +547,15 @@ class DICInpUnstructuredPoints(bu.Model):
     X_Ca = tr.Property
     def _get_X_Ca(self):
         min_X_a, max_X_a = self.X_outer_frame
-        X_Ca = np.array([
-            [min_X_a[0], min_X_a[1]],
-            [max_X_a[0], min_X_a[1]],
-            [max_X_a[0], max_X_a[1]],
-            [min_X_a[0], max_X_a[1]],
-            [min_X_a[0], min_X_a[1]],
-        ])
-        return X_Ca
+        return np.array(
+            [
+                [min_X_a[0], min_X_a[1]],
+                [max_X_a[0], min_X_a[1]],
+                [max_X_a[0], max_X_a[1]],
+                [min_X_a[0], max_X_a[1]],
+                [min_X_a[0], min_X_a[1]],
+            ]
+        )
 
     def plot_bounding_box(self, ax):
         X_Ca = self.X_Ca
@@ -637,7 +647,7 @@ class DICInpUnstructuredPoints(bu.Model):
         # annotate the maximum load level
         max_F = F_m[argmax_F_m]
         argmax_w_F = w_m[argmax_F_m]
-        ax_load.annotate(f'$F_\max=${max_F:.1f} kN, w={argmax_w_F:.2f} mm',
+        ax_load.annotate(f'$F_{{\max}}=${max_F:.1f} kN,\nw={argmax_w_F:.2f} mm',
                     xy=(argmax_w_F, max_F), xycoords='data',
                     xytext=(0.05, 0.95), textcoords='axes fraction',
                     horizontalalignment='left', verticalalignment='top',

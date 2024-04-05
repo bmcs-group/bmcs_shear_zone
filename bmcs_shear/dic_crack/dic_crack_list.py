@@ -10,7 +10,6 @@ import matplotlib.gridspec as gridspec
 from matplotlib import cm
 from .cached_array import cached_array
 
-
 class DICCrackList(bu.ModelDict):
     name = 'crack list'
 
@@ -35,6 +34,14 @@ class DICCrackList(bu.ModelDict):
     '''Beam design.
     '''
 
+    # Define the color scheme
+    crack_colors = bu.List(
+        ['red', 'green', 'blue', 'orange', 'purple', 'magenta', 'black', 'lime', 'brown', 'teal', 'cyan', 'yellow']
+    )
+
+    force_array_refresh = bu.Bool(False)
+    '''Flag to force the array refresh.
+    '''
 
     T_t = tr.Property(bu.Int, depends_on='state_changed')
     @tr.cached_property
@@ -46,7 +53,7 @@ class DICCrackList(bu.ModelDict):
     delta_s = bu.Float(10, ALG=True)
     n_G = bu.Int(40, ALG=True)
     x_boundary = bu.Float(20, ALG=True)
-    crack_fraction = bu.Float(0.2, ALG=True)
+    crack_fraction = bu.Float(0.3, ALG=True)
     t_detect = bu.Float(0.7, ALG=True)
 
     show_cracks = bu.Enum(options=('primary', 'secondary', 'all', 'raw'), ALG=True)
@@ -70,7 +77,6 @@ class DICCrackList(bu.ModelDict):
     def _get_y_range(self):
         return self.dsf.X_ipl_bb_Ca[(0,1),(1,1)]
 
-
     cracks = tr.Property(depends_on='+MESH, +ALG')
     @tr.cached_property
     def _get_cracks(self):
@@ -78,9 +84,9 @@ class DICCrackList(bu.ModelDict):
         K_tip_C = self.K_tip_C
         n_C = len(X_CKa)
         C_C = np.arange(n_C)
-        return np.array([ DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C]+1, :])
-            for C in C_C ])
-
+        return np.array([DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C]+1, :], color=self.crack_colors[C])
+                        for C in C_C])
+    
     items = tr.Property(depends_on='+MESH, +ALG')
     @tr.cached_property
     def _get_items(self):
@@ -89,7 +95,7 @@ class DICCrackList(bu.ModelDict):
         }
 
     def get_primary_cracks(self, X_tip_1_Ca):
-        # constract the array of vectors connecting each with each crack tip
+        # construct the array of vectors connecting each with each crack tip
         diff_x_tip_1_CDa = X_tip_1_Ca[np.newaxis, :, :] - X_tip_1_Ca[:, np.newaxis, :]
         # get the distances
         delta_tip_1_CD = np.linalg.norm(diff_x_tip_1_CDa, axis=-1)
@@ -123,9 +129,12 @@ class DICCrackList(bu.ModelDict):
         # active crack tips
         X_r0a = X_C0a[C_r]
         alpha_r0a = alpha_C0[C_r]
+        # scale alpha_min to avoid turning of the cracks in the compression zone
+        H = self.dsf.dic_grid.sz_bd.H
+        scale_alpha_r = 1 - (X_r0a[:, 1] / H)**(0.8)
         # range of angles in each crack
-        alpha_min_r1 = alpha_r0a + self.delta_alpha_min
-        alpha_max_r1 = alpha_r0a + self.delta_alpha_max
+        alpha_min_r1 = alpha_r0a + (self.delta_alpha_min * scale_alpha_r)
+        alpha_max_r1 = alpha_r0a + (self.delta_alpha_max) #  * scale_alpha_r)
         # avoid cracks turning downwards
         alpha_max_limit = 0.95 * np.pi/2
         alpha_max_r1[alpha_max_r1 >= alpha_max_limit] = alpha_max_limit
@@ -266,6 +275,18 @@ class DICCrackList(bu.ModelDict):
     #     prim_C = self.get_primary_cracks(X_tip_1_Ca)
     #     return self.cracks[prim_C], self.cracks[np.invert(prim_C)]
 
+    M_phi_Ct = tr.Property(depends_on='+MESH,+ALG')
+    """Get the M and phi values for all cracks given the slider times
+    """
+    @cached_array("beam_param_file",names='M_phi_Ct')
+    def _get_M_phi_Ct(self):
+        F_T = self.dsf.dic_grid.dic_inp.F_T
+        t_range = F_T / F_T[-1]
+        t_range[t_range<0] = 0
+        M_phi_Ct = [cr.cor.get_M_phi_t(t_range) for cr in self.cracks]
+        return np.array(M_phi_Ct)
+
+
     def plot_all_cracks(self, ax_cracks):
         X_aKC = np.einsum('CKa->aKC', self.X_CKa)
         ax_cracks.plot(*X_aKC, color='black', linewidth=1)
@@ -273,8 +294,8 @@ class DICCrackList(bu.ModelDict):
 
     def plot_primary_cracks(self, ax_cracks):
         for crack in self.primary_cracks:
-            crack.plot_X_crc_1_Ka(ax_cracks)
-            crack.plot_X_crc_t_Ka(ax_cracks)
+            crack.plot_X_crc_1_Ka(ax_cracks, line_color=crack.color)
+            crack.plot_X_crc_t_Ka(ax_cracks, line_color=crack.color)
     #
     # def plot_secondary_cracks(self, ax_cracks):
     #     for crack in self.secondary_cracks:
@@ -326,6 +347,7 @@ class DICCrackList(bu.ModelDict):
         bu.mpl_align_yaxis_to_zero(ax_M, ax_Q)
         ax_Q.get_shared_x_axes().join(ax_Q, ax_M)
 
+
     def subplots(self, fig):
         self.fig = fig
         gs = gridspec.GridSpec(ncols=3, nrows=2,
@@ -359,7 +381,7 @@ class DICCrackList(bu.ModelDict):
         ax_cl.axis('off');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
 
-        self.plot_MQ(ax_M, ax_Q)
+#       self.plot_MQ(ax_M, ax_Q)
         return
         # plot the kinematic profile
         #self.critical_crack.plot_u_t_crc_Ka(ax_u)

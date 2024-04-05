@@ -13,9 +13,7 @@ def rotate_around_ref(X_MNa, X_ref_a, T_ab):
     X0_MNa = X_MNa - X_ref_a[np.newaxis, np.newaxis, :] # TODO - this can be done inplace
     # Rotate all points by the inclination of the vertical axis alpha
     x0_MNa = np.einsum('ba,...a->...b', T_ab, X0_MNa)
-    # Return to the global coordinate system
-    x_ref_mNa = x0_MNa + X_ref_a[np.newaxis, np.newaxis, :]
-    return x_ref_mNa
+    return x0_MNa + X_ref_a[np.newaxis, np.newaxis, :]
 
 class DICCrackCOR(bu.Model):
     '''Determination of the center of rotation.
@@ -193,8 +191,7 @@ class DICCrackCOR(bu.Model):
         X_cor_pull_t_pa = np.einsum('ba,...b->...a',
             self.a_grid.T_t_ab, self.X_cor_rot_t_pa_sol
         )
-        X_cor_t_pa = X_cor_pull_t_pa + self.a_grid.X0_t_a
-        return X_cor_t_pa
+        return X_cor_pull_t_pa + self.a_grid.X0_t_a
 
     X_cor_t_a = tr.Property(depends_on='state_changed')
     '''Center of rotation of the patch related to the local 
@@ -213,8 +210,7 @@ class DICCrackCOR(bu.Model):
         X_cor_pull_t_a = np.einsum('ba,...b->...a',
             self.a_grid.T_t_ab, self.X_cor_rot_t_a
         )
-        X_cor_t_a = X_cor_pull_t_a + self.a_grid.X0_t_a
-        return X_cor_t_a
+        return X_cor_pull_t_a + self.a_grid.X0_t_a
 
     stat_phi_t = tr.Property(depends_on='state_changed')
     '''Statistics of the rotation angle around the current COR.
@@ -250,7 +246,7 @@ class DICCrackCOR(bu.Model):
         return cov_phi
 
     M_t = tr.Property(bu.Float, depends_on='state_changed')
-    '''Coefficient of variation for the angles of rotation.
+    '''Bending moment related to the center of rotation.
     '''
     @tr.cached_property
     def _get_M_t(self):
@@ -267,14 +263,31 @@ class DICCrackCOR(bu.Model):
         return M
 
     V_t = tr.Property(bu.Float, depends_on='state_changed')
-    '''Coefficient of variation for the angles of rotation.
+    '''Shear force related to the center of rotation.
     '''
     @tr.cached_property
     def _get_V_t(self):
         L_right = self.dic_grid.sz_bd.L_right
         L_left = self.dic_grid.sz_bd.L_left
-        F_right = self.dic_grid.F_T_t * L_left / (L_left + L_right)
-        return F_right
+        return self.dic_grid.F_T_t * L_left / (L_left + L_right)
+
+    def get_M_phi_t(self, t_range):
+        M_t, phi_t = [], []
+        for t in t_range:
+            self.dic_grid.t = t
+            M_t.append(self.M_t)
+            phi_t.append(self.phi_t)
+        return np.array([M_t, phi_t], dtype=np.float_)
+
+    M_phi_t = tr.Property(bu.Float, depends_on='state_changed')
+    '''Arrays of bending moments and angles of rotation.
+    '''
+    @tr.cached_property
+    def _get_M_phi_t(self):
+        F_T = self.dic_grid.dic_inp.F_T 
+        t_range = F_T / F_T[-1]
+        t_range[t_range<0] = 0
+        return self.get_M_phi_t(t_range)
 
     def plot_X_cor_rot_t(self, ax):
         if not self.crack_exists:
@@ -310,20 +323,24 @@ class DICCrackCOR(bu.Model):
         self.dic_grid.plot_box_annotate(ax_x)
 
         if self.crack_exists:
-            X_aOP = np.einsum('...a->a...', self.X_OPa)
-            ax_x.scatter(*X_aOP.reshape(2, -1), s=15, marker='o', color='orange')
-
-            x0, y0 = self.X0_0_a
-            x1, y1 = self.X1_0_a
-            self.a_grid.trait_set(
-                x0=x0, y0=y0, x1=x1, y1=y1,
-                X_0_MNa = self.X_OPa
-            )
-            self.plot_X_cor_t(ax_x)
-
+            self._plot_crack_cor(ax_x)
         self.a_grid.plot_frame(ax_x)
 
         self.dic_crack.plot_X_1_Ka(ax_x)
         self.dic_crack.plot_X_t_Ka(ax_x)
 
         ax_x.axis('equal');
+
+    def _plot_crack_cor(self, ax_x):
+        """Plot the center of rotation.
+        """
+        X_aOP = np.einsum('...a->a...', self.X_OPa)
+        ax_x.scatter(*X_aOP.reshape(2, -1), s=15, marker='o', color='orange')
+
+        x0, y0 = self.X0_0_a
+        x1, y1 = self.X1_0_a
+        self.a_grid.trait_set(
+            x0=x0, y0=y0, x1=x1, y1=y1,
+            X_0_MNa = self.X_OPa
+        )
+        self.plot_X_cor_t(ax_x)

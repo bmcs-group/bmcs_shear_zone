@@ -7,7 +7,7 @@ from bmcs_shear.matmod.sz_crack_bridge.cb_advanced import CrackBridgeAdv
 from bmcs_cross_section.cs_design import CrossSectionDesign, Rectangle
 import traits.api as tr
 from bmcs_utils.api import \
-    View, Item, Float, EitherType
+    View, Item, Float, EitherType, Float
 from bmcs_beam.beam_config.beam_design import BeamDesign
 #from bmcs_cross_section.cs_design.cs_design import CrossSectionDesign
 
@@ -86,6 +86,8 @@ class RCBeamDesign(BeamDesign):
         'system'
     ]
 
+    X0 = Float(0)
+    X_point_load = Float(0)
 
     B = tr.Property(Float)
     def _get_B(self):
@@ -120,10 +122,12 @@ class RCBeamDesign(BeamDesign):
 
     def plot_sz_bd(self, ax):
         L, H = self.L, self.H
-        X_00 = [0, 0]
-        X_01 = [L, 0]
-        X_11 = [L, H]
-        X_10 = [0, H]
+        X0 = self.X0
+        L0 = L + X0
+        X_00 = [X0, 0]
+        X_01 = [L0, 0]
+        X_11 = [L0, H]
+        X_10 = [X0, H]
         X_Lia = np.array([[X_00, X_01],
                           [X_01, X_11],
                           [X_11, X_10],
@@ -134,7 +138,7 @@ class RCBeamDesign(BeamDesign):
         X_La = np.sum(X_Lia, axis=1) / 2
         x, y = X_La[0, :]
         ax.annotate(f'{L} mm',
-                    xy=(x, y), xytext=(0, -1), xycoords='data',
+                    xy=(x, y), xytext=(0, -3), xycoords='data',
                     textcoords='offset pixels',
                     horizontalalignment='center',
                     verticalalignment='top',
@@ -149,6 +153,15 @@ class RCBeamDesign(BeamDesign):
                     verticalalignment='center',
                     rotation=90
                     )
+        
+        # Plot the arrow
+        x, y = self.X_point_load, self.H
+        H_load = self.H
+        ax.annotate('', xy=(x, y), xytext=(x, y + H_load/2),
+                    color='red', xycoords='data', textcoords='data',
+                    arrowprops=dict(arrowstyle='->'))
+        ax.text(x+5, y + H_load/2, r'$F$', ha='left', va='top')
+
         ax.axis('off')
         ax.axis('equal')
 

@@ -49,6 +49,8 @@ class DICStateFields(ib.TStepBC):
     def _get_domains(self):
         return [(self.xmodel, self.tmodel_)]
 
+    force_array_refresh = bu.Bool(False)
+
     data_dir = tr.DelegatesTo('dic_grid')
     beam_param_file = tr.DelegatesTo('dic_grid')
 
@@ -67,7 +69,7 @@ class DICStateFields(ib.TStepBC):
         U_To = []
         self.t_n = 0
         self.fe_domain[0].state_k = copy.deepcopy(self.fe_domain[0].state_n)
-        for T in range(0, self.dic_grid.n_T):
+        for T in range(self.dic_grid.n_T):
             if self.verbose_eval:
                 print('T:', T)
             self.t_n1 = T
@@ -164,9 +166,7 @@ class DICStateFields(ib.TStepBC):
         field_EmFn = np.einsum('EFmn...->EmFn...', field_EFmn)
         # merge the element index and gauss point subgrid into globarl point indexes
         field_MN_shape = (2 * n_E, 2 * n_F) + field_Em_shape[2:]
-        # reshape the field
-        field_MN = field_EmFn.reshape(*field_MN_shape)
-        return field_MN
+        return field_EmFn.reshape(*field_MN_shape)
 
     def get_z_MN_ironed(self, x_JK, y_JK, z_JK):
         RR = self.R
@@ -178,11 +178,7 @@ class DICStateFields(ib.TStepBC):
         a_MN = np.trapz(np.trapz(alpha_r_MNJK, x_JK[:, 0], axis=-2), y_JK[0, :], axis=-1)
         normed_a_MNJK = np.einsum('MNKL,MN->MNKL', alpha_r_MNJK, 1 / a_MN)
         z_MNJK = np.einsum('MNKL,KL...->MNKL...', normed_a_MNJK, z_JK)
-        # note that the inner integral cancels the dimension J on the axis with
-        # index 2. Therefore, the outer integral integrates over K - again on
-        # the axis with index 2
-        z_MN = np.trapz(np.trapz(z_MNJK, x_JK[:, 0], axis=2), y_JK[0, :], axis=2)
-        return z_MN
+        return np.trapz(np.trapz(z_MNJK, x_JK[:, 0], axis=2), y_JK[0, :], axis=2)
 
     ####################################################################################
 
@@ -352,13 +348,6 @@ class DICStateFields(ib.TStepBC):
             kappa_Emr = self.kappa_TEmr[T] # self.hist.state_vars[T][0]['kappa']
             omega_Emr = self.tmodel_.omega_fn_(kappa_Emr)
             omega_fe_KL = self.transform_mesh_to_grid(omega_Emr)
-
-            # phi_Emab = self.tmodel_._get_phi_Emab(kappa_Emr)
-            # phi_KLab = self.transform_mesh_to_grid(phi_Emab)
-            # phi_KLa, phi_ev_KLab = np.linalg.eig(phi_KLab)
-            # min_phi_KL = np.min(phi_KLa, axis=-1)
-            # omega_fe_KL = 1 - min_phi_KL
-            #omega_fe_KL = self.get_z_MN_ironed(x_fe_KL, y_fe_KL, omega_fe_KL)
             omega_fe_KL[omega_fe_KL < self.omega_threshold] = 0
             omega_fe_KL_list.append(np.copy(omega_fe_KL))
         return np.array(omega_fe_KL_list, dtype=np.float_)# , None # phi_ev_KLab
@@ -373,15 +362,6 @@ class DICStateFields(ib.TStepBC):
         args = (dic_t, x_MN[:, 0], y_MN[0, :])
         omega_fe_TKL = self.omega_fe_TKL
         return RegularGridInterpolator(args, omega_fe_TKL)
-
-    # f_phi_fe_txy = tr.Property(depends_on='state_changed')
-    # """Interpolator of maximum damage value in time-space domain"""
-    # @tr.cached_property
-    # def _get_f_phi_fe_txy(self):
-    #     x_MN, y_MN = np.einsum('MNa->aMN', self.X_fe_KLa)
-    #     args = (x_MN[:, 0], y_MN[0, :])
-    #     _, phi_fe_TKL = self.omega_fe_TKL
-    #     return RegularGridInterpolator(args, phi_fe_TKL)
 
     n_ipl_T = tr.Property
     def _get_n_ipl_T(self):
@@ -481,7 +461,7 @@ class DICStateFields(ib.TStepBC):
         x_MN, y_MN = X_TMN[0,...], Y_TMN[0,...]
         dic_t = dic_T / (self.dic_grid.n_T - 1)
         args = (dic_t, x_MN[:, 0], y_MN[0, :])
-        return RegularGridInterpolator(args, self.omega_irn_TMN)
+        return RegularGridInterpolator(args, self.omega_irn_TMN, bounds_error=False, fill_value=1)
 
 
     #######################################################################
