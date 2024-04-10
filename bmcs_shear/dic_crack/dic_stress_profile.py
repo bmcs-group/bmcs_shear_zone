@@ -9,7 +9,6 @@ import matplotlib.gridspec as gridspec
 import sympy as sp
 import bmcs_utils.api as bu
 
-
 class DICStressProfile(bu.Model):
     """Stress profile calculation in an intermediate state
     """
@@ -60,11 +59,10 @@ class DICStressProfile(bu.Model):
     def _get_X_unc_t_La(self):
         if len(self.dic_crack.X_unc_t_Ka) == 0:
             return np.zeros_like(self.dic_crack.X_unc_t_Ka)
-        else:
-            X_unc_t_La = np.copy(self.dic_crack.X_unc_t_Ka)
-            # add the top point
-            x_top = X_unc_t_La[-1, 0]
-            return np.vstack([X_unc_t_La, [[x_top, self.bd.H]]])
+        X_unc_t_La = np.copy(self.dic_crack.X_unc_t_Ka)
+        # add the top point
+        x_top = X_unc_t_La[-1, 0]
+        return np.vstack([X_unc_t_La, [[x_top, self.bd.H]]])
 
     X_crc_t_La = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
@@ -90,16 +88,15 @@ class DICStressProfile(bu.Model):
         if len(X_unc_t_La) == 0:
             # the crack
             return np.zeros_like(eps_t_Kab)
-        else:
-            y_1 = X_unc_t_La[-1, 1]
-            y_0 = X_unc_t_La[0, 1]
-            y_top = self.bd.H
-            eps_0 = eps_t_Kab[0, 0, 0]
-            eps_1 = eps_t_Kab[-1, 0, 0]
-            eps_top = eps_1 + (eps_1 - eps_0) / (y_1 - y_0) * (y_top - y_1)
-            eps_top_t_ab = np.zeros((2,2), dtype=np.float_)
-            eps_top_t_ab[0, 0] = eps_top
-            return np.vstack([eps_t_Kab, [eps_top_t_ab]])
+        y_1 = X_unc_t_La[-1, 1]
+        y_0 = X_unc_t_La[0, 1]
+        y_top = self.bd.H
+        eps_0 = eps_t_Kab[0, 0, 0]
+        eps_1 = eps_t_Kab[-1, 0, 0]
+        eps_top = eps_1 + (eps_1 - eps_0) / (y_1 - y_0) * (y_top - y_1)
+        eps_top_t_ab = np.zeros((2,2), dtype=np.float_)
+        eps_top_t_ab[0, 0] = eps_top
+        return np.vstack([eps_t_Kab, [eps_top_t_ab]])
 
     u_crc_t_Ka = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
@@ -145,8 +142,7 @@ class DICStressProfile(bu.Model):
     def _get_sig_crc_t_Lb(self):
         u_crc_t_Kb = self.dic_crack.u_crc_t_Kb
         cmm = self.bd.matrix_
-        sig_t_Kb = cmm.get_sig_a(u_crc_t_Kb)
-        return sig_t_Kb
+        return cmm.get_sig_a(u_crc_t_Kb)
         # sig_t_top_b = sig_t_Kb[-1, :]
         # return np.vstack([sig_t_Kb, [sig_t_top_b]])
 
@@ -157,8 +153,7 @@ class DICStressProfile(bu.Model):
     def _get_sig_crc_t_La(self):
         sig_crc_t_Lb = self.sig_crc_t_Lb
         T_crc_t_Kab = self.dic_crack.T_crc_t_Kab
-        sig_crc_t_La = np.einsum('Lb,Lab->La', sig_crc_t_Lb, T_crc_t_Kab)
-        return sig_crc_t_La
+        return np.einsum('Lb,Lab->La', sig_crc_t_Lb, T_crc_t_Kab)
 
     # =========================================================================
     # Stress resultants
@@ -216,12 +211,22 @@ class DICStressProfile(bu.Model):
         u_t_Na = self.u_t_Na
         if len(u_t_Na) == 0:
             return np.zeros((0, 2), dtype=np.float_)
-        F_t_Na = np.array([r.get_F_a(u_a) for r, u_a in zip(self.bd.csl.items.values(), u_t_Na)],
-                        dtype=np.float_)
-        return F_t_Na
+        return np.array(
+            [r.get_F_a(u_a) for r, u_a in zip(self.bd.csl.items.values(), u_t_Na)],
+            dtype=np.float_,
+        )
+
+    rebar_F_t_a = tr.Property(depends_on='state_changed')
+    '''Sum all rebar forces
+    '''
+    @tr.cached_property
+    def _get_rebar_F_t_a(self):
+        return np.sum(self.F_t_Na, axis=0) 
+
 
     F_t_a = tr.Property(depends_on='state_changed')
-    '''Integrated normal and shear force
+    '''Integrated normal and shear force 
+    TODO - this function only includes the cracked section - rename it. 
     '''
 
     @tr.cached_property
@@ -240,11 +245,10 @@ class DICStressProfile(bu.Model):
         x_Ka = self.sz_ds.sz_cp.x_Ka
         K_Li = self.sz_ds.sz_cp.K_Li
         x_Lia = x_Ka[K_Li]
-        x_La = np.sum(x_Lia, axis=1) / 2
-        return x_La
+        return np.sum(x_Lia, axis=1) / 2
 
     X_neutral_a = tr.Property(depends_on='state_changed')
-    '''Vertical position of the neutral axis
+    '''Position of the neutral axis
     '''
     @tr.cached_property
     def _get_X_neutral_a(self):
@@ -325,24 +329,22 @@ class DICStressProfile(bu.Model):
         return M_cb, M_da, M_agg
 
     M_ext_kN_t = tr.Property(bu.Float, depends_on='state_changed')
-    '''Coefficient of variation for the angles of rotation.
+    '''External bending moment.
     '''
     @tr.cached_property
     def _get_M_ext_kN_t(self):
         x_cc = self.X_1_La[-1, 0]
         L_right = self.dic_grid.sz_bd.L_right
-        M = (self.V_ext_kN_t * (L_right - x_cc))
-        return M
+        return (self.V_ext_kN_t * (L_right - x_cc))
 
     V_ext_kN_t = tr.Property(bu.Float, depends_on='state_changed')
-    '''Coefficient of variation for the angles of rotation.
+    '''External shear force.
     '''
     @tr.cached_property
     def _get_V_ext_kN_t(self):
         L_right = self.dic_grid.sz_bd.L_right
         L_left = self.dic_grid.sz_bd.L_left
-        F_right = self.dic_grid.F_T_t * L_left / (L_left + L_right)
-        return F_right
+        return self.dic_grid.F_T_t * L_left / (L_left + L_right)
 
     sig_x_tip_ak = tr.Property(depends_on='state_changed')
     '''Normal stress component in global $x$ direction in the fracture .
@@ -357,8 +359,7 @@ class DICStressProfile(bu.Model):
         T_ab = sz_cp.T_tip_k_ab
         u_b = np.einsum('a,ab->b', u_a, T_ab)
         sig_b = self.bd.matrix_.get_sig_a(u_b)
-        sig_a = np.einsum('b,ab->a', sig_b, T_ab)
-        return sig_a
+        return np.einsum('b,ab->a', sig_b, T_ab)
 
     sig_x_tip_0k = tr.Property(depends_on='state_changed')
     '''Check if this can be evaluated realistically.    
@@ -372,7 +373,7 @@ class DICStressProfile(bu.Model):
         return self.get_sig_x_tip_0k(x_tip_1k)
 
     get_sig_x_tip_0k = tr.Property(depends_on='state_changed')
-    '''DEPRECATED - interpolation inprecise and not sufficient for the 
+    '''DEPRECATED - interpolation imprecise and not sufficient for the 
     crack orientation criterion.
     Get an interpolator function returning horizontal stress 
     component for a specified vertical coordinate of a ligament.
@@ -418,10 +419,7 @@ class DICStressProfile(bu.Model):
         abs_S_L = np.fabs(S_L)
         sum_abs_S = np.sum(abs_S_L)
         sum_abs_Sy = np.sum(abs_S_L * y_L)
-        if sum_S == 0:
-            cg_y = 0
-        else:
-            cg_y = sum_abs_Sy / sum_abs_S
+        cg_y = 0 if sum_S == 0 else sum_abs_Sy / sum_abs_S
         SB = sum_S * self.bd.B
         if np.fabs(SB) < 1e-5:
             SB = 0
@@ -481,6 +479,90 @@ class DICStressProfile(bu.Model):
         S_[S_<self.S_zero_level] = self.S_zero_level
         y_ = self.X_unc_t_La[:, 1]
         return self.get_SY(S_, y_)
+
+    # =========================================================================
+    # Stress transfer collection methods
+    # =========================================================================
+
+    ST_colors = tr.Dict(dict(
+        color_cb = 'red', 
+        color_dowel = 'gray', 
+        color_agg = 'blue', 
+        color_c_horiz = 'orange', 
+        color_c_shear = 'magenta'
+    ))    
+
+    # stress-transfer attributes
+    ST_attributes = tr.Dict(dict(
+        V_crc_y = {'to_kN':  1e-3},
+        V_unc_y = {'to_kN':   1e-3},
+        neg_unc_F_y = {'to_kN':   1e-3},
+        pos_unc_F_y = {'to_kN':   1e-3},
+        neg_crc_F_y = {'to_kN':   1e-3},
+        pos_crc_F_y = {'to_kN':   1e-3},
+        rebar_F_t_a = {'to_kN':   1e-3},
+        V_ext_kN_t = {'to_kN':   1},
+        M_ext_kN_t = {'to_kN':   1e-3},
+        M_mid_unc_t_a = {'to_kN': 1e-6},
+        F_t_a = {'to_kN':   1e-3}
+    ))
+
+    ST_T = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_ST_T(self):
+        """
+        Get stress transfer profiles for the specified attributes.
+
+        Iterates over the time values and calculates stress transfer profiles for each attribute based on the current time.
+        The stress transfer profiles are adjusted to kilonewtons.
+
+        Returns:
+            dict: A dictionary containing stress transfer profiles for each attribute.
+        """
+        ST_attribs = self.ST_attributes
+        ST_T = { name: [] for name in ST_attribs.keys()}
+        t_T = self.dic_grid.t_T
+        for t in t_T:
+            self.dic_grid.t = t
+            for attr in ST_attribs.keys():
+                ST_T[attr].append(getattr(self, attr))
+        return {
+            attr: np.array(ST_T[attr]) * ST_attribs[attr]['to_kN'] 
+            for attr in ST_T
+        }
+
+    def plot_stapled(self, ax, t_T, F_MT, colors):
+        F_level = 0
+        for F_T, color_key in zip(F_MT, colors):
+            color = self.ST_colors[color_key]
+            ax.plot(t_T, F_T + F_level, color=color)
+            ax.fill_between(t_T, F_T + F_level, F_level, color=color, alpha=0.5)
+            F_level += F_T 
+
+    def plot_ST(self, ax_N, ax_V, ax_M):
+        ST = self.ST_T
+        t_T = self.dic_grid.t_T
+        self.plot_stapled(ax_N, t_T, 
+                          [ST['rebar_F_t_a'][:,0], 
+                           ST['pos_crc_F_y'][:,0],
+                           ST['pos_unc_F_y'][:,0]],
+                           ['color_cb', 'color_agg', 'color_c_horiz'])
+        self.plot_stapled(ax_N, t_T, 
+                          [ST['neg_crc_F_y'][:,0],
+                           ST['neg_unc_F_y'][:,0]], 
+                           ['color_agg', 'color_c_horiz'])
+        ax_N.plot(t_T, ST['F_t_a'][:,0], color='black', linestyle='dashed')
+        ax_V.plot(t_T, ST['V_ext_kN_t'], color='black', linestyle='dashed')
+        self.plot_stapled(ax_V, t_T, [ST['F_t_a'][:,1]], ['color_dowel'])
+        ax_M.plot(t_T, ST['M_ext_kN_t'], color='black', linestyle='dashed')
+        self.plot_stapled(ax_M, t_T, ST['M_mid_unc_t_a'].T, 
+                          colors=['color_cb', 'color_dowel', 'color_agg'])
+        ax_N.set_ylabel(r'$F$/kN')
+        ax_V.set_ylabel(r'$V$/kN')
+        ax_M.set_ylabel(r'$M$/kNm')
+        ax_N.set_xlabel(r'$t$/-')
+        ax_V.set_xlabel(r'$t$/-')
+        ax_M.set_xlabel(r'$t$/-')
 
     # =========================================================================
     # Plotting methods

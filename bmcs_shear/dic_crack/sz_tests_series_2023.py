@@ -82,7 +82,7 @@ B7_TV1 = dict(
     omega_threshold=0.1, 
     verbose_eval=True, tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
-    t_detect = 0.98,
+    t_detect = 0.93,
     delta_alpha_min =  -0.1*np.pi,
     delta_alpha_max =  0.2*np.pi,
     delta_s = 20,
@@ -146,7 +146,7 @@ B9_TV1 = dict(
     omega_threshold=0.1, verbose_eval=True, tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.98,
-    delta_alpha_min =  -0.2*np.pi,
+    delta_alpha_min =  -0.25*np.pi,
     delta_alpha_max =  0.3*np.pi,
     delta_s = 20,
     x_boundary = 30

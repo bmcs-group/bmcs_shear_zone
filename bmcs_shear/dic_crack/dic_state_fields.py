@@ -168,9 +168,38 @@ class DICStateFields(ib.TStepBC):
         field_MN_shape = (2 * n_E, 2 * n_F) + field_Em_shape[2:]
         return field_EmFn.reshape(*field_MN_shape)
 
-    def get_z_MN_ironed(self, x_JK, y_JK, z_JK):
+    def get_z_MN_ironed(self, x_JK, y_JK, z_JK, RR, x_MN=None, y_MN=None):
+        """
+        Calculates the ironed z-coordinate field 
+        with radial averaging.
+
+        Args:
+            x_JK: Array of x-coordinates.
+            y_JK: Array of y-coordinates.
+            z_JK: Array of z-coordinates.
+            RR: Radial averaging parameter.
+
+        Returns:
+            Ironed z-coordinate field 
+            with radial averaging.
+        """
+        x_MN = x_JK if x_MN is None else x_MN
+        y_MN = x_JK if y_MN is None else y_MN
+        alpha_r_MNJK = np.exp(-((x_JK[None, None, ...] - 
+                                 x_MN[..., None, None]) ** 2 + 
+                                (y_JK[None, None, ...] - 
+                                 y_MN[..., None, None]) ** 2) 
+                                / (2 * RR ** 2))
+        a_MN = np.trapz(np.trapz(alpha_r_MNJK, x_JK[:, 0], axis=-2), 
+                        y_JK[0, :], axis=-1)
+        alpha_r_MNJK /= a_MN[..., None, None]
+        z_MNJK = np.einsum('MNKL,KL...->MNKL...', alpha_r_MNJK, z_JK)
+        return np.trapz(
+            np.trapz(z_MNJK, x_JK[:, 0], axis=2), 
+            y_JK[0, :], axis=2)
+    
+    def xget_z_MN_ironed(self, x_JK, y_JK, z_JK):
         RR = self.R
-        print('ironing with', RR)
         delta_x_JK = x_JK[None, None, ...] - x_JK[..., None, None]
         delta_y_JK = y_JK[None, None, ...] - y_JK[..., None, None]
         r2_n = (delta_x_JK ** 2 + delta_y_JK ** 2) / (2 * RR ** 2)
@@ -269,7 +298,8 @@ class DICStateFields(ib.TStepBC):
         for T in range(self.dic_grid.n_T):
             # U_o = self.U_To[T]
             # eps_Emab = self.xmodel.map_U_to_field(U_o)
-            eps_Emab = self.eps_TEmab[self.dic_grid.T_t]
+            # eps_Emab = self.eps_TEmab[self.dic_grid.T_t]
+            eps_Emab = self.eps_TEmab[T]
             eps_KLab = self.transform_mesh_to_grid(eps_Emab)
             eps_KLab_list.append(np.copy(eps_KLab))
         return np.array(eps_KLab_list, dtype=np.float_)
@@ -279,10 +309,11 @@ class DICStateFields(ib.TStepBC):
     """
     @tr.cached_property
     def _get_f_eps_fe_txy(self):
-        dic_T = np.arange(self.dic_grid.n_T)
+        t_T = np.arange(self.dic_grid.n_T)
+        t_T = self.dic_grid.t_T
         x_fe_KL, y_fe_KL = np.einsum('KLa->aKL', self.X_fe_KLa)
-        dic_t = dic_T / (self.dic_grid.n_T - 1)
-        args = (dic_t, x_fe_KL[:, 0], y_fe_KL[0, :])
+        # t_T = t_T / (self.dic_grid.n_T - 1)
+        args = (t_T, x_fe_KL[:, 0], y_fe_KL[0, :])
         return RegularGridInterpolator(args, self.eps_fe_TKLab[:, :, :])
 
     kappa_fe_TKLab = tr.Property(depends_on='state_changed')
@@ -297,7 +328,7 @@ class DICStateFields(ib.TStepBC):
         for T in range(self.dic_grid.n_T):
             # U_o = self.U_To[T]
             # eps_Emab = self.xmodel.map_U_to_field(U_o)
-            kappa_Emab = self.kappa_TEmr[self.dic_grid.T_t]
+            kappa_Emab = self.kappa_TEmr[T]
             kappa_KLab = self.transform_mesh_to_grid(kappa_Emab)
             kappa_KLab_list.append(np.copy(kappa_KLab))
         return np.array(kappa_KLab_list, dtype=np.float_)
@@ -309,8 +340,9 @@ class DICStateFields(ib.TStepBC):
     def _get_f_kappa_fe_txy(self):
         dic_T = np.arange(self.dic_grid.n_T)
         x_fe_KL, y_fe_KL = np.einsum('KLa->aKL', self.X_fe_KLa)
-        dic_t = dic_T / (self.dic_grid.n_T - 1)
-        args = (dic_t, x_fe_KL[:, 0], y_fe_KL[0, :])
+        # dic_t = dic_T / (self.dic_grid.n_T - 1)
+        t_T = self.dic_grid.t_T
+        args = (t_T, x_fe_KL[:, 0], y_fe_KL[0, :])
         return RegularGridInterpolator(args, self.kappa_fe_TKLab[:, :, :])
 
 
@@ -344,7 +376,6 @@ class DICStateFields(ib.TStepBC):
         omega_fe_KL_list = []
         x_fe_KL, y_fe_KL = np.einsum('KLa->aKL', self.X_fe_KLa)
         for T in range(self.dic_grid.n_T):
-            print('omega_fe_TKL', 2)
             kappa_Emr = self.kappa_TEmr[T] # self.hist.state_vars[T][0]['kappa']
             omega_Emr = self.tmodel_.omega_fn_(kappa_Emr)
             omega_fe_KL = self.transform_mesh_to_grid(omega_Emr)
@@ -359,7 +390,8 @@ class DICStateFields(ib.TStepBC):
         dic_T = np.arange(self.dic_grid.n_T)
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_fe_KLa)
         dic_t = dic_T / (self.dic_grid.n_T - 1)
-        args = (dic_t, x_MN[:, 0], y_MN[0, :])
+        t_T = self.dic_grid.t_T
+        args = (t_T, x_MN[:, 0], y_MN[0, :])
         omega_fe_TKL = self.omega_fe_TKL
         return RegularGridInterpolator(args, omega_fe_TKL)
 
@@ -447,7 +479,8 @@ class DICStateFields(ib.TStepBC):
         x_MN, y_MN = X_TMN[0, ...], Y_TMN[0, ...]
         for T in range(self.dic_grid.n_T):
             omega_ipl_MN = self.omega_ipl_TMN[T, ...]
-            omega_irn_MN = self.get_z_MN_ironed(x_MN, y_MN, omega_ipl_MN)
+            omega_irn_MN = self.get_z_MN_ironed(x_MN, y_MN, 
+                                                omega_ipl_MN, self.R)
             omega_irn_MN[omega_irn_MN < self.omega_threshold] = 0
             omega_irn_MN_list.append(np.copy(omega_irn_MN))
         return np.array(omega_irn_MN_list, dtype=np.float_)
@@ -544,29 +577,22 @@ class DICStateFields(ib.TStepBC):
             cbar_cracks.set_label(r'$\omega = 1 - \min(\phi_I)$')
 
     def update_plot(self, axes):
-        print('update plot')
         ((ax_eps, ax_FU), (ax_sig, ax_sig_eps), (ax_omega, ax_cracks)) = axes
         fig = self.fig
         # spatial coordinates
-        print('update plot 2')
         X_fe_KLa = self.X_fe_KLa
 #        X_fe_aKL = np.einsum('MNa->aMN', X_fe_KLa)
         # strain fields
-        print('update plot 3')
         eps_Emab, eps_MNab, eps_MNa, max_eps_MN = self.eps_fe_fields
         # stress fields
-        print('update plot 4')
         sig_Emab, sig_MNab, sig_MNa, max_sig_MN = self.sig_fe_fields
         # damage field
         omega_fe_KL = self.omega_fe_KL
         # plot
-        print('update plot 5')
         self.plot_eps_field(ax_eps, fig)
 
-        print('update plot 6')
         self.plot_sig_field(ax_sig, fig)
 
-        print('update plot 7')
         self.plot_crack_detection_field(ax_omega, fig)
         ax_omega.axis('equal');
         ax_omega.axis('off')

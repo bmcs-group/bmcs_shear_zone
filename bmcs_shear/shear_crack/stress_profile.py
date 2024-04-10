@@ -63,9 +63,7 @@ class SZStressProfile(InteractiveModel):
         K_Li = self.sz_cp.K_Li
         u_Ka = self.sz_ds.x1_Ka - self.sz_cp.x_Ka
         u_Lia = u_Ka[K_Li]
-        u_La = np.sum(u_Lia, axis=1) / 2
-        #print('u_La =', u_La)
-        return u_La
+        return np.sum(u_Lia, axis=1) / 2
 
     u_Ca = tr.Property(depends_on='state_changed')
     '''Displacement of the corner nodes '''
@@ -73,9 +71,7 @@ class SZStressProfile(InteractiveModel):
     def _get_u_Ca(self):
         x_Ca = self.sz_bd.x_Ca
         x1_Ca = self.sz_ds.x1_Ca
-        u_Ca = x1_Ca - x_Ca
-        #print('u_Ca =', u_Ca)
-        return u_Ca
+        return x1_Ca - x_Ca
 
     u_Lb = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
@@ -83,11 +79,7 @@ class SZStressProfile(InteractiveModel):
     def _get_u_Lb(self):
         u_La = self.u_La
         T_Mab = self.sz_cp.T_Mab
-        u_Lb = np.einsum(
-            'La,Lab->Lb', u_La, T_Mab
-        )
-        #print('u_Lb =', u_Lb)
-        return u_Lb
+        return np.einsum('La,Lab->Lb', u_La, T_Mab)
 
     # =========================================================================
     # Stress transformation and integration

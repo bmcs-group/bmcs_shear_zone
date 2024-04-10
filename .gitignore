@@ -46,6 +46,9 @@ geckodriver.log
 *.html
 *.mp4
 *.pdf
+*.aux
+*.log
+*.tex
 
 notebooks/sz_matmod/crackplotangleforthreecaseswhenbeta0.pdf
 notebooks/sz_matmod/crackplotnew1.pdf

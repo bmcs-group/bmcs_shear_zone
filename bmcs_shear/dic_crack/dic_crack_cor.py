@@ -44,8 +44,12 @@ class DICCrackCOR(bu.Model):
 
     depends_on = ['dic_crack']
 
-    delta_x = bu.Float(30, ALG=True)
-    delta_y = bu.Float(30, ALG=True)
+    # offset of the frame point relative to initial crack point
+    delta_x0 = bu.Float(20, ALG=True)
+    delta_y0 = bu.Float(20, ALG=True)
+    # offset of the frame point relative to the crack tip
+    delta_x1 = bu.Float(10, ALG=True)
+    delta_y1 = bu.Float(30, ALG=True)
 
     X0_0_a = tr.Property(bu.Float, depends_on='state_changed')
     '''Point relative to the crack tip defining the rigid frame on left tooth
@@ -55,10 +59,10 @@ class DICCrackCOR(bu.Model):
         x_min, y_min, x_max, y_max = self.dic_grid.X_frame
         X_crc_1_0a, X_crc_1_1a = self.dic_crack.X_crc_1_Ka[(0, -1), :]
         if self.frame_position == 'vertical':
-            X0_0_a = np.array([X_crc_1_1a[0] - self.delta_x,
-                               X_crc_1_0a[1] + self.delta_y])
+            X0_0_a = np.array([X_crc_1_1a[0] - self.delta_x0,
+                               X_crc_1_0a[1] + self.delta_y0])
         elif self.frame_position == 'inclined':
-            X0_0_a = X_crc_1_0a + np.array([-self.delta_x, self.delta_y])
+            X0_0_a = X_crc_1_0a + np.array([-self.delta_x0, self.delta_y0])
         return X0_0_a
 
     X1_0_a = tr.Property(bu.Float, depends_on='state_changed')
@@ -67,9 +71,12 @@ class DICCrackCOR(bu.Model):
     @tr.cached_property
     def _get_X1_0_a(self):
         x_min, y_min, x_max, y_max = self.dic_grid.X_frame
-        X_tip_1_a = self.dic_crack.X_crc_1_Ka[-1, :]
-        x1 = np.max([X_tip_1_a[0] - self.delta_x, x_min])
-        y1 = X_tip_1_a[1] - self.delta_y
+#        X_tip_1_a = self.dic_crack.X_crc_1_Ka[-1, :]
+        X_tip_t_a = self.dic_crack.X_crc_t_Ka[-1, :]
+#        x1 = np.max([X_tip_1_a[0] - self.delta_x1, x_min])
+        x1 = np.max([X_tip_t_a[0] - self.delta_x1, x_min])
+#        y1 = X_tip_1_a[1] - self.delta_y1
+        y1 = X_tip_t_a[1] - self.delta_y1
         return np.array([x1, y1])
 
     frame_position = bu.Enum(options=[
@@ -77,12 +84,10 @@ class DICCrackCOR(bu.Model):
     ], ALG=True)
 
     ipw_view = bu.View(
-        bu.Item('delta_x'),
-        bu.Item('delta_y'),
-        # bu.Item('x0', readonly=True),
-        # bu.Item('y0', readonly=True),
-        # bu.Item('x1', readonly=True),
-        # bu.Item('y1', readonly=True),
+        bu.Item('delta_x0'),
+        bu.Item('delta_y0'),
+        bu.Item('delta_x1'),
+        bu.Item('delta_y1'),
         bu.Item('step_N_COR'),
         bu.Item('frame_position'),
         bu.Item('phi_t', readonly=True),
@@ -303,9 +308,10 @@ class DICCrackCOR(bu.Model):
     def plot_X_cor_t(self, ax):
         if not self.crack_exists:
             return
-        ax.plot(*self.X_cor_t_pa.T, 'o', color = 'blue')
+        color = self.dic_crack.color
+        ax.plot(*self.X_cor_t_pa.T, 'o', color = 'lightblue', alpha=0.8)
         ax.plot([self.X_cor_t_a[0]], [self.X_cor_t_a[1]], 'o',
-                color=self.cor_marker_color, markersize=self.cor_marker_size)
+                color=color, markersize=self.cor_marker_size)
         ax.axis('equal');
 
     def plot_VW_rot_t(self, ax_x):
@@ -324,7 +330,6 @@ class DICCrackCOR(bu.Model):
 
         if self.crack_exists:
             self._plot_crack_cor(ax_x)
-        self.a_grid.plot_frame(ax_x)
 
         self.dic_crack.plot_X_1_Ka(ax_x)
         self.dic_crack.plot_X_t_Ka(ax_x)
@@ -334,8 +339,9 @@ class DICCrackCOR(bu.Model):
     def _plot_crack_cor(self, ax_x):
         """Plot the center of rotation.
         """
+        color=self.dic_crack.color
         X_aOP = np.einsum('...a->a...', self.X_OPa)
-        ax_x.scatter(*X_aOP.reshape(2, -1), s=15, marker='o', color='orange')
+        ax_x.scatter(*X_aOP.reshape(2, -1), s=15, marker='o', color=color, alpha=0.5)
 
         x0, y0 = self.X0_0_a
         x1, y1 = self.X1_0_a
@@ -344,3 +350,4 @@ class DICCrackCOR(bu.Model):
             X_0_MNa = self.X_OPa
         )
         self.plot_X_cor_t(ax_x)
+        self.a_grid.plot_frame(ax_x)

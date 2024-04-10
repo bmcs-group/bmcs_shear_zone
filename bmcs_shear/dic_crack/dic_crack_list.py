@@ -71,6 +71,24 @@ class DICCrackList(bu.ModelDict):
         time_editor=bu.HistoryEditor(var='dsf.dic_grid.t')
     )
 
+    def get_latex_detection_params(self):
+        return f'''
+    \\begin{{center}}
+    \\begin{{tabular}}{{|c|c|c|c|}}
+    \\hline
+    Name & Symbol & Unit & Value \\\\
+    \\hline
+    alpha\_min & $\\min \\alpha$ & deg & {np.rad2deg(self.delta_alpha_min):.1f} \\\\
+    \\hline
+    alpha\_max & $\\max \\alpha$ & deg & {np.rad2deg(self.delta_alpha_max):.2f} \\\\
+    \\hline
+    delta\_s & $\\Delta s$ & mm & {self.delta_s:.0f} \\\\
+    \\hline
+    t\_detect & $t_{{\\mathrm{{detect}}}}$ & - & {self.t_detect:.2f} \\\\
+    \\hline
+    \\end{{tabular}}
+    \\end{{center}}
+    ''' 
     y_range = tr.Property
     """Vertical limits of the zone
     """
@@ -198,7 +216,7 @@ class DICCrackList(bu.ModelDict):
             X_C0a = X_C1a
 
         X_CKa = np.einsum('KCa->CKa', np.array(X_KCa_))
-        # discard two short cracks
+        # discard too short cracks
         y_bot, y_top = self.y_range
         h = y_top - y_bot
         X_tip_Ca = X_CKa[C_C, K_tip_C]
@@ -256,6 +274,19 @@ class DICCrackList(bu.ModelDict):
     def _get_K_tip_C(self):
         return self.crack_paths[1]
 
+    X_tip_t_Ca = tr.Property
+    def _get_X_tip_t_Ca(self):
+        """
+        Returns the X coordinates of the crack tips.
+
+        Returns:
+            X coordinates at the crack tip.
+        """
+        return np.array([
+            crack.X_tip_t_a for crack in self.cracks
+        ])
+        
+
     primary_cracks = tr.Property
     def _get_primary_cracks(self):
         # primary_cracks, _ = self.sorted_cracks
@@ -285,7 +316,6 @@ class DICCrackList(bu.ModelDict):
         t_range[t_range<0] = 0
         M_phi_Ct = [cr.cor.get_M_phi_t(t_range) for cr in self.cracks]
         return np.array(M_phi_Ct)
-
 
     def plot_all_cracks(self, ax_cracks):
         X_aKC = np.einsum('CKa->aKC', self.X_CKa)
@@ -381,17 +411,19 @@ class DICCrackList(bu.ModelDict):
         ax_cl.axis('off');
         self.dsf.dic_grid.plot_load_deflection(ax_FU)
 
-#       self.plot_MQ(ax_M, ax_Q)
+        self.plot_MQ(ax_M, ax_Q)
         return
-        # plot the kinematic profile
-        #self.critical_crack.plot_u_t_crc_Ka(ax_u)
-        self.critical_crack.plot_eps_t_Kab(ax_eps)
-        ax_eps.set_ylim(0, self.bd.H)
-        ax_u.set_ylim(0, self.bd.H * 1.04)
-        bu.mpl_align_xaxis(ax_u, ax_eps)
+    
+    # plot the kinematic profile
+    #self.critical_crack.plot_u_t_crc_Ka(ax_u)
 
-        # self.critical_crack.sp.plot_sig_t_unc_Lab(ax_sig)
-        # self.critical_crack.sp.plot_sig_t_crc_La(ax_sig)
-        # self.critical_crack.sp.plot_F_t_a(ax_F)
-        # bu.mpl_align_xaxis(ax_sig, ax_F)
+    # self.critical_crack.plot_eps_t_Kab(ax_eps)
+    # ax_eps.set_ylim(0, self.bd.H)
+    # ax_u.set_ylim(0, self.bd.H * 1.04)
+    # bu.mpl_align_xaxis(ax_u, ax_eps)
+
+    # self.critical_crack.sp.plot_sig_t_unc_Lab(ax_sig)
+    # self.critical_crack.sp.plot_sig_t_crc_La(ax_sig)
+    # self.critical_crack.sp.plot_F_t_a(ax_F)
+    # bu.mpl_align_xaxis(ax_sig, ax_F)
 

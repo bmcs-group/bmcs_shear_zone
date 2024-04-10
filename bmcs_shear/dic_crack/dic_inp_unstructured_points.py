@@ -58,7 +58,8 @@ class DICInpUnstructuredPoints(bu.Model):
                         'H' : float,
                         'n_s' : float,
                         'y_s' : float,
-                        'd_s' : float}
+                        'd_s' : float,
+                        'd_agg' : float}
     """Parameters of the test specifying the length, width and depth of the beam.
     """
 
@@ -90,6 +91,7 @@ class DICInpUnstructuredPoints(bu.Model):
         # convert the strings to the parameter types specified in the param_types table
         params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
         self.sz_bd.trait_set(**{key: params[key] for key in ['H', 'B', 'L_right', 'L_left']})
+        self.sz_bd.trait_set(**{key: params[key] for key in ['d_s', 'n_s', 'y_s', 'd_agg']})
         self.sz_bd.L = self.sz_bd.L_left + self.sz_bd.L_right
         self.sz_bd.X0 = -self.sz_bd.L_left
         self.sz_bd.X_point_load = 0
@@ -522,6 +524,15 @@ class DICInpUnstructuredPoints(bu.Model):
         time_T, _ = self.time_F_T
         return len(time_T)
 
+    t_T = tr.Property(bu.Array, depends_on='state_changed')
+    """Slider values matching the DIC data snapshots in the range t \in (0,1)  
+    """
+    def _get_t_T(self):
+        t_T = self.F_T / self.F_T[-1]
+        t_T[t_T < 0] = 0 # avoid negative time
+        t_T[0] = 0  # ensure that the interpolators include zero valued slider
+        return t_T
+
     F_T_t = tr.Property(depends_on='state_changed')
     """Current load
     """
@@ -662,3 +673,67 @@ class DICInpUnstructuredPoints(bu.Model):
         self.plot_bounding_box(ax_u)
         self.plot_box_annotate(ax_u)
         self.plot_load_deflection(ax_load)
+
+    def get_latex_design_params(self):
+        sz_bd = self.sz_bd
+        return f'''
+    \\begin{{center}}
+    \\begin{{tabular}}{{|c|c|c|c|}}
+    \\hline
+    Name & Symbol & Unit & Value \\\\
+    \\hline
+    beam length & $L$ & mm & {sz_bd.L_left + sz_bd.L_right:.0f} \\\\
+    \\hline
+    span & $a$ & mm & {sz_bd.L_right:.0f} \\\\
+    \\hline
+    height & $H$ & mm & {sz_bd.H:.0f} \\\\
+    \\hline
+    width & $B$ & mm & {sz_bd.B:.0f} \\\\
+    \\hline
+    max aggregate size & $d_\\mathrm{{agg}}$ & mm & {sz_bd.d_agg:.0f} \\\\
+    \\hline
+    depth & $d$ & mm & {sz_bd.H - sz_bd.y_s:.0f} \\\\
+    \\hline
+    slenderness & $\\lambda = a/d$ & - & {self.lambda_ad:.1f} \\\\
+    \\hline
+    bar diameter & $d_\\mathrm{{s}}$ & mm & {sz_bd.d_s:.0f} \\\\
+    \\hline
+    \# bars & $n_\\mathrm{{s}}$ & - & {sz_bd.n_s:.0f} \\\\
+    \\hline
+    reinf. ratio & $\\rho$ & \\% & {self.rho*100:.2f} \\\\
+    \\hline
+    \\end{{tabular}}
+    \\end{{center}}
+    '''
+    
+    rho = tr.Property()
+    def _get_rho(self):
+        sz_bd = self.sz_bd
+        d = sz_bd.H - sz_bd.y_s
+        return (sz_bd.n_s * np.pi * (sz_bd.d_s/2)**2) / (d * sz_bd.B)
+    
+    lambda_ad = tr.Property()
+    def _get_lambda_ad(self):
+        sz_bd = self.sz_bd
+        d = sz_bd.H - sz_bd.y_s
+        return (sz_bd.L_right) / d
+
+    def get_latex_dic_params(self):
+        sz_bd = self.sz_bd
+        names = [name.replace('_', r'\_') for name in self.dic_params.keys()]
+        values = [str(value) for value in self.dic_params.values()]
+
+        table_body = r" & ".join(values)
+
+        return r'''
+    \begin{center}
+    \begin{tabular}{|c|''' + 'c|' * len(names) + r'''}
+    \hline
+    ''' + ' & '.join(names) + r'''\\
+    \hline
+    ''' + table_body + r'''\\
+    \hline
+    \end{tabular}
+    \end{center}
+    '''
+

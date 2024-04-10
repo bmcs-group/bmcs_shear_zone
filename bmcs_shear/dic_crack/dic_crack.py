@@ -44,8 +44,7 @@ def get_T_Lab(line_vec_La):
     t_vec_La = np.einsum('ijk,...j,k->...i',
                          EPS[:-1, :-1, :], normed_line_vec_La, Z);
     T_bLa = np.array([t_vec_La, normed_line_vec_La])
-    T_Lab = np.einsum('bLa->Lab', T_bLa)
-    return T_Lab
+    return np.einsum('bLa->Lab', T_bLa)
 
 
 @tr.provides(IDICCrack)
@@ -337,10 +336,14 @@ class DICCrack(bu.Model):
         strain in the state field model.
         """
         x_K, y_K = X_Ka.T
-        t_K = np.ones_like(x_K) * t
-        tX_mid_K = np.array([t_K, x_K, y_K], dtype=np.float_).T
-        eps_Kab = self.cl.dsf.f_eps_fe_txy(tX_mid_K)
-        return eps_Kab
+        t = np.atleast_1d(t)
+        T_K = np.repeat(t[:, np.newaxis], X_Ka.shape[0], axis=1)
+        tX_mid_K = np.column_stack([T_K.flatten(), (x_K).repeat(len(t)), y_K.repeat(len(t))])
+        eps_tKab = self.cl.dsf.f_eps_fe_txy(tX_mid_K)
+        n_K = len(x_K)
+        if len(t) == 1:
+            return eps_tKab.reshape(n_K, 2, 2)
+        return eps_tKab.reshape(-1, n_K, 2, 2)        
 
     eps_t_Kab = tr.Property(depends_on='state_changed')
     '''Global strain displacement of points along the 
@@ -357,8 +360,7 @@ class DICCrack(bu.Model):
     @tr.cached_property
     def _get_min_eps_1(self):
         eps_1_Kab = self.get_eps_Kab(1, self.X_1_Ka)
-        min_eps_1 = np.min(eps_1_Kab[:,0,:])
-        return min_eps_1
+        return np.min(eps_1_Kab[:,0,:])
 
     max_u_1 = tr.Property(depends_on='state_changed')
     '''Global strain displacement of points along the 
@@ -367,8 +369,7 @@ class DICCrack(bu.Model):
     @tr.cached_property
     def _get_max_u_1(self):
         u_1_Ka = self.get_u_crc_Ka(1, self.X_1_Ka)
-        u_1 = np.max(u_1_Ka[:,:])
-        return u_1
+        return np.max(u_1_Ka[:,:])
 
     def get_u_crc_Ka(self, t, X_crc_Ka):
         """Displacement jump across the crack.
@@ -376,9 +377,9 @@ class DICCrack(bu.Model):
         d_x = self.d_x / 2
         x_K, y_K = X_crc_Ka.T
         t = np.atleast_1d(t)
-        T = np.repeat(t[:, np.newaxis], X_crc_Ka.shape[0], axis=1)
-        tX_right_K = np.column_stack([T.flatten(), (x_K + d_x).repeat(len(t)), y_K.repeat(len(t))])
-        tX_left_K = np.column_stack([T.flatten(), (x_K - d_x).repeat(len(t)), y_K.repeat(len(t))])
+        t_T = np.repeat(t[:, np.newaxis], X_crc_Ka.shape[0], axis=1)
+        tX_right_K = np.column_stack([t_T.flatten(), (x_K + d_x).repeat(len(t)), y_K.repeat(len(t))])
+        tX_left_K = np.column_stack([t_T.flatten(), (x_K - d_x).repeat(len(t)), y_K.repeat(len(t))])
         # handle the situation with coordinates outside the bounding box
         self.cl.dsf
         u_tKa = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
@@ -410,8 +411,7 @@ class DICCrack(bu.Model):
     @tr.cached_property
     def _get_u_crc_t_Kb(self):
         u_crc_t_Ka = self.u_crc_t_Ka
-        u_crc_t_Kb = np.einsum('...ab,...b->...a', self.T_crc_t_Kab, u_crc_t_Ka)
-        return u_crc_t_Kb
+        return np.einsum('...ab,...b->...a', self.T_crc_t_Kab, u_crc_t_Ka)
 
     # Time-space interpolation of the damage function along the ligament
 
@@ -446,8 +446,7 @@ class DICCrack(bu.Model):
         a_M = np.trapz(alpha_r_MK, x_K[:], axis=-1)
         normed_a_MK = np.einsum('MK,M->MK', alpha_r_MK, 1 / a_M)
         z_MK = np.einsum('MK,K...->MK...', normed_a_MK, y_K)
-        z_M = np.trapz(z_MK, x_K, axis=-1)
-        return z_M
+        return np.trapz(z_MK, x_K, axis=-1)
 
     K_tip_T = tr.Property(depends_on='state_changed')
     '''Vertical index of the crack tip at time index T.
@@ -527,7 +526,7 @@ class DICCrack(bu.Model):
         ax_x.plot(*self.X_1_Ka.T, linewidth=line_width, color=line_color);
         ax_x.plot(*self.X_tip_1_a[:, np.newaxis], 'o', color=tip_color)
 
-    def plot_X_crc_t_Ka(self, ax, line_width=1, line_color='black', tip_color='red'):
+    def plot_X_crc_t_Ka(self, ax, line_width=1, line_color='black', tip_color='black'):
         """Plot geometry at current state.
         """
         ax.plot(*self.X_crc_t_Ka.T, linewidth=line_width, color=line_color);
@@ -537,7 +536,7 @@ class DICCrack(bu.Model):
         """Plot geometry at current state.
         """
         ax.plot(*self.X_t_Ka.T, linewidth=1, linestyle='dotted', color='black');
-        ax.plot(*self.X_tip_t_a[:, np.newaxis], 'o', color='red')
+        ax.plot(*self.X_tip_t_a[:, np.newaxis], 'o', color='black')
 
     def _plot_eps_t(self, ax, eps_t_Kab, a=0, b=0,
                     linestyle='dotted', color='black', label=r'$\varepsilon$ [-]'):

@@ -77,8 +77,7 @@ class DICGrid(bu.Model):
                 min_x + pad_l:max_x - pad_r:complex(n_I),
                 min_y + pad_b:max_y - pad_t:complex(n_J)]
         x_IJ, y_IJ = X_aIJ
-        X0_IJa = np.einsum('aIJ->IJa', np.array([x_IJ, y_IJ]))
-        return X0_IJa
+        return np.einsum('aIJ->IJa', np.array([x_IJ, y_IJ]))
 
     delaunay = tr.Property(depends_on='state_changed')
     @tr.cached_property
@@ -87,6 +86,7 @@ class DICGrid(bu.Model):
         return Delaunay(points)
 
     n_T = tr.DelegatesTo('dic_inp')
+    t_T = tr.DelegatesTo('dic_inp')
     U_factor = tr.DelegatesTo('dic_inp')
 
     U_TIJa = tr.Property(depends_on='state_changed')
@@ -180,3 +180,18 @@ class DICGrid(bu.Model):
         self.plot_bounding_box(ax_u)
         self.plot_box_annotate(ax_u)
         self.plot_load_deflection(ax_load)
+
+    def get_latex_grid_params(self):
+        return f'''
+    \\begin{{center}}
+    \\begin{{tabular}}{{|c|c|c|c|}}
+    \\hline
+    Name & Symbol & Unit & Value \\\\
+    \\hline
+    d\\_x & $\Delta x$ & mm & {self.d_x:.1f} \\\\
+    \\hline
+    d\\_y & $\Delta y$ & mm & {self.d_y:.1f} \\\\
+    \\hline
+    \\end{{tabular}}
+    \\end{{center}}
+    '''
