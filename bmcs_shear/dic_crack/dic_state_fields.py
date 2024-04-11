@@ -74,6 +74,12 @@ class DICStateFields(ib.TStepBC):
                 print('T:', T)
             self.t_n1 = T
             U_IJa = self.dic_grid.U_TIJa[T]
+            ####
+            # x_IJ, y_IJ = np.einsum('IJa->aIJ', self.dic_grid.X_IJa)
+            # x_MN, y_MN = np.einsum('MNa->aMN', self.X_i_MNa)
+            # U_IJa = self.dic_grid.U_IJa
+            # U_MNa = self.get_z_MN_ironed(x_IJ, y_IJ, U_IJa, self.R_i, x_MN, y_MN)
+            ####
             U_Ia = U_IJa.reshape(-1, 2)
             U_o = U_Ia.flatten()  # array of displacements corresponding to the DOF enumeration
             eps_Emab = self.xmodel.map_U_to_field(U_o)
@@ -122,12 +128,22 @@ class DICStateFields(ib.TStepBC):
     '''Averaging radius'''
 
     n_ipl_M = bu.Int(116, ALG=True)
-    #n_ipl_M = tr.DelegatesTo('dic_grid', 'n_I') # .Int(116, ALG=True)
-    '''Number of interpolation points in x direction'''
 
     n_ipl_N = bu.Int(28, ALG=True)
-    #n_ipl_N = tr.DelegatesTo('dic_grid', 'n_J')
-    '''Number of interpolation points in y direction'''
+
+    R_i = bu.Float(30, ALG=True)
+    '''New Averaging radius'''
+
+    n_i_M = tr.Property()
+    def _get_n_i_M(self):
+        '''Number of interpolation points in x direction'''
+        return int(self.dic_grid.L_x / self.R_i)
+    
+    n_i_N = tr.Property()
+    def _get_n_i_N(self):
+        '''Number of interpolation points in y direction'''
+        return int(self.dic_grid.L_x / self.R_i)
+    
 
     T_t = tr.Property(bu.Int, depends_on='state_changed')
     @tr.cached_property
@@ -150,6 +166,7 @@ class DICStateFields(ib.TStepBC):
     n_EF = tr.Property
 
     def _get_n_EF(self):
+        #return self.n_i_M - 1, self.n_i_N - 1
         return self.dic_grid.n_I - 1, self.dic_grid.n_J - 1
 
     def transform_mesh_to_grid(self, field_Em):
@@ -198,17 +215,6 @@ class DICStateFields(ib.TStepBC):
             np.trapz(z_MNJK, x_JK[:, 0], axis=2), 
             y_JK[0, :], axis=2)
     
-    def xget_z_MN_ironed(self, x_JK, y_JK, z_JK):
-        RR = self.R
-        delta_x_JK = x_JK[None, None, ...] - x_JK[..., None, None]
-        delta_y_JK = y_JK[None, None, ...] - y_JK[..., None, None]
-        r2_n = (delta_x_JK ** 2 + delta_y_JK ** 2) / (2 * RR ** 2)
-        alpha_r_MNJK = np.exp(-r2_n)
-        a_MN = np.trapz(np.trapz(alpha_r_MNJK, x_JK[:, 0], axis=-2), y_JK[0, :], axis=-1)
-        normed_a_MNJK = np.einsum('MNKL,MN->MNKL', alpha_r_MNJK, 1 / a_MN)
-        z_MNJK = np.einsum('MNKL,KL...->MNKL...', normed_a_MNJK, z_JK)
-        return np.trapz(np.trapz(z_MNJK, x_JK[:, 0], axis=2), y_JK[0, :], axis=2)
-
     ####################################################################################
 
     f_dic_U_xy = tr.Property(depends_on='state_changed')
@@ -220,6 +226,20 @@ class DICStateFields(ib.TStepBC):
         u = self.dic_grid.U_IJa.reshape(-1, 2)
         return LinearNDInterpolator(xy, u)
 
+    X_i_MNa = tr.Property(depends_on='state_changed')
+    '''Interpolation grid
+    '''
+    @tr.cached_property
+    def _get_X_i_MNa(self):
+        n_i_M, n_i_N = self.n_i_M, self.n_i_N
+        x_0, y_0, x_1, y_1 = self.dic_grid.X_frame
+        xx_M = np.linspace(x_0, x_1, n_i_M)
+        yy_N = np.linspace(y_0, y_1, n_i_N)
+        xx_NM, yy_NM = np.meshgrid(xx_M, yy_N)
+        X_aNM = np.array([xx_NM, yy_NM])
+        X_i_MNa = np.einsum('aNM->MNa', X_aNM)
+        return X_i_MNa
+
     X_ipl_MNa = tr.Property(depends_on='state_changed')
     '''Interpolation grid
     '''
@@ -227,9 +247,9 @@ class DICStateFields(ib.TStepBC):
     def _get_X_ipl_MNa(self):
         n_ipl_M, n_ipl_N = self.n_ipl_M, self.n_ipl_N
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_fe_KLa)
-        x_M, x_N = x_MN[:, 0], y_MN[0, :]
+        x_M, y_N = x_MN[:, 0], y_MN[0, :]
         xx_M = np.linspace(x_M[0], x_M[-1], n_ipl_M)
-        yy_N = np.linspace(x_N[0], x_N[-1], n_ipl_N)
+        yy_N = np.linspace(y_N[0], y_N[-1], n_ipl_N)
         xx_NM, yy_NM = np.meshgrid(xx_M, yy_N)
         X_aNM = np.array([xx_NM, yy_NM])
         X_ipl_KLa = np.einsum('aNM->MNa', X_aNM)
