@@ -89,6 +89,7 @@ class DICCrackList(bu.ModelDict):
     \\end{{tabular}}
     \\end{{center}}
     ''' 
+    
     y_range = tr.Property
     """Vertical limits of the zone
     """
