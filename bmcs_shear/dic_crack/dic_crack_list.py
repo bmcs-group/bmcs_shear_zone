@@ -94,7 +94,7 @@ class DICCrackList(bu.ModelDict):
     """Vertical limits of the zone
     """
     def _get_y_range(self):
-        return self.dsf.X_ipl_bb_Ca[(0,1),(1,1)]
+        return self.dsf.X_irn_bb_Ca[(0,1),(1,1)]
 
     cracks = tr.Property(depends_on='+MESH, +ALG')
     @tr.cached_property
@@ -182,7 +182,7 @@ class DICCrackList(bu.ModelDict):
         x_r1, y_r1 = np.einsum('...a->a...', X_r1a)
         # exclude cracks that are less than delta_s from the boundary
         d_s = self.delta_s * 1.01
-        x_min, y_min, x_max, y_max = self.dsf.X_ipl_bb_Ca[(0,0,1,1),(0,1,0,1)]
+        x_min, y_min, x_max, y_max = self.dsf.X_irn_bb_Ca[(0,0,1,1),(0,1,0,1)]
         cross_conditions = (x_r1 < x_min + d_s, x_r1 > x_max - d_s, y_r1 > y_max - d_s)
         cross_cr = [np.array(np.where(cc)) for cc in cross_conditions]
         for cross_r in cross_cr:
@@ -233,7 +233,8 @@ class DICCrackList(bu.ModelDict):
     @tr.cached_property
     def _get_crack_paths(self):
         # spatial coordinates
-        xx_MN, yy_MN, omega_irn_1_MN = self.dsf.omega_irn_1_MN
+        xx_MN, yy_MN = self.dsf.xy_irn_MN
+        omega_irn_1_MN = self.dsf.omega_irn_TMN[-1]
         # number of points to skip on the left and right side based on the x_boundary parameters
         d_x = xx_MN[1, 0] - xx_MN[0, 0]
         M_offset = int(self.x_boundary / d_x)
@@ -418,7 +419,7 @@ class DICCrackList(bu.ModelDict):
     # plot the kinematic profile
     #self.critical_crack.plot_u_t_crc_Ka(ax_u)
 
-    # self.critical_crack.plot_eps_t_Kab(ax_eps)
+    # self.critical_crack.plot_eps_unc_t_Kab(ax_eps)
     # ax_eps.set_ylim(0, self.bd.H)
     # ax_u.set_ylim(0, self.bd.H * 1.04)
     # bu.mpl_align_xaxis(ax_u, ax_eps)

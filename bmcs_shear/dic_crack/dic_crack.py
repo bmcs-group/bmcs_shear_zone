@@ -339,18 +339,18 @@ class DICCrack(bu.Model):
         t = np.atleast_1d(t)
         T_K = np.repeat(t[:, np.newaxis], X_Ka.shape[0], axis=1)
         tX_mid_K = np.column_stack([T_K.flatten(), (x_K).repeat(len(t)), y_K.repeat(len(t))])
-        eps_tKab = self.cl.dsf.f_eps_fe_txy(tX_mid_K)
+        eps_tKab = self.cl.dsf.f_eps_TMNab_txy(tX_mid_K)
         n_K = len(x_K)
         if len(t) == 1:
             return eps_tKab.reshape(n_K, 2, 2)
         return eps_tKab.reshape(-1, n_K, 2, 2)        
 
-    eps_t_Kab = tr.Property(depends_on='state_changed')
+    eps_unc_t_Kab = tr.Property(depends_on='state_changed')
     '''Global strain displacement of points along the 
     crack at an intermediate state.
     '''
     @tr.cached_property
-    def _get_eps_t_Kab(self):
+    def _get_eps_unc_t_Kab(self):
         return self.get_eps_Kab(self.dic_grid.t, self.X_unc_t_Ka)
 
     min_eps_1 = tr.Property(depends_on='state_changed')
@@ -363,7 +363,7 @@ class DICCrack(bu.Model):
         return np.min(eps_1_Kab[:,0,:])
 
     max_u_1 = tr.Property(depends_on='state_changed')
-    '''Global strain displacement of points along the 
+    '''Global displacement of points along the 
     crack at an intermediate state.
     '''
     @tr.cached_property
@@ -382,7 +382,7 @@ class DICCrack(bu.Model):
         tX_left_K = np.column_stack([t_T.flatten(), (x_K - d_x).repeat(len(t)), y_K.repeat(len(t))])
         # handle the situation with coordinates outside the bounding box
         self.cl.dsf
-        u_tKa = self.cl.dsf.f_U_ipl_txy(tX_right_K) - self.cl.dsf.f_U_ipl_txy(tX_left_K)
+        u_tKa = self.cl.dsf.f_U_TIJ_txy(tX_right_K) - self.cl.dsf.f_U_TIJ_txy(tX_left_K)
         if len(t) == 1:
             return u_tKa.reshape(X_crc_Ka.shape)
         tKa_shape = (-1,) + X_crc_Ka.shape
@@ -538,14 +538,14 @@ class DICCrack(bu.Model):
         ax.plot(*self.X_t_Ka.T, linewidth=1, linestyle='dotted', color='black');
         ax.plot(*self.X_tip_t_a[:, np.newaxis], 'o', color='black')
 
-    def _plot_eps_t(self, ax, eps_t_Kab, a=0, b=0,
+    def _plot_eps_t(self, ax, eps_unc_t_Kab, a=0, b=0,
                     linestyle='dotted', color='black', label=r'$\varepsilon$ [-]'):
         """Helper function for plotting the strain along the ligament
         at an intermediate state.
         """
         X_unc_t_La = self.sp.X_unc_t_La
-        ax.plot(eps_t_Kab[:, a, b], X_unc_t_La[:, 1], linestyle=linestyle, color=color, label=label)
-        ax.fill_betweenx(X_unc_t_La[:, 1], eps_t_Kab[:, a, b], 0, color=color, alpha=0.1)
+        ax.plot(eps_unc_t_Kab[:, a, b], X_unc_t_La[:, 1], linestyle=linestyle, color=color, label=label)
+        ax.fill_betweenx(X_unc_t_La[:, 1], eps_unc_t_Kab[:, a, b], 0, color=color, alpha=0.1)
         ax.set_xlabel(label)
         ax.legend(loc='lower left')
         min_eps_1 = self.min_eps_1
@@ -553,7 +553,7 @@ class DICCrack(bu.Model):
         # eps_K = self.eps_Kab[:, idx, idx]
         # ax.set_xlim(np.min(eps_K) * 1.04, np.max(self.u_1_crc_Ka) * 1.04)
 
-    def plot_eps_t_Kab(self, ax_eps):
+    def plot_eps_unc_t_Kab(self, ax_eps):
         """Plot the displacement (u_x, u_y) in local crack coordinates
         at an intermediate state.
         """
@@ -671,7 +671,7 @@ class DICCrack(bu.Model):
         # ax_x.set_ylim(self.y_N[0], self.y_N[-1])
         # self.plot_u_t_Nib(ax_x)
         self.plot_u_crc_t_Ka(ax_u)
-        self.plot_eps_t_Kab(ax_eps)
+        self.plot_eps_unc_t_Kab(ax_eps)
         ax_eps.set_ylim(0, self.bd.H)
         ax_u.set_ylim(0, self.bd.H * 1.04)
         bu.mpl_align_xaxis(ax_u, ax_eps)

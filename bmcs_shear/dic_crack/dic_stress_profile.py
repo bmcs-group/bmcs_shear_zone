@@ -80,23 +80,23 @@ class DICStressProfile(bu.Model):
 
     @tr.cached_property
     def _get_eps_unc_t_Lab(self):
-        eps_t_Kab = self.dic_crack.eps_t_Kab
+        eps_unc_t_Kab = self.dic_crack.eps_unc_t_Kab
         # Add the upper point by  extrapolating the strain linearly
         # from the neutral axis to the top point captured by the
         # DIC field
         X_unc_t_La = self.dic_crack.X_unc_t_Ka
         if len(X_unc_t_La) == 0:
             # the crack
-            return np.zeros_like(eps_t_Kab)
+            return np.zeros_like(eps_unc_t_Kab)
         y_1 = X_unc_t_La[-1, 1]
         y_0 = X_unc_t_La[0, 1]
         y_top = self.bd.H
-        eps_0 = eps_t_Kab[0, 0, 0]
-        eps_1 = eps_t_Kab[-1, 0, 0]
+        eps_0 = eps_unc_t_Kab[0, 0, 0]
+        eps_1 = eps_unc_t_Kab[-1, 0, 0]
         eps_top = eps_1 + (eps_1 - eps_0) / (y_1 - y_0) * (y_top - y_1)
         eps_top_t_ab = np.zeros((2,2), dtype=np.float_)
         eps_top_t_ab[0, 0] = eps_top
-        return np.vstack([eps_t_Kab, [eps_top_t_ab]])
+        return np.vstack([eps_unc_t_Kab, [eps_top_t_ab]])
 
     u_crc_t_Ka = tr.Property(depends_on='state_changed')
     '''Displacement of the segment midpoints '''
@@ -125,7 +125,7 @@ class DICStressProfile(bu.Model):
         eps_unc_t_Lab = self.eps_unc_t_Lab
         cmm = self.bd.matrix_
         mdm = self.smeared_matmod
-        mdm.trait_set(E=cmm.E_c, nu=0.2)
+        mdm.trait_set(E=26000, nu=0.2, epsilon_0=0.00008, epsilon_f=0.001)
         n_K, _, _ = eps_unc_t_Lab.shape
         Eps = {
             name: np.zeros((n_K,) + shape)
@@ -292,7 +292,11 @@ class DICStressProfile(bu.Model):
     '''
     @tr.cached_property
     def _get_X_mid_unc_t_a(self):
-        return np.average(self.X_unc_t_La, axis=0)
+        _, y = self.neg_unc_F_y
+        x = self.X_unc_t_La[-1,0]
+        return np.array([x, y], dtype=np.float_)
+
+#   return np.average(self.X_unc_t_La, axis=0)
 
     M_mid_unc_t_a = tr.Property(depends_on='state_changed')
     '''Internal bending moment obtained by integrating the
@@ -435,7 +439,7 @@ class DICStressProfile(bu.Model):
     neg_unc_F_y = tr.Property
 
     def _get_neg_unc_F_y(self):
-        S_ = self.sig_unc_t_Lab[:, 0, 0]
+        S_ = np.copy(self.sig_unc_t_Lab[:, 0, 0])
         S_[S_>-self.S_zero_level] = -self.S_zero_level
         y_ = self.X_unc_t_La[:, 1]
         return self.get_SY(S_, y_)
@@ -443,7 +447,7 @@ class DICStressProfile(bu.Model):
     pos_unc_F_y = tr.Property
 
     def _get_pos_unc_F_y(self):
-        S_ = self.sig_unc_t_Lab[:, 0, 0]
+        S_ = np.copy(self.sig_unc_t_Lab[:, 0, 0])
         S_[S_<self.S_zero_level] = self.S_zero_level
         y_ = self.X_unc_t_La[:, 1]
         return self.get_SY(S_, y_)
@@ -719,11 +723,11 @@ class DICStressProfile(bu.Model):
     def update_plot(self, axes):
         ax_u_0, ax_w_0, ax_S_Lb, ax_S_La, ax_u_eps, ax_w_eps = axes
         self.plot_u_t_crc_Ka(ax_u_0)
-        self.dic_crack.plot_eps_t_Kab(ax_u_eps)
+        self.dic_crack.plot_eps_unc_t_Kab(ax_u_eps)
         bu.mpl_align_xaxis(ax_u_0, ax_u_eps)
 
         self.plot_u_t_crc_Kb(ax_w_0)
-        self.dic_crack.plot_eps_t_Kab(ax_w_eps)
+        self.dic_crack.plot_eps_unc_t_Kab(ax_w_eps)
         bu.mpl_align_xaxis(ax_w_0, ax_w_eps)
 
         self.plot_sig_t_unc_Lab(ax_S_Lb)

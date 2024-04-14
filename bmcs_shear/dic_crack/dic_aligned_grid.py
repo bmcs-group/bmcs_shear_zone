@@ -81,7 +81,7 @@ class DICAlignedGrid(bu.Model):
     U_t_MNa = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_U_t_MNa(self):
-        return self.dsf.f_dic_U_xy(self.X_0_MNa)
+        return self.dsf.f_U_IJ_xy(self.X_0_MNa)
 
     X_t_MNa = tr.Property(depends_on='state_changed')
 
@@ -101,7 +101,7 @@ class DICAlignedGrid(bu.Model):
     '''
     @tr.cached_property
     def _get_U0_t_a(self):
-        return self.dsf.f_dic_U_xy(self.x0, self.y0)
+        return self.dsf.f_U_IJ_xy(self.x0, self.y0)
 
     X0_t_a = tr.Property(depends_on='state_changed')
     '''Current position of the reference frame origin
@@ -122,7 +122,7 @@ class DICAlignedGrid(bu.Model):
     '''
     @tr.cached_property
     def _get_U1_t_a(self):
-        return self.dsf.f_dic_U_xy(self.x1, self.y1)
+        return self.dsf.f_U_IJ_xy(self.x1, self.y1)
 
     X1_t_a = tr.Property(depends_on='state_changed')
     '''Current position of the point on the vertical axis of the reference frame 
@@ -302,8 +302,8 @@ class DICAlignedGrid(bu.Model):
         """
         X0_a = self.X0_0_a
         X1_a = self.X1_0_a
-        U0_t_a = self.dsf.f_dic_U_xy(self.x0, self.y0)
-        U1_t_a = self.dsf.f_dic_U_xy(self.x1, self.y1)
+        U0_t_a = self.dsf.f_U_IJ_xy(self.x0, self.y0)
+        U1_t_a = self.dsf.f_U_IJ_xy(self.x1, self.y1)
         X0_t_scaled_a = X0_a + self.U_factor * U0_t_a
         X1_t_scaled_a = X1_a + self.U_factor * U1_t_a
         X01_na = np.array([X0_a, X1_a])
