@@ -262,7 +262,7 @@ class DICStateFields(bu.Model):
 
     state_fields_TIJ = tr.Property(depends_on='state_changed')
     @cached_array(source_name="beam_param_file",
-                  names=['kappa_TIJr', 'omega_TIJr', 'sig_TIJab'],
+                  names=['sig_TIJab', 'kappa_TIJr', 'omega_TIJr'],
                   data_dir_trait='data_dir')
     def _get_state_fields_TIJ(self):
         """Run the stress analysis for all load levels
