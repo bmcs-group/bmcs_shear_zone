@@ -144,7 +144,7 @@ class DICInpUnstructuredPoints(bu.Model):
 
     T0 = bu.Int(0, ALG=True)
 
-    T_t = bu.Int(-2, ALG=True)
+    T_t = bu.Int(-1, ALG=True)
 
     U_factor = bu.Float(100, ALG=True)
 
@@ -176,7 +176,7 @@ class DICInpUnstructuredPoints(bu.Model):
         bu.Item('x_offset', readonly=True),
         bu.Item('y_offset', readonly=True),
         time_editor=bu.HistoryEditor(
-            var='t', max_value=1.1
+            var='t', max_value=1
         )
     )
 
@@ -290,6 +290,12 @@ class DICInpUnstructuredPoints(bu.Model):
         F_asc_m = F_m[asc_m]
         time_asc_m = time_m[asc_m]
         w_asc_m = w_m[asc_m]
+
+        _, time_dic_dsc, F_dic_dsc = self.tstring_time_F_dic_dsc
+        time_asc_m = np.append(time_asc_m, time_dic_dsc[-1])
+        F_asc_m = np.append(F_asc_m, F_dic_dsc[-1])
+        w_asc_m = np.append(w_asc_m, 1.1 * w_asc_m[-1])
+
         return time_asc_m, F_asc_m, w_asc_m
 
     time_F_m = tr.Property(depends_on='state_changed')
@@ -363,7 +369,7 @@ class DICInpUnstructuredPoints(bu.Model):
         asc_dic = np.unique(np.argmax(np.triu(dF_up_dic, 0) > 0, axis=1))
         return tstring_dic[asc_dic], time_dic[asc_dic], F_dic[asc_dic]
 
-    F_dsc_cutoff_fraction = bu.Float(0.7)
+    F_dsc_cutoff_fraction = bu.Float(0.95)
     def argcut(self, arr):
         return np.argmax(arr < arr[0] * self.F_dsc_cutoff_fraction)
 
@@ -418,8 +424,8 @@ class DICInpUnstructuredPoints(bu.Model):
     tstring_time_F_T = tr.Property(depends_on='state_changed')
     """synchronized times and forces for specified resolution n_T
     """
-    # @cached_array(source_name="beam_param_file", names=['tstring', 'time', 'F'],
-    #               data_dir_trait='data_dir')
+    @cached_array(source_name="beam_param_file", names=['tstring', 'time', 'F'],
+                  data_dir_trait='data_dir')
     def _get_tstring_time_F_T(self):
 
         time_m, F_m, _ = self.time_F_w_m_asc # machine time and force
@@ -447,11 +453,11 @@ class DICInpUnstructuredPoints(bu.Model):
         tstring_T = self.tstring_dic[T_slice]
         tstring_T[0] = self.tstring_dic[0]
 
-        # append the descending part 
-        tstring_dic_dsc, time_dic_dsc, F_dic_dsc = self.tstring_time_F_dic_dsc
-        tstring_T = np.append(tstring_T, tstring_dic_dsc[-1])
-        time_T = np.append(time_T, time_dic_dsc[-1])
-        F_T = np.append(F_T, F_dic_dsc[-1])
+        # # append the descending part 
+        # tstring_dic_dsc, time_dic_dsc, F_dic_dsc = self.tstring_time_F_dic_dsc
+        # tstring_T = np.append(tstring_T, tstring_dic_dsc[-1])
+        # time_T = np.append(time_T, time_dic_dsc[-1])
+        # F_T = np.append(F_T, F_dic_dsc[-1])
 
         return tstring_T, time_T, F_T
 
@@ -474,11 +480,20 @@ class DICInpUnstructuredPoints(bu.Model):
     """
     @tr.cached_property
     def _get_w_T(self):
-        w_m = self.w_m
+
+        time_T, F_T = self.time_F_T
+        argmax_F_T = np.argmax(F_T)
+        F_T_asc = F_T[:argmax_F_T+1]
+
         _, F_m = self.time_F_m
-        _, F_T = self.time_F_T
         argmax_F_m = np.argmax(F_m)
-        return np.interp(F_T, F_m[:argmax_F_m], w_m[:argmax_F_m])
+        F_m = F_m[:argmax_F_m+1]
+
+        w_m = self.w_m[:argmax_F_m+1]
+        w_T = np.interp(F_T_asc, F_m, w_m)
+        #w_T = np.append(w_T, 1.1 * w_m[-1])
+
+        return w_T
 
     pxyz_file_T = tr.Property(depends_on='state_changed')
     """List of file names corresponding to the synchronized time index T
@@ -508,7 +523,7 @@ class DICInpUnstructuredPoints(bu.Model):
     X_TQa = tr.Property(depends_on='dir_name')
     """Read the displacement data from the individual csv files"""
     #@tr.cached_property
-    # @cached_array("beam_param_file",'X_TQa')
+    @cached_array("beam_param_file",'X_TQa')
     def _get_X_TQa(self):
 
         pxyz_file_T = self.pxyz_file_T
@@ -564,10 +579,10 @@ class DICInpUnstructuredPoints(bu.Model):
     """Slider values matching the DIC data snapshots in the range t \in (0,1)  
     """
     def _get_t_T(self):
-        t_T = self.F_T[:-1] / self.F_T[-2] # TODO fix by introducing argmax_F_T
+        t_T = self.F_T / self.F_T[-1] # TODO fix by introducing argmax_F_T
         t_T[t_T < 0] = 0 # avoid negative time
         t_T[0] = 0  # ensure that the interpolators include zero valued slider
-        t_T = np.append(t_T, 1.1)
+        # t_T = np.append(t_T, 1.1)
         return t_T
 
     F_T_t = tr.Property(depends_on='state_changed')
@@ -679,7 +694,8 @@ class DICInpUnstructuredPoints(bu.Model):
         _, F_m = self.time_F_m
         argmax_F_m = self.argmax_F_m
 
-        ax_load.plot(w_m[:argmax_F_m], F_m[:argmax_F_m], color='black')
+        # ax_load.plot(w_m[:argmax_F_m], F_m[:argmax_F_m], color='black')
+        ax_load.plot(w_m, F_m, color='black')
         ax_load.set_ylabel(r'$F$ [kN]')
         ax_load.set_xlabel(r'$w$ [mm]')
 
@@ -689,7 +705,8 @@ class DICInpUnstructuredPoints(bu.Model):
 
         # show the current load marker
         F_t = F_T[self.T_t]
-        w_t = np.interp(F_t, F_T, self.w_T)
+        w_t = self.w_T[self.T_t]
+        print(f't {self.t}, T_t {self.T_t}, F_t {F_t}, w_t {w_t}')
         ax_load.plot(w_t, F_t, marker='o', markersize=6, color='green')
 
         # annotate the maximum load level

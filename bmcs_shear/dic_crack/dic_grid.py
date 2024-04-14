@@ -25,7 +25,7 @@ class DICGrid(bu.Model):
         bu.Item('n_I', readonly=True),
         bu.Item('n_J', readonly=True),
         time_editor=bu.HistoryEditor(
-            var='t'
+            var='t', max_value = 1.1
         )
     )
 

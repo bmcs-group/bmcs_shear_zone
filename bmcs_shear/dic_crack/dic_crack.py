@@ -319,6 +319,7 @@ class DICCrack(bu.Model):
     @tr.cached_property
     def _get_X_crc_t_Ka(self):
         _, _, _, X_crc_t_Ka, _ = self.crack_ligament_t
+        print(f'returning ligament {X_crc_t_Ka[-1]}')
         return X_crc_t_Ka
 
     T_crc_t_Kab = tr.Property(depends_on='state_changed')
