@@ -140,8 +140,6 @@ class DICGrid(bu.Model):
     X_frame = tr.Property
     """Define the bottom left and top right corners"""
     def _get_X_frame(self):
-        L_x, L_y = self.L_x, self.L_y
-        x_offset, y_offset = self.x_offset, self.y_offset
         x_min, y_min = self.X_IJa[0,0,(0,1)] #x_offset + self.pad_l
         #x_max = x_min + L_x - self.pad_r
         x_max, y_max = self.X_IJa[-1,-1,(0,1)]

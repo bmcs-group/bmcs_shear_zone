@@ -38,7 +38,7 @@ class DICReportTemplate(bu.Model):
         current_fig_list = self.figures[current_test]
         i = len(current_fig_list)
         fig_path = os.path.join(self.latex_dir, f'figure_{t}_{i}.pdf')
-        fig.savefig(fig_path)
+        fig.savefig(fig_path, bbox_inches='tight')
 
         text = r'\begin{figure}[ht]' '\n' r'\centering' '\n'
         text += r'\includegraphics[width=' + str(width) + r'\textwidth]{' + fig_path + '}' '\n' 
@@ -63,7 +63,7 @@ class DICReportTemplate(bu.Model):
         # Copy the output PDF to the output directory
         shutil.copy(os.path.join(self.latex_dir, 'report.pdf'), self.output_dir)
 
-    def _create_latex_doc(self, snippets):
+    def _xcreate_latex_doc(self, snippets):
         document = (
             r'\documentclass[a4paper]{article}'
             '\n' r'\usepackage[margin=2cm]{geometry}'
@@ -81,3 +81,28 @@ class DICReportTemplate(bu.Model):
         document += r'\end{document}'
         return document
 
+    def _create_latex_doc(self, snippets):
+        document = (
+            r'\documentclass[a4paper]{article}'
+ '          \n' r'\usepackage[top=3cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}'  # Set top margin to 3cm
+            '\n' r'\usepackage{fancyhdr}'  # Include the fancyhdr package
+            '\n' r'\pagestyle{fancy}'  # Set page style to fancy
+            '\n' r'\fancyhf{}'  # Clear default header and footer
+            '\n' r'\renewcommand{\headrulewidth}{0.4pt}'  # Remove header rule
+            '\n' r'\fancyhead[C]{\leftmark}'  # Set section title in the center of the header
+            '\n' r'\makeatletter'
+            '\n' r'\setlength{\@fptop}{0pt}'
+            '\n' r'\makeatother' '\n'
+            '\n' r'\usepackage{amsmath}'
+            '\n' r'\renewcommand{\floatpagefraction}{0.9}'
+            '\n'
+        )
+        document += r'\usepackage{graphicx}' '\n' r'\begin{document}' '\n'
+        for current_test in self.specimen_names:
+            current_fig_list = self.figures[current_test]
+            document += r'\section{' + current_test.replace('_', r'\_') + '}\n'  
+            for latex_text in current_fig_list:
+                document += latex_text + '\n'
+            document += r'\clearpage' + '\n'
+        document += r'\end{document}'
+        return document

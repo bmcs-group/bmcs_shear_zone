@@ -71,8 +71,9 @@ class DICCrackCOR(bu.Model):
     @tr.cached_property
     def _get_X1_0_a(self):
         x_min, y_min, x_max, y_max = self.dic_grid.X_frame
+        X_tip_t_a = self.dic_crack.X_tip_t_a
 #        X_tip_1_a = self.dic_crack.X_crc_1_Ka[-1, :]
-        X_tip_t_a = self.dic_crack.X_crc_t_Ka[-1, :]
+#        X_tip_t_a = self.dic_crack.X_crc_t_Ka[-1, :]
 #        x1 = np.max([X_tip_1_a[0] - self.delta_x1, x_min])
         x1 = np.max([X_tip_t_a[0] - self.delta_x1, x_min])
 #        y1 = X_tip_1_a[1] - self.delta_y1

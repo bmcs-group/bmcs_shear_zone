@@ -1,3 +1,4 @@
+from os import X_OK
 from .dic_state_fields import DICStateFields
 import bmcs_utils.api as bu
 import traits.api as tr
@@ -514,23 +515,33 @@ class DICCrack(bu.Model):
     # ----------------------------------------------------------
     # Plot functions
     # ----------------------------------------------------------
-    def plot_X_crc_1_Ka(self, ax_x, line_width=1, line_color='gray', tip_color='gray'):
+    def plot_X_0_Ka(self, ax_x):
+        """Plot the root of the crack.
+        """
+        x_0, y_0 = self.X_1_Ka[0,:]
+        ax_x.annotate(str(self.C), (x_0, y_0), xytext=(0, -7),
+                    textcoords='offset points', ha='center', va='center',
+                    bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=self.color, lw=0.5),
+                    fontsize=10, color=self.color)
+
+    def plot_X_crc_1_Ka(self, ax_x, linewidth=1, linecolor='gray', tipcolor='gray',
+                        linestyle='dashed'):
         """Plot crack geometry at ultimate state.
         """
-        ax_x.plot(*self.X_crc_1_Ka.T, linewidth=line_width, color=line_color);
-        ax_x.plot(*self.X_tip_1_a[:, np.newaxis], 'o', color=tip_color)
+        ax_x.plot(*self.X_crc_1_Ka.T, linewidth=linewidth, linestyle=linestyle, color=linecolor);
+        ax_x.plot(*self.X_tip_1_a[:, np.newaxis], 'o', color=tipcolor)
 
-    def plot_X_1_Ka(self, ax_x, line_width=1, line_color='gray', tip_color='gray'):
+    def plot_X_1_Ka(self, ax_x, linewidth=0.5, linecolor='gray', tipcolor='gray'):
         """Plot crack geometry at ultimate state.
         """
-        ax_x.plot(*self.X_1_Ka.T, linewidth=line_width, color=line_color);
-        ax_x.plot(*self.X_tip_1_a[:, np.newaxis], 'o', color=tip_color)
+        ax_x.plot(*self.X_1_Ka.T, linewidth=linewidth, linestyle='dashed', color=tipcolor);
+        ax_x.plot(*self.X_tip_1_a[:, np.newaxis], 'o', color=tipcolor)
 
-    def plot_X_crc_t_Ka(self, ax, line_width=1, line_color='black', tip_color='black'):
+    def plot_X_crc_t_Ka(self, ax, linewidth=2, tipcolor='black'):
         """Plot geometry at current state.
         """
-        ax.plot(*self.X_crc_t_Ka.T, linewidth=line_width, color=line_color);
-        ax.plot(*self.X_tip_t_a[:, np.newaxis], 'o', color=tip_color)
+        ax.plot(*self.X_crc_t_Ka.T, linewidth=linewidth, color=tipcolor);
+        ax.plot(*self.X_tip_t_a[:, np.newaxis], 'o', color=tipcolor)
 
     def plot_X_t_Ka(self, ax):
         """Plot geometry at current state.

@@ -53,7 +53,7 @@ class DICCrackList(bu.ModelDict):
     delta_s = bu.Float(10, ALG=True)
     n_G = bu.Int(40, ALG=True)
     x_boundary = bu.Float(20, ALG=True)
-    crack_fraction = bu.Float(0.3, ALG=True)
+    crack_fraction = bu.Float(0.2, ALG=True)
     t_detect = bu.Float(0.7, ALG=True)
 
     show_cracks = bu.Enum(options=('primary', 'secondary', 'all', 'raw'), ALG=True)
@@ -103,7 +103,7 @@ class DICCrackList(bu.ModelDict):
         K_tip_C = self.K_tip_C
         n_C = len(X_CKa)
         C_C = np.arange(n_C)
-        return np.array([DICCrack(cl=self, C=C, X_crc_1_Na=X_CKa[C, :K_tip_C[C]+1, :], color=self.crack_colors[C])
+        return np.array([DICCrack(cl=self, C=C, d_x=20, X_crc_1_Na=X_CKa[C, :K_tip_C[C]+1, :], color=self.crack_colors[C])
                         for C in C_C])
     
     items = tr.Property(depends_on='+MESH, +ALG')
@@ -131,7 +131,7 @@ class DICCrackList(bu.ModelDict):
         # Thus, the primary cracks can be obtained by subtracting
         # indexes col index from the row index of the close cracks.
         # If it is negative, it denotes the next crack on the right
-        # with close crack tip. These cracks are facotred out from
+        # with close crack tip. These cracks are factored out from
         # the array
         secondary_C = triu_row[close_rc] - triu_col[close_rc] < 0
         secondary_D = np.unique(triu_col[close_rc][secondary_C])
@@ -234,7 +234,7 @@ class DICCrackList(bu.ModelDict):
     def _get_crack_paths(self):
         # spatial coordinates
         xx_MN, yy_MN = self.dsf.xy_irn_MN
-        omega_irn_1_MN = self.dsf.omega_irn_TMN[-1]
+        omega_irn_1_MN = self.dsf.omega_irn_TMN[-2]
         # number of points to skip on the left and right side based on the x_boundary parameters
         d_x = xx_MN[1, 0] - xx_MN[0, 0]
         M_offset = int(self.x_boundary / d_x)
@@ -251,9 +251,8 @@ class DICCrackList(bu.ModelDict):
         prim_C = self.get_primary_cracks(X_CKa[C_C, K_tip_C, :])
         K_tip_prim_C = K_tip_C[prim_C]
         X_tip_prim_Ca = X_CKa[prim_C, K_tip_prim_C]
-        X_prim_CKa = X_CKa[prim_C]
         # run detection of primary cracks at the ultimate state t = 1
-        X_prim_CLa, L_tip_prim_C = self.get_X_t_KCa(X_tip_prim_Ca, 1)
+        X_prim_CLa, L_tip_prim_C = self.get_X_t_KCa(X_tip_prim_Ca, 1.1)
         n_prim_C = len(np.where(prim_C)[0])
         n_K, n_L = X_CKa.shape[1], X_prim_CLa.shape[1]
         X_prim_CMa = np.zeros((n_prim_C, n_K+n_L, 2,), dtype=np.float_)
@@ -324,10 +323,14 @@ class DICCrackList(bu.ModelDict):
         ax_cracks.plot(*X_aKC, color='black', linewidth=1)
         ax_cracks.axis('equal')
 
+    def plot_crack_roots(self, ax_cracks):
+        for crack in self.primary_cracks:
+            crack.plot_X_0_Ka(ax_cracks)
+
     def plot_primary_cracks(self, ax_cracks):
         for crack in self.primary_cracks:
-            crack.plot_X_crc_1_Ka(ax_cracks, line_color=crack.color)
-            crack.plot_X_crc_t_Ka(ax_cracks, line_color=crack.color)
+#            crack.plot_X_crc_1_Ka(ax_cracks)
+            crack.plot_X_crc_t_Ka(ax_cracks)
     #
     # def plot_secondary_cracks(self, ax_cracks):
     #     for crack in self.secondary_cracks:
@@ -398,9 +401,9 @@ class DICCrackList(bu.ModelDict):
         ax_cl, ax_FU, ax_M, ax_Q = axes
 #        self.dsf.dic_grid.plot_bounding_box(ax_dsf)
         # self.dsf.dic_grid.plot_box_annotate(ax_dsf)
-        self.bd.plot_sz_bd(ax_cl)
+        # self.bd.plot_sz_bd(ax_cl)
         self.dsf.plot_crack_detection_field(ax_cl, self.fig)
-        #self.critical_crack.plot_x_t_crc_Ka(ax_cl, line_width=2, line_color='red', tip_color='red')
+        #self.critical_crack.plot_x_t_crc_Ka(ax_cl, linewidth=2, line_color='red', tipcolor='red')
 
         # if self.show_cracks in ['primary', 'all']:
         self.plot_primary_cracks(ax_cl)

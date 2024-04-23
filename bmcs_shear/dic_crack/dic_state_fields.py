@@ -6,11 +6,12 @@ import bmcs_utils.api as bu
 from .dic_grid import DICGrid
 import traits.api as tr
 from matplotlib import cm
+from matplotlib.colors import SymLogNorm
 import ibvpy.api as ib
 import numpy as np
 import numpy.ma as ma
-import copy
-from scipy.interpolate import interp2d, LinearNDInterpolator
+from scipy.integrate import cumtrapz
+from scipy.interpolate import LinearNDInterpolator
 from scipy.interpolate import RegularGridInterpolator
 from .cached_array import cached_array
 from matplotlib.colors import Normalize
@@ -64,8 +65,13 @@ class DICStateFields(bu.Model):
     tmodel = bu.EitherType(options=[('microplane_mdm', ib.MATS2DMplDamageEEQ),
                                     ('scalar_damage', ib.MATS2DScalarDamage)])
 
-    depends_on = ['dic_grid', 'tmodel']
-    tree = ['dic_grid', 'tmodel']
+    cmodel = tr.Property(bu.Instance(ib.MATS2DMplDamageEEQ), depends_on='MAT,CS')
+    def _get_cmodel(self):
+        cmm = self.bd.matrix_
+        return ib.MATS2DMplDamageEEQ(E=cmm.E_c, nu=0.2, epsilon_0=0.00008, epsilon_f=0.001)
+
+    depends_on = ['dic_grid', 'tmodel', 'cmodel']
+    tree = ['dic_grid', 'tmodel', 'cmodel']
 
     force_array_refresh = bu.Bool(False)
 
@@ -89,7 +95,7 @@ class DICStateFields(bu.Model):
     R_MN = tr.Property()
     def _get_R_MN(self):
         """Averaging radius"""
-        return 2 * self.L_corr
+        return self.L_corr * 1.4
 
     n_M = tr.Property()
     def _get_n_M(self):
@@ -239,11 +245,11 @@ class DICStateFields(bu.Model):
         F_TIJab[..., 1, 1] = gradient_y[..., 1]
 
         # Compute the strain tensor using numpy.einsum
-        return 0.5 * (F_TIJab + np.einsum('...ij->...ji', F_TIJab))
+        return np.array(0.5 * (F_TIJab + np.einsum('...ij->...ji', F_TIJab)), dtype=np.float_)
 
     eps_TIJab = tr.Property(depends_on='state_changed')
     @cached_array(source_name="beam_param_file",
-                  names=['eps_TIJab'],
+                  names='eps_TIJab',
                   data_dir_trait='data_dir')
     def _get_eps_TIJab(self):
         return self._get_eps(self.X_IJa, self.dic_grid.U_TIJa)
@@ -256,13 +262,13 @@ class DICStateFields(bu.Model):
     @tr.cached_property
     def _get_f_eps_TIJab_txy(self):
         x_IJ, y_IJ = self.xy_IJ
-        txy = (self.dic_grid.t_T, x_IJ[:, 0], y_IJ[0, :])
+        t_T = self.dic_grid.t_T
+        txy = (t_T, x_IJ[:, 0], y_IJ[0, :])
         return RegularGridInterpolator(txy, self.eps_TIJab)
-
 
     state_fields_TIJ = tr.Property(depends_on='state_changed')
     @cached_array(source_name="beam_param_file",
-                  names=['kappa_TIJr', 'omega_TIJr', 'sig_TIJab'],
+                  names=['kappa_TIJr', 'omega_TIJr', 'sig_TIJab', 'dY_TIJ'],
                   data_dir_trait='data_dir')
     def _get_state_fields_TIJ(self):
         """Run the stress analysis for all load levels
@@ -278,7 +284,14 @@ class DICStateFields(bu.Model):
                 self.eps_TIJab[T], 1, kappa_IJ, omega_IJ)
             kappa_TIJ[T, ...] = kappa_IJ            
             omega_TIJ[T, ...] = omega_IJ
-        return sig_TIJab, kappa_TIJ, omega_TIJ
+
+        t_T = self.dic_grid.t_T
+        domega_TIJ = np.gradient(omega_TIJ, t_T, axis=0)
+        D_abcd = self.tmodel_.D_abcd
+        dY_TIJ = np.einsum('TIJab, abcd, TIJcd, TIJ->TIJ', 
+                           self.eps_TIJab, D_abcd, self.eps_TIJab, domega_TIJ)
+
+        return sig_TIJab, kappa_TIJ, omega_TIJ, dY_TIJ
 
     sig_TIJab = tr.Property
     def _get_sig_TIJab(self):
@@ -300,6 +313,14 @@ class DICStateFields(bu.Model):
         txy = (self.dic_grid.t_T, x_IJ[:, 0], y_IJ[0, :])
         return RegularGridInterpolator(txy, self.omega_TIJ, bounds_error=False, fill_value=0)
 
+    dY_TIJ = tr.Property
+    def _get_dY_TIJ(self):
+        return self.state_fields_TIJ[3]
+
+    Y_TIJ = tr.Property
+    def _get_Y_TIJ(self):
+        return cumtrapz(self.dY_TIJ, self.dic_grid.t_T, axis=0, initial=0)
+
     #========================================================================
     # Fields evaluated on an on a macro grid 
     #========================================================================
@@ -318,19 +339,87 @@ class DICStateFields(bu.Model):
         X_MNa = np.einsum('aNM->MNa', X_aNM)
         return X_MNa
 
-    eps_TMNab = tr.Property(depends_on='+ALG')
+    xy_MN = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_xy_MN(self):
+        return np.einsum('MNa->aMN', self.X_MNa)
+
+    sig_TMNab = tr.Property(depends_on='+ALG')
+    @cached_array(source_name="beam_param_file",
+                  names='sig_TMNab',
+                  data_dir_trait='data_dir')
+    def _get_sig_TMNab(self):
+        """Interpolation grid
+        """
+        return np.einsum('abcd, TMNcd->TMNab', self.cmodel.D_abcd, self.eps_eff_TMNab)
+    
+    def plot_sig_compression_field(self, ax, fig=None, f_c=40, len_V = 70):
+        x_MN, y_MN = self.xy_MN
+        T = self.dic_grid.T_t
+        sig_MNa, V_sig_MNab = np.linalg.eig(self.sig_TMNab[T])
+        neg_sig_MNa = np.where(sig_MNa < 0)
+        pos_sig_MNa = np.where(sig_MNa >= 0)
+
+        sig_indices = np.argmin(sig_MNa, axis=-1)
+        sig_c_MN = np.take_along_axis(sig_MNa, sig_indices[..., np.newaxis], axis=-1).squeeze(axis=-1)
+        sig_c_MN[sig_c_MN > 0] = 0
+
+        levels = np.arange(1,7) * 5
+        levels = np.append(levels, 40)
+        levels = [0, 3, 4, 8, 16, 32, 40]
+        cnt = ax.contourf(x_MN, y_MN, -sig_c_MN, levels, cmap=cm.Blues)
+        if fig:
+            fig.colorbar(cnt, ax=ax)
+        
+        min_sig_MN = np.min(sig_MNa)
+        max_sig_MN = np.max(sig_MNa)
+
+        V_sig_MNab = np.einsum('MNa, MNab->MNab', sig_MNa, V_sig_MNab) / f_c * len_V
+        for i in range(2):
+            V_sig_MNa = V_sig_MNab[:,:,i,:]
+            u_sig_MNa, v_sig_MNa = np.einsum('MNa->aMN', V_sig_MNa)
+            sig_MN = sig_MNa[:,:,i]
+            pos = sig_MN >= 0
+            neg = sig_MN < 0
+            # fields = zip((pos, neg),('firebrick', 'midnightblue'))
+            fields = zip((neg,),('midnightblue',))
+            for mask, c in fields:
+                ax.quiver(x_MN[mask], y_MN[mask], u_sig_MNa[mask], v_sig_MNa[mask], color=c,
+                        linewidth=0.1, angles='xy', scale_units='xy', scale=1, 
+                        headwidth=1, headlength=2, headaxislength=1)
+                ax.quiver(x_MN[mask], y_MN[mask], -u_sig_MNa[mask], -v_sig_MNa[mask], color=c,
+                        linewidth=0.1, angles='xy', scale_units='xy', scale=1, 
+                        headwidth=1, headlength=2, headaxislength=1)
+
+
+        ax.axis('equal')
+        ax.axis('off')
+
+    f_sig_TMNab_txy = tr.Property(depends_on='state_changed')
+    """Interpolator of strains over the time and spatial domains.
+    This method is used to provide an interpolator for a fine scale resolution 
+    of strains.
+    """
+    @tr.cached_property
+    def _get_f_sig_TMNab_txy(self):
+        x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
+        txy = (self.dic_grid.t_T, x_MN[:, 0], y_MN[0, :])
+        return RegularGridInterpolator(txy, self.sig_TMNab)
+    
+    eps_eff_TMNab = tr.Property(depends_on='+ALG')
     """Interpolation grid
     """
     @cached_array(source_name="beam_param_file",
-                  names='eps_TMNab',
+                  names='eps_eff_TMNab',
                   data_dir_trait='data_dir')
-    def _get_eps_TMNab(self):
+    def _get_eps_eff_TMNab(self):
         print('averaging')
-        x_IJ, y_IJ = np.einsum('IJa->aIJ', self.X_IJa)
-        x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
+        x_IJ, y_IJ = self.xy_IJ
+        x_MN, y_MN = self.xy_MN
+        eps_eff_TIJab = np.einsum('TIJab,TIJ->TIJab', self.eps_TIJab, (1-self.omega_TIJ))
         return np.array([
-            self.get_z_MN_ironed(x_IJ, y_IJ, eps_IJab, 15, x_MN, y_MN)
-            for eps_IJab in self.eps_TIJab
+            self.get_z_MN_ironed(x_IJ, y_IJ, eps_eff_IJab, self.L_corr, x_MN, y_MN)
+            for eps_eff_IJab in eps_eff_TIJab
             ])
     
     f_eps_TMNab_txy = tr.Property(depends_on='state_changed')
@@ -342,12 +431,12 @@ class DICStateFields(bu.Model):
     def _get_f_eps_TMNab_txy(self):
         x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
         txy = (self.dic_grid.t_T, x_MN[:, 0], y_MN[0, :])
-        return RegularGridInterpolator(txy, self.eps_TMNab)
+        return RegularGridInterpolator(txy, self.eps_eff_TMNab)
 
     def plot_eps_MNab(self, ax, cax_neg, cax_pos):
-        x_MN, y_MN = np.einsum('MNa->aMN', self.X_MNa)
+        x_MN, y_MN = self.xy_MN
         T = self.dic_grid.T_t
-        eps_MNa, _ = np.linalg.eig(self.eps_TMNab[T])
+        eps_MNa, _ = np.linalg.eig(self.eps_eff_TMNab[T])
         eps_indices = np.argmax(np.fabs(eps_MNa), axis=-1)
         minmax_eps_MN = np.take_along_axis(eps_MNa, eps_indices[..., np.newaxis], axis=-1).squeeze(axis=-1)
         self._plot_eps_field(x_MN, y_MN, minmax_eps_MN, ax, cax_neg, cax_pos)
@@ -359,10 +448,10 @@ class DICStateFields(bu.Model):
     #========================================================================
 
     X_irn_MNa = tr.Property(depends_on='state_changed')
-    """Interpolation grid
-    """
     @tr.cached_property
     def _get_X_irn_MNa(self):
+        """Interpolation grid
+        """
         n_M, n_N = self.n_irn_M, self.n_irn_N
         x_0, y_0, x_1, y_1 = self.dic_grid.X_frame
         xx_M = np.linspace(x_0, x_1, n_M)
@@ -378,18 +467,18 @@ class DICStateFields(bu.Model):
         return np.einsum('IJa->aIJ', self.X_irn_MNa)
 
     X_irn_bb_Ca = tr.Property(depends_on='state_changed')
-    """Bounding box of the interpolated field"""
     @tr.cached_property
     def _get_X_irn_bb_Ca(self):
+        """Bounding box of the interpolated field"""
         return self.X_irn_MNa[(0,-1),(0,-1)]
 
     omega_irn_TMN = tr.Property(depends_on='+ALG')
-    """Interpolation grid
-    """
     @cached_array(source_name="beam_param_file",
                   names='omega_irn_TMN',
                   data_dir_trait='data_dir')
     def _get_omega_irn_TMN(self):
+        """Interpolation grid
+        """
         print('averaging')
         x_IJ, y_IJ = np.einsum('IJa->aIJ', self.X_IJa)
         x_irn_MN, y_irn_MN = np.einsum('MNa->aMN', self.X_irn_MNa)
@@ -399,9 +488,9 @@ class DICStateFields(bu.Model):
             ])
 
     f_omega_irn_txy = tr.Property(depends_on='+ALG')
-    """Interpolator of maximum damage value in time-space domain"""
     @tr.cached_property
     def _get_f_omega_irn_txy(self):
+        """Interpolator of maximum damage value in time-space domain"""
         x_irn_MN, y_irn_MN = self.xy_irn_MN
         txy = (self.dic_grid.t_T, x_irn_MN[:, 0], y_irn_MN[0, :])
         return RegularGridInterpolator(txy, self.omega_irn_TMN, 
@@ -438,31 +527,39 @@ class DICStateFields(bu.Model):
         ax_sig_eps.set_ylabel(r'$\sigma$ [MPa]')
 
     @staticmethod
-    def _plot_eps_field(x_, y_, eps_, ax, cax_neg, cax_pos):
+    def _plot_eps_field(x_, y_, eps_, ax, cax_neg=None, cax_pos=None):
 
         pos = np.ma.masked_less(eps_, 0)
         neg = np.ma.masked_greater(eps_, 0)
 
+        neg_min = -0.004  # macroscopic critical strain
+        pos_max = 0.04  # macroscopic critical strain
+
+        pos[pos > pos_max] = pos_max
+        neg[neg < neg_min] = neg_min
+
         cmap_pos = cm.Reds
         cmap_neg = cm.Blues_r
 
-        levels_pos = np.linspace(0, pos.max(), 10)
-        levels_neg = np.linspace(neg.min(), 0, 10)
+        levels_pos = np.linspace(0, pos_max, 10)
+        levels_neg = np.linspace(neg_min, 0, 10)
 
         ax.contourf(x_, y_, pos, levels_pos, cmap=cmap_pos)
         ax.contourf(x_, y_, neg, levels_neg, cmap=cmap_neg)
 
-        ColorbarBase(cax_pos, cmap=cmap_pos, norm=Normalize(vmin=0, vmax=pos.max()), orientation='horizontal')
-        ColorbarBase(cax_neg, cmap=cmap_neg, norm=Normalize(vmin=neg.min(), vmax=0), orientation='horizontal')
+        if cax_pos:
+            cbar_pos = ColorbarBase(cax_pos, cmap=cmap_pos, norm=Normalize(vmin=0, vmax=pos_max), orientation='horizontal')
+            cbar_pos.set_ticks(np.linspace(0, pos_max, 5))  # Specify custom ticks for the positive regime
+        if cax_neg:
+            cbar_neg = ColorbarBase(cax_neg, cmap=cmap_neg, norm=Normalize(vmin=neg_min, vmax=0), orientation='horizontal')
+            cbar_neg.set_ticks(np.linspace(neg_min, -0.001, 4))  # Specify custom ticks for the negative regime
 
         levels = [0]
-        fmt = {0: '0'}
-        cs = ax.contour(x_, y_, eps_, levels, linewidths=1, colors='k')
-        ax.clabel(cs, fmt=fmt, inline=1)
+        cs = ax.contour(x_, y_, eps_, levels, linewidths=0.2, colors='k')
         ax.set_aspect('equal')
 
 
-    def plot_eps_IJab(self, ax, cax_neg, cax_pos):
+    def plot_eps_IJab(self, ax, cax_neg=None, cax_pos=None):
         x_IJ, y_IJ = np.einsum('IJa->aIJ', self.X_IJa)
         T = self.dic_grid.T_t
         eps_IJa, _ = np.linalg.eig(self.eps_TIJab[T])
@@ -500,12 +597,45 @@ class DICStateFields(bu.Model):
         ax_sig.axis('equal')
         ax_sig.axis('off')
 
+    def plot_dY_t_IJ(self, ax, t):
+        x_IJ, y_IJ = np.einsum('IJa->aIJ', self.X_IJa)
+        self.dic_grid.t = t
+        T = self.dic_grid.T_t
+        dY_IJ = self.dY_TIJ[T]
+        vmax, vmid = np.max(dY_IJ), np.average(dY_IJ) * 20
+        if vmax > 0:
+            cnt = ax.contourf(x_IJ, y_IJ, dY_IJ, 
+                        levels=np.geomspace(vmid, vmax*1.1, 10), 
+                        norm=SymLogNorm(linthresh=vmid, linscale=0.1, vmin=0, vmax=vmax, base=10),
+                        cmap=cm.hot_r
+                        )
+        ax.axis('equal')
+        ax.axis('off')
+
+    def plot_Y_t_IJ(self, ax, t):
+        x_IJ, y_IJ = self.xy_IJ
+        # Y_IJ = self.Y_TIJ[T]
+        # Y_IJ = np.trapz(self.dY_TIJ[:-4], self.dic_grid.t_T[:-4], axis=0)
+        # Y_TIJ = np.copy(self.Y_TIJ)
+        self.dic_grid.t = t
+        T = self.dic_grid.T_t
+        Y_TIJ = np.copy(self.Y_TIJ)
+        Y_TIJ[Y_TIJ > 3] = 3
+        # vmax, vmid = np.max(Y_IJ), np.average(Y_IJ) * 20
+        ax.contourf(x_IJ, y_IJ, self.Y_TIJ[T],
+                    # levels=np.geomspace(vmid, vmax*1.1, 10), 
+                    # norm=SymLogNorm(linthresh=vmid, linscale=0.1, vmin=0, vmax=vmax, base=10),
+                    # cmap=cm.hot_r
+                    )
+        ax.axis('equal')
+        ax.axis('off')
+
     def subplots(self, fig):
         self.fig = fig
         return fig.subplots(3, 2)
 
     show_color_bar = bu.Bool(False, ALG=True)
-    def plot_crack_detection_field(self, ax_cracks, fig):
+    def plot_crack_detection_field(self, ax_cracks, fig=None):
         T = self.dic_grid.T_t if self.omega_t_on else -1
         x_irn_MN, y_irn_MN = self.xy_irn_MN
         cd_field_irn_MN = self.omega_irn_TMN[T]
@@ -513,12 +643,13 @@ class DICStateFields(bu.Model):
         if sum_cd_field == 0:
             # return without warning if there is no damage or strain
             return
-        contour_levels = np.array([0.0, 0.1, 0.2, 0.5, 0.7], dtype=np.float_)
+        contour_levels = np.array([-1, 0.35, 0.4, 0.45, 0.6, 0.8], dtype=np.float_)
         cs = ax_cracks.contourf(x_irn_MN, y_irn_MN, cd_field_irn_MN, 
                                 contour_levels,
-                                cmap=cm.GnBu_r,
+                                cmap=cm.Greys_r,
+#                                cmap=cm.GnBu_r,
                                antialiased=False)
-        if self.show_color_bar:
+        if self.show_color_bar and fig:
             cbar_cracks = fig.colorbar(cm.ScalarMappable(norm=cs.norm, cmap=cs.cmap),
                                        ax=ax_cracks, ticks=np.linspace(0, 1, 6),
                                        orientation='horizontal')

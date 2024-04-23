@@ -29,8 +29,6 @@ class DICStressProfile(bu.Model):
     def _get_dic_grid(self):
         return self.dic_crack.dic_grid
 
-    smeared_matmod = bu.Instance(ib.MATS2DMplDamageEEQ, ())
-
     depends_on = ['dic_crack']
 
     show_stress = Bool(True)
@@ -123,9 +121,7 @@ class DICStressProfile(bu.Model):
     @tr.cached_property
     def _get_sig_unc_t_Lab(self):
         eps_unc_t_Lab = self.eps_unc_t_Lab
-        cmm = self.bd.matrix_
-        mdm = self.smeared_matmod
-        mdm.trait_set(E=26000, nu=0.2, epsilon_0=0.00008, epsilon_f=0.001)
+        mdm = self.dic_crack.cl.dsf.cmodel
         n_K, _, _ = eps_unc_t_Lab.shape
         Eps = {
             name: np.zeros((n_K,) + shape)
@@ -489,12 +485,11 @@ class DICStressProfile(bu.Model):
     # =========================================================================
 
     ST_colors = tr.Dict(dict(
-        color_cb = 'red', 
-        color_dowel = 'gray', 
-        color_agg = 'blue', 
-        color_c_horiz = 'orange', 
-        color_c_shear = 'magenta'
-    ))    
+        cb = ('red', 'crack bridge'),
+        dowel = ('orange', 'dowel action',),
+        agg = ('blue', 'agg. interlock'),
+        conc = ('gray', 'concrete')
+    ))
 
     # stress-transfer attributes
     ST_attributes = tr.Dict(dict(
@@ -508,8 +503,19 @@ class DICStressProfile(bu.Model):
         V_ext_kN_t = {'to_kN':   1},
         M_ext_kN_t = {'to_kN':   1e-3},
         M_mid_unc_t_a = {'to_kN': 1e-6},
-        F_t_a = {'to_kN':   1e-3}
+        F_t_a = {'to_kN':   1e-3},
     ))
+
+
+    u_TNa = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_u_TNa(self):
+        u_TNa = []
+        t_T = self.dic_grid.t_T
+        for t in t_T:
+            self.dic_grid.t = t
+            u_TNa.append(self.u_t_Na)
+        return np.array(u_TNa, np.float_)
 
     ST_T = tr.Property(depends_on='state_changed')
     @tr.cached_property
@@ -537,36 +543,46 @@ class DICStressProfile(bu.Model):
 
     def plot_stapled(self, ax, t_T, F_MT, colors):
         F_level = 0
-        for F_T, color_key in zip(F_MT, colors):
-            color = self.ST_colors[color_key]
-            ax.plot(t_T, F_T + F_level, color=color)
-            ax.fill_between(t_T, F_T + F_level, F_level, color=color, alpha=0.5)
+        for F_T, key in zip(F_MT, colors):
+            color, label = self.ST_colors[key]
+#            ax.plot(t_T, F_T + F_level, linewidth=0.7, color='black')
+            ax.fill_between(t_T, F_T + F_level, F_level, color=color, alpha=0.5, label=label)
             F_level += F_T 
 
-    def plot_ST(self, ax_N, ax_V, ax_M):
+    def plot_ST(self, ax_N, ax_V, ax_M, legend=True):
         ST = self.ST_T
         t_T = self.dic_grid.t_T
         self.plot_stapled(ax_N, t_T, 
                           [ST['rebar_F_t_a'][:,0], 
                            ST['pos_crc_F_y'][:,0],
                            ST['pos_unc_F_y'][:,0]],
-                           ['color_cb', 'color_agg', 'color_c_horiz'])
+                           ['cb', 'agg', 'conc'])
         self.plot_stapled(ax_N, t_T, 
                           [ST['neg_crc_F_y'][:,0],
                            ST['neg_unc_F_y'][:,0]], 
-                           ['color_agg', 'color_c_horiz'])
-        ax_N.plot(t_T, ST['F_t_a'][:,0], color='black', linestyle='dashed')
+                           ['agg', 'conc'])
+#        ax_N.plot(t_T, ST['F_t_a'][:,0], color='black', linestyle='dashed')
+        ax_N.axvline(x=1, linestyle='--', linewidth=0.5, color='black')
         ax_V.plot(t_T, ST['V_ext_kN_t'], color='black', linestyle='dashed')
-        self.plot_stapled(ax_V, t_T, [ST['F_t_a'][:,1]], ['color_dowel'])
+        self.plot_stapled(ax_V, t_T, 
+                          [ST['F_t_a'][:,1],
+                           ST['V_unc_y'][:,0],
+                           ST['V_crc_y'][:,0]], 
+                           ['dowel', 'conc', 'agg'])
         ax_M.plot(t_T, ST['M_ext_kN_t'], color='black', linestyle='dashed')
+        ax_V.axvline(x=1, linestyle='--', linewidth=0.5, color='black')
         self.plot_stapled(ax_M, t_T, ST['M_mid_unc_t_a'].T, 
-                          colors=['color_cb', 'color_dowel', 'color_agg'])
-        ax_N.set_ylabel(r'$F$/kN')
+                          colors=['cb', 'dowel', 'agg'])
+        ax_M.axvline(x=1, linestyle='--', linewidth=0.5, color='black')
+        ax_N.set_ylabel(r'$N$/kN')
         ax_V.set_ylabel(r'$V$/kN')
         ax_M.set_ylabel(r'$M$/kNm')
         ax_N.set_xlabel(r'$t$/-')
         ax_V.set_xlabel(r'$t$/-')
         ax_M.set_xlabel(r'$t$/-')
+        if legend:
+            ax_V.legend()
+            ax_M.legend()
 
     # =========================================================================
     # Plotting methods
