@@ -6,11 +6,13 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 
-class DICTimeSync(bu.Model):
+
+# This was not directly working
+class DICInpLDTime(bu.Model):
     """
     Load cell input channel.
     """
-    name = 'DIC grid history'
+    name = 'DIC load-deflection input channel'
 
     dir_name = bu.Str('<unnamed>', ALG=True)
     """Directory name containing the test data.
@@ -117,13 +119,36 @@ class DICTimeSync(bu.Model):
         time_m, F_m, _ = self.time_F_w_m
         return interp1d(time_m, F_m, kind='linear', bounds_error=True)
 
+
+    argmax_F_m = tr.Property(depends_on="state_changed")
+    @tr.cached_property
+    def _get_argmax_F_m(self):
+        _, F_m, _ = self.time_F_w_m
+        return np.argmax(F_m)
+
+    argmax_F_time = tr.Property(depends_on="state_changed")
+    @tr.cached_property
+    def _get_argmax_F_time(self):
+        """Return the time for the maximum load"""
+        time_m, F_m, _ = self.time_F_w_m
+        argmax_F_m = self.argmax_F_m
+        return time_m[argmax_F_m]
+    
+    argmax_w_time = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_argmax_w_time(self):
+        """Return the time for the maximum load"""
+        time_m, _, w_m = self.time_F_w_m
+        return time_m
+
     f_time_F = tr.Property(depends_on="state_changed")
     """Return the times array for ascending load from zero to maximum"""
     @tr.cached_property
     def _get_f_time_F(self):
         time_m, F_m, _ = self.time_F_w_m
-        argmax_F_m = np.argmax(F_m)
-        return interp1d(F_m[:argmax_F_m+1], time_m[:argmax_F_m+1], kind='linear', bounds_error=True) 
+        argmax_F_m = self.argmax_F_m
+        return interp1d(F_m[:argmax_F_m+1], time_m[:argmax_F_m+1], kind='linear', 
+                        bounds_error=True) 
 
     f_w_time = tr.Property(depends_on="state_changed")
     @tr.cached_property
