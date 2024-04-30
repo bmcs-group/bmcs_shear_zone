@@ -1,12 +1,9 @@
 import bmcs_utils.api as bu
 import traits.api as tr
 from pathlib import Path
-from os.path import join, expanduser
 import os
 import numpy as np
 import pandas as pd
-from bmcs_shear.beam_design import RCBeamDesign
-from bmcs_shear.matmod import CrackBridgeAdv
 from .i_dic_inp import IDICInp
 from .cached_array import cached_array
 
@@ -27,9 +24,6 @@ class DICInpUnstructuredPoints(bu.Model):
     """
     History of displacment grids imported from the DIC measurement.
     """
-    depends_on = ['sz_bd']
-    tree = ['sz_bd']
-
     name = 'DIC grid history'
 
     force_array_refresh = bu.Bool(False)
@@ -37,65 +31,10 @@ class DICInpUnstructuredPoints(bu.Model):
     dir_name = bu.Str('<unnamed>', ALG=True)
     """Directory name containing the test data.
     """
-    def _dir_name_change(self):
-        self.name = f'DIC grid {self.name}'
-        self._set_dic_params()
 
     dic_param_file_name = bu.Str('dic_params.txt', ALG=True)
     """Default name of the file with the parameters of the grid.
     """
-
-    beam_param_file_name = bu.Str('beam_params.txt', ALG=True)
-    """Default name of the file with the parameters of the beam.
-    L_right - length of the beam at the side with DIC measurement
-    L_left - length of the beam at th side without DIC measurement  
-    """
-
-    beam_param_types = {'L_right' : float,
-                        'L_left' : float,
-                        'B' : float,
-                        'H' : float,
-                        'n_s' : float,
-                        'y_s' : float,
-                        'd_s' : float,
-                        'd_agg' : float}
-    """Parameters of the test specifying the length, width and depth of the beam.
-    """
-
-    beam_param_file = tr.Property
-    """File containing the parameters of the beam
-    """
-    def _get_beam_param_file(self):
-        return join(self.data_dir, self.beam_param_file_name)
-
-    L_left = bu.Float(1, ALG=True)
-    L_right = bu.Float(2, ALG=True)
-
-    sz_bd = bu.Instance(RCBeamDesign)
-    """Beam design object provides geometrical data and material data.
-    """
-    def _sz_bd_default(self):
-        return RCBeamDesign()
-
-    def read_beam_design(self):
-        """Read the file with the input data using the input configuration
-        including the beam param types.
-        """
-        params_str = {}
-        with open(self.beam_param_file) as f:
-            data = f.readlines()
-            for line in data:
-                key, value = line.split(":")
-                params_str[key.strip()] = value.strip()
-        # convert the strings to the parameter types specified in the param_types table
-        params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
-        self.sz_bd.trait_set(**{key: params[key] for key in ['H', 'B', 'L_right', 'L_left']})
-        self.sz_bd.trait_set(**{key: params[key] for key in ['d_s', 'n_s', 'y_s', 'd_agg']})
-        self.sz_bd.L = self.sz_bd.L_left + self.sz_bd.L_right
-        self.sz_bd.X0 = -self.sz_bd.L_left
-        self.sz_bd.X_point_load = 0
-        self.sz_bd.Rectangle = True
-        self.sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
 
     x_offset = tr.Property(bu.Float, depends_on='state_changed')
     """Horizontal offset of the DIC input displacement grid from the left
@@ -217,23 +156,22 @@ class DICInpUnstructuredPoints(bu.Model):
 
     base_dir = tr.Directory
     def _base_dir_default(self):
-        home_dir = expanduser('~')
-        return join(home_dir, 'simdb', 'data', 'shear_zone')
+        return Path.home() / 'simdb' / 'data' / 'shear_zone'
 
     data_dir = tr.Property
     """Directory with the data"""
     def _get_data_dir(self):
-        return join(self.base_dir, self.dir_name)
+        return Path(self.base_dir) / self.dir_name
 
     dic_data_dir = tr.Property
     """Directory with the DIC data"""
     def _get_dic_data_dir(self):
-        return join(self.data_dir, 'dic_point_data')
+        return self.data_dir / 'dic_point_data'
 
     dic_param_file = tr.Property
     """File containing the parameters of the grid"""
     def _get_dic_param_file(self):
-        return join(self.dic_data_dir, self.dic_param_file_name)
+        return self.dic_data_dir / self.dic_param_file_name
 
     dic_param_types = {'x_offset' : float,
                        'y_offset' : float,
@@ -260,7 +198,7 @@ class DICInpUnstructuredPoints(bu.Model):
     time_F_w_data_dir = tr.Property
     """Directory with the load deflection data"""
     def _get_time_F_w_data_dir(self):
-        return join(self.data_dir, 'load_deflection')
+        return self.data_dir / 'load_deflection'
 
     time_F_w_file_name = tr.Str('load_deflection.csv')
     """Name of the file with the measured load deflection data
@@ -274,7 +212,7 @@ class DICInpUnstructuredPoints(bu.Model):
     """
     @tr.cached_property
     def _get_time_F_w_m_all(self):
-        time_F_w_file = join(self.time_F_w_data_dir, self.time_F_w_file_name)
+        time_F_w_file = self.time_F_w_data_dir / self.time_F_w_file_name
         time_F_w_m = np.array(pd.read_csv(time_F_w_file, decimal=",", skiprows=1,
                               delimiter=None), dtype=np.float_)
         time_m, F_m, w_m = time_F_w_m[::self.time_m_skip, (0,1,2)].T
@@ -341,7 +279,7 @@ class DICInpUnstructuredPoints(bu.Model):
     """
     @tr.cached_property
     def _get_time_F_dic_file(self):
-        return os.path.join(self.dic_data_dir, 'Kraft.DIM.csv')
+        return self.dic_data_dir / 'Kraft.DIM.csv'
 
     tstring_time_F_dic_all = tr.Property(depends_on='state_changed')
     """times and forces for all snapshots with camera clock (dic index)
@@ -436,8 +374,7 @@ class DICInpUnstructuredPoints(bu.Model):
     tstring_time_F_T = tr.Property(depends_on='state_changed')
     """synchronized times and forces for specified resolution n_T
     """
-    @cached_array(source_name="beam_param_file", names=['tstring', 'time', 'F'],
-                  data_dir_trait='data_dir')
+    @cached_array(names=['tstring', 'time', 'F'])
     def _get_tstring_time_F_T(self):
 
         time_m, F_m, _ = self.time_F_w_m # machine time and force
@@ -520,7 +457,7 @@ class DICInpUnstructuredPoints(bu.Model):
     """
     @tr.cached_property
     def _get_pxyz_file_T(self):
-        return [os.path.join(self.dic_data_dir, r'Flächenkomponente 1_{} s.csv'.format(tstring)) for
+        return [self.dic_data_dir / r'Flächenkomponente 1_{} s.csv'.format(tstring) for
                       tstring in self.tstring_T]
 
     asc_time_F_T = tr.Property(depends_on='state_changed')
@@ -543,7 +480,7 @@ class DICInpUnstructuredPoints(bu.Model):
     X_TQa = tr.Property(depends_on='dir_name')
     """Read the displacement data from the individual csv files"""
     #@tr.cached_property
-    @cached_array("beam_param_file",'X_TQa')
+    @cached_array('X_TQa')
     def _get_X_TQa(self):
 
         pxyz_file_T = self.pxyz_file_T
@@ -675,41 +612,6 @@ class DICInpUnstructuredPoints(bu.Model):
                     )
 
 
-    Q_T = tr.Property(depends_on='state_changed')
-
-    @tr.cached_property
-    def _get_Q_T(self):
-        L_right = self.sz_bd.L_right
-        L_left = self.sz_bd.L_left
-        return self.F_T * L_left / (L_left + L_right)
-
-    M_T = tr.Property(depends_on='state_changed')
-
-    @tr.cached_property
-    def _get_M_T(self):
-        L_right = self.sz_bd.L_right
-        return self.Q_T * L_right
-
-    Q_1 = tr.Property
-
-    def _get_Q_1(self):
-        return self.Q_T[-1]
-
-    M_1 = tr.Property
-
-    def _get_M_1(self):
-        return self.M_T[-1]
-
-    Q_t = tr.Property
-
-    def _get_Q_t(self):
-        return self.Q_T[self.T_t]
-
-    M_t = tr.Property
-
-    def _get_M_t(self):
-        return self.M_T[self.T_t]
-
     def plot_load_deflection(self, ax_load):
         w_m = self.w_m
         _, F_m = self.time_F_m
@@ -748,67 +650,4 @@ class DICInpUnstructuredPoints(bu.Model):
         self.plot_bounding_box(ax_u)
         self.plot_box_annotate(ax_u)
         self.plot_load_deflection(ax_load)
-
-    def get_latex_design_params(self):
-        sz_bd = self.sz_bd
-        return f'''
-    \\begin{{center}}
-    \\begin{{tabular}}{{|c|c|c|c|}}
-    \\hline
-    Name & Symbol & Unit & Value \\\\
-    \\hline
-    beam length & $L$ & mm & {sz_bd.L_left + sz_bd.L_right:.0f} \\\\
-    \\hline
-    span & $a$ & mm & {sz_bd.L_right:.0f} \\\\
-    \\hline
-    height & $H$ & mm & {sz_bd.H:.0f} \\\\
-    \\hline
-    width & $B$ & mm & {sz_bd.B:.0f} \\\\
-    \\hline
-    max aggregate size & $d_\\mathrm{{agg}}$ & mm & {sz_bd.d_agg:.0f} \\\\
-    \\hline
-    depth & $d$ & mm & {sz_bd.H - sz_bd.y_s:.0f} \\\\
-    \\hline
-    slenderness & $\\lambda = a/d$ & - & {self.lambda_ad:.1f} \\\\
-    \\hline
-    bar diameter & $d_\\mathrm{{s}}$ & mm & {sz_bd.d_s:.0f} \\\\
-    \\hline
-    \# bars & $n_\\mathrm{{s}}$ & - & {sz_bd.n_s:.0f} \\\\
-    \\hline
-    reinf. ratio & $\\rho$ & \\% & {self.rho*100:.2f} \\\\
-    \\hline
-    \\end{{tabular}}
-    \\end{{center}}
-    '''
-    
-    rho = tr.Property()
-    def _get_rho(self):
-        sz_bd = self.sz_bd
-        d = sz_bd.H - sz_bd.y_s
-        return (sz_bd.n_s * np.pi * (sz_bd.d_s/2)**2) / (d * sz_bd.B)
-    
-    lambda_ad = tr.Property()
-    def _get_lambda_ad(self):
-        sz_bd = self.sz_bd
-        d = sz_bd.H - sz_bd.y_s
-        return (sz_bd.L_right) / d
-
-    def get_latex_dic_params(self):
-        sz_bd = self.sz_bd
-        names = [name.replace('_', r'\_') for name in self.dic_params.keys()]
-        values = [str(value) for value in self.dic_params.values()]
-
-        table_body = r" & ".join(values)
-
-        return r'''
-    \begin{center}
-    \begin{tabular}{|c|''' + 'c|' * len(names) + r'''}
-    \hline
-    ''' + ' & '.join(names) + r'''\\
-    \hline
-    ''' + table_body + r'''\\
-    \hline
-    \end{tabular}
-    \end{center}
-    '''
 

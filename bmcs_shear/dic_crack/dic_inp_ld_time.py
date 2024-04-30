@@ -21,33 +21,27 @@ class DICInpLDTime(bu.Model):
         self.name = f'Test {self.name}'
         self._set_dic_params()
 
-    time_0 = bu.Float(0, ALG=True)
-    """Initial time  
+    time_0 = bu.Float( ALG=True)
+    """Initial time
     """
 
-    t_final = bu.Float(1.1, ALG=True)
-    """Value of the time slider representing to the last data value in the monitored history.
-    This value must be larger than the reference value.
+    time_1 = tr.Property(depends_on='state_changed')
+    """Final time
     """
+    @tr.cached_property
+    def _get_time_1(self):
+        time_m, _, _ = self.time_F_w_m
+        return time_m[-1]
 
-    t_ref = bu.Float(1, ALG=True)
-    """Value of the time slider representing to reference point in the response, for example the 
-    ultimate load on a sliding scale. Relative to this scale, other stages of the test can be introduced
-    at which structural changes appear and at which focused detection schemes can be defined.
+    time_m_skip = bu.Int(10, ALG=True)
+    """Jump over the specified number of steps
     """
-
-    t = bu.Float(1, ALG=True)
-
-    @staticmethod
-    def _find_nearest_index(arr, value):
-        return np.argmin(np.abs(arr - value))
 
     ipw_view = bu.View(
-        bu.Item('time_0'),
+        bu.Item('time_0', readonly=True),
+        bu.Item('time_1', readonly=True),
+        bu.Item('time_m_skip'),
         bu.Item('n_m', readonly=True),
-        time_editor=bu.HistoryEditor(
-            var='t'
-        )
     )
 
     base_dir = tr.Directory
@@ -68,8 +62,6 @@ class DICInpLDTime(bu.Model):
     """Name of the file with the measured load deflection data
     """
 
-    time_m_skip = bu.Int(50, ALG=True )
-
     time_F_w_m = tr.Property(depends_on='state_changed')
     """Read the load displacement values from the individual 
     csv files from the test
@@ -85,9 +77,24 @@ class DICInpLDTime(bu.Model):
         argtime_0 = np.argmax(time_m > self.time_0)
         time_m, F_m, w_m = time_m[argtime_0:], F_m[argtime_0:], w_m[argtime_0:]
 
+        argmax_F_m = np.argmax(F_m)
+        asc_time_m, asc_F_m, asc_w_m = self._get_asc_time_F_w(time_m[:argmax_F_m], F_m[:argmax_F_m], w_m[:argmax_F_m])
+
         # End data criterion - generalize to introduce a logical condition to identify the final index
         argmax_w_m = np.argmax(w_m)
-        return time_m[:argmax_w_m+1], F_m[:argmax_w_m+1], w_m[:argmax_w_m+1]
+        dsc_time_m, dsc_F_m, dsc_w_m = time_m[argmax_F_m:argmax_w_m+1], F_m[argmax_F_m:argmax_w_m+1], w_m[argmax_F_m:argmax_w_m+1]
+        return np.hstack([asc_time_m, dsc_time_m]), np.hstack([asc_F_m, dsc_F_m]), np.hstack([asc_w_m, dsc_w_m])
+    
+
+    def _get_asc_time_F_w(self, time_, F_, w_):
+        dF_dic = F_[np.newaxis, :] - F_[:, np.newaxis]
+        dF_up_dic = np.triu(dF_dic > 0, 0)
+        argmin_dic = np.argmin(dF_up_dic, axis=0)
+        for n in range(len(argmin_dic)):
+            dF_up_dic[argmin_dic[n]:, n] = False
+        asc_dic = np.unique(np.argmax(np.triu(dF_up_dic, 0) > 0, axis=1))
+        return time_[asc_dic], F_[asc_dic], w_[asc_dic]
+    
     
     time_F_m = tr.Property(depends_on='state_changed')
     """time and force
@@ -165,20 +172,35 @@ class DICInpLDTime(bu.Model):
 
     n_F = bu.Int(30, ALG=True)
 
-    F_range = tr.Property(depends_on='state_changed')
+    slices_T = tr.Property(depends_on='state_changed')
     @tr.cached_property
-    def _get_F_range(self):
-        time_m, F_m, w_m = self.time_F_w_m
-        argmax_F_m = np.argmax(F_m)
-        return np.linspace(F_m[0], F_m[argmax_F_m], self.n_w)
+    def _get_slices_T(self):
+        argmax_F_m = self.argmax_F_m
+        step = int((argmax_F_m - 0) / (self.n_T - 1))
+        asc_slice = slice(None, argmax_F_m, step)
+        dsc_slice = slice(argmax_F_m, -1, step)
+        return asc_slice, dsc_slice
 
-    n_w = bu.Int(30, ALG=True)
+    n_T = bu.Int(100, ALG=True)
 
-    w_range = tr.Property(depends_on='state_changed')
+    F_T = tr.Property(depends_on='state_changed')
     @tr.cached_property
-    def _get_w_range(self):
-        time_m, _, w_m = self.time_F_w_m
-        return np.linspace(w_m[0], w_m[-1], self.n_w)
+    def _get_F_T(self):
+        _, F_m, _ = self.time_F_w_m
+        return np.hstack([F_m[slice_] for slice_ in self.slices_T])
+
+    w_T = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_w_T(self):
+        _, _, w_m = self.time_F_w_m
+        return np.hstack([w_m[slice_] for slice_ in self.slices_T])
+
+
+    time_T = tr.Property(depends_on='state_changed')
+    @tr.cached_property
+    def _get_time_T(self):
+        time_m, _, _ = self.time_F_w_m
+        return np.hstack([time_m[slice_] for slice_ in self.slices_T])
 
     def plot_load_deflection(self, ax_load):
         w_m = self.w_m
@@ -199,6 +221,20 @@ class DICInpLDTime(bu.Model):
                     horizontalalignment='left', verticalalignment='top',
                     )
 
+    def plot_time_F(self, ax):
+        time, F, _ = self.time_F_w_m
+        ax.plot(time, F, color='red', label='F')
+        ax.set_ylabel(r'$F$/mm')
+        ax.set_xlabel(r'time/ms')
+        ax.scatter([self.argmax_F_time],[F[self.argmax_F_m]])
+        ax.legend()
+
+    def plot_time_w(self, ax):
+        time, _, w = self.time_F_w_m
+        ax.plot(time, w, color='blue', label='w')
+        ax.set_ylabel(r'$w$/mm')
+        ax.legend()
+
     def subplots(self, fig):
         ax_time_F, ax_Fw = fig.subplots(1, 2)
         ax_time_w = ax_time_F.twinx()
@@ -207,12 +243,5 @@ class DICInpLDTime(bu.Model):
     def update_plot(self, axes):
         ax_Fw, ax_time_F, ax_time_w = axes
         self.plot_load_deflection(ax_Fw)
-        time, F, w = self.time_F_w_m
-        ax_time_F.plot(time, F, color='red', label='F')
-        ax_time_F.set_ylabel(r'$F$/mm')
-        ax_time_F.set_xlabel(r'time/ms')
-        ax_time_w.plot(time, w, color='blue', label='w')
-        ax_time_w.set_ylabel(r'$w$/mm')
-        ax_time_F.legend()
-        ax_time_w.legend()
-
+        self.plot_time_F(ax_time_F)
+        self.plot_time_w(ax_time_w)

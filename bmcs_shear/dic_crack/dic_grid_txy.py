@@ -9,7 +9,7 @@ from scipy.spatial import Delaunay
 from .cached_array import cached_array
 
 
-class DICGrid(bu.Model):
+class DICGridTXY(bu.Model):
     """
     History of displacment grids imported from the DIC measurement.
     """

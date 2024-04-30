@@ -2,7 +2,7 @@
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
-from .dic_state_fields import DICStateFields
+from .dic_grid import DICGrid
 
 def rotate_around_ref(X_MNa, X_ref_a, T_ab):
     """Rotate the points around X_ref_a
@@ -26,10 +26,9 @@ class DICAlignedGrid(bu.Model):
     """
     name = 'rotated grid'
 
-    dsf = bu.Instance(DICStateFields)
+    dic_grid = bu.Instance(DICGrid)
 
-    depends_on = ['dsf']
-    # tree = ['dsf']
+    depends_on = ['dic_grid']
 
     # X0_a = bu.Float(0, ALG=True)
     # '''Origin of the reference system
@@ -74,14 +73,14 @@ class DICAlignedGrid(bu.Model):
         bu.Item('show_rot'),
         bu.Item('show_VW'),
         bu.Item('U_factor'),
-        time_editor=bu.HistoryEditor(var='dsf.dic_grid.t')
+        time_editor=bu.HistoryEditor(var='dic_grid.t')
     )
 
     X_0_MNa = tr.Array(dtype=np.float_, ALG=True)
     U_t_MNa = tr.Property(depends_on='state_changed')
     @tr.cached_property
     def _get_U_t_MNa(self):
-        return self.dsf.f_U_IJ_xy(self.X_0_MNa)
+        return self.dic_grid.f_U_IJ_xy(self.X_0_MNa)
 
     X_t_MNa = tr.Property(depends_on='state_changed')
 
@@ -101,7 +100,7 @@ class DICAlignedGrid(bu.Model):
     '''
     @tr.cached_property
     def _get_U0_t_a(self):
-        return self.dsf.f_U_IJ_xy(self.x0, self.y0)
+        return self.dic_grid.f_U_IJ_xy(self.x0, self.y0)
 
     X0_t_a = tr.Property(depends_on='state_changed')
     '''Current position of the reference frame origin
@@ -122,7 +121,7 @@ class DICAlignedGrid(bu.Model):
     '''
     @tr.cached_property
     def _get_U1_t_a(self):
-        return self.dsf.f_U_IJ_xy(self.x1, self.y1)
+        return self.dic_grid.f_U_IJ_xy(self.x1, self.y1)
 
     X1_t_a = tr.Property(depends_on='state_changed')
     '''Current position of the point on the vertical axis of the reference frame 
@@ -302,8 +301,8 @@ class DICAlignedGrid(bu.Model):
         """
         X0_a = self.X0_0_a
         X1_a = self.X1_0_a
-        U0_t_a = self.dsf.f_U_IJ_xy(self.x0, self.y0)
-        U1_t_a = self.dsf.f_U_IJ_xy(self.x1, self.y1)
+        U0_t_a = self.dic_grid.f_U_IJ_xy(self.x0, self.y0)
+        U1_t_a = self.dic_grid.f_U_IJ_xy(self.x1, self.y1)
         X0_t_scaled_a = X0_a + self.U_factor * U0_t_a
         X1_t_scaled_a = X1_a + self.U_factor * U1_t_a
         X01_na = np.array([X0_a, X1_a])

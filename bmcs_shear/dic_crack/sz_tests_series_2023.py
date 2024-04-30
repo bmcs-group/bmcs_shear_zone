@@ -6,7 +6,7 @@ B1_TV1 = dict(
     U_factor=10,
     n_t_max = 40,
     T_stepping = 'delta_T',
-    R=8, omega_threshold=0.15, verbose_eval=True, tmodel='scalar_damage',
+    R=8, omega_threshold=0.15, verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.0, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.95,
     delta_alpha_min = -0.1*np.pi,
@@ -20,7 +20,7 @@ B1_TV2 = dict(
     U_factor=10,
     n_t_max = 40,
     T_stepping = 'delta_T',
-    R=5, omega_threshold=0.15, verbose_eval=True, tmodel='scalar_damage',
+    R=5, omega_threshold=0.15, verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.72,
     delta_alpha_min = -0.1*np.pi,
@@ -34,7 +34,7 @@ B5_TV1 = dict(
     U_factor=10,
     n_t_max = 40,
     T_stepping = 'delta_T',
-    R=8, omega_threshold=0.1, verbose_eval=True, tmodel='scalar_damage',
+    R=8, omega_threshold=0.1, verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.80,
     delta_alpha_min = -np.pi/6,
@@ -48,7 +48,7 @@ B6_TV1 = dict(
     U_factor=10,
     n_t_max = 40,
     T_stepping = 'delta_T',
-    R=8, omega_threshold=0.2, verbose_eval=True, tmodel='scalar_damage',
+    R=8, omega_threshold=0.2, verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.9,
     delta_alpha_min =  -0.2*np.pi,
@@ -64,7 +64,7 @@ B6_TV2 = dict(
     T_stepping = 'delta_T',
     R=8, 
     omega_threshold=0.2, 
-    verbose_eval=True, tmodel='scalar_damage',
+    verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.98,
     delta_alpha_min =  -0.2*np.pi,
@@ -80,7 +80,7 @@ B7_TV1 = dict(
     T_stepping = 'delta_T',
     R=8, 
     omega_threshold=0.1, 
-    verbose_eval=True, tmodel='scalar_damage',
+    verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 1,
     delta_alpha_min =  -0.1*np.pi,
@@ -96,7 +96,7 @@ B7_TV2 = dict(
     n_t_max = 40,
     T_stepping = 'delta_T',
     R=8, 
-    omega_threshold=0.20, verbose_eval=True, tmodel='scalar_damage',
+    omega_threshold=0.20, verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 1,
     delta_alpha_min =  -0.1*np.pi,
@@ -111,7 +111,7 @@ B8_TV1 = dict(
     n_t_max = 40,
     T_stepping = 'delta_T',
     R=8, 
-    omega_threshold=0.1, verbose_eval=True, tmodel='scalar_damage',
+    omega_threshold=0.1, verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.98,
     delta_alpha_min =  -0.1*np.pi,
@@ -128,7 +128,7 @@ B8_TV2 = dict(
     T_stepping = 'delta_T',
     R=8, 
     omega_threshold=0.15, 
-    verbose_eval=True, tmodel='scalar_damage',
+    verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.92,
     delta_alpha_min =  -0.1*np.pi,
@@ -143,7 +143,7 @@ B9_TV1 = dict(
     n_t_max = 40,
     T_stepping = 'delta_T',
     R=8, 
-    omega_threshold=0.2, verbose_eval=True, tmodel='scalar_damage',
+    omega_threshold=0.2, verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.98,
     delta_alpha_min =  -0.25*np.pi,
@@ -159,7 +159,7 @@ B9_TV2 = dict(
     T_stepping = 'delta_T',
     R=5, 
     omega_threshold=0.2, 
-    verbose_eval=True, tmodel='scalar_damage',
+    verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.94,
     delta_alpha_min =  -0.1*np.pi,
@@ -175,7 +175,7 @@ B10_TV1 = dict(
     T_stepping = 'delta_T',
     R=8, 
     omega_threshold=0.1, 
-    verbose_eval=True, tmodel='scalar_damage',
+    verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 1,
     delta_alpha_min =  -0.1*np.pi,
@@ -192,7 +192,7 @@ B10_TV2 = dict(
     T_stepping = 'delta_T',
     R=8, 
     omega_threshold=0.1, 
-    verbose_eval=True, tmodel='scalar_damage',
+    verbose_eval=True, ct_tmodel='scalar_damage',
     E=1600, nu=0.18, omega_fn='exp-slope', strain_norm='Rankine', eps_max=0.01,
     t_detect = 0.98,
     delta_alpha_min =  -0.1*np.pi,
@@ -209,9 +209,10 @@ import numpy as np
 np.seterr(divide ='ignore', invalid='ignore');
 def new_dcl(test):
     dic_points = DICInpUnstructuredPoints(**test)
-    dic_points.read_beam_design()
     dic_grid = DICGrid(dic_inp=dic_points, **test)
     dsf = DICStateFields(dic_grid=dic_grid, **test)
-    dsf.tmodel_.trait_set(**test)
-    dsf.tmodel_.omega_fn_.trait_set(kappa_0=0.002, kappa_f=0.0028);
-    return DICCrackList(dsf=dsf, **test)
+    dsf.ct_tmodel_.trait_set(**test)
+    dsf.ct_tmodel_.omega_fn_.trait_set(kappa_0=0.002, kappa_f=0.0028);
+    dcl = DICCrackList(dsf=dsf, **test)
+    dcl.read_beam_design()
+    return dcl 

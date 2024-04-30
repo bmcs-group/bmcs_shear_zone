@@ -6,6 +6,7 @@ from .matmod.sz_crack_bridge.cb_simple.sz_crack_bridge import CrackBridgeSteel
 from .matmod.sz_crack_bridge.cb_advanced.sz_crack_bridge_adv import CrackBridgeAdv
 from .dic_crack import DICStateFields
 from .dic_crack import DICGrid
+from .dic_crack import DICGridTXY
 from .dic_crack import DICInpUnstructuredPoints
 from .dic_crack import DICAlignedGrid
 from .dic_crack import DICCrackList

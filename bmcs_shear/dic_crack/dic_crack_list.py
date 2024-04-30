@@ -8,6 +8,8 @@ from scipy.signal import argrelextrema
 import numpy as np
 import matplotlib.gridspec as gridspec
 from matplotlib import cm
+from bmcs_shear.beam_design import RCBeamDesign
+from bmcs_shear.matmod import CrackBridgeAdv
 from .cached_array import cached_array
 
 class DICCrackList(bu.ModelDict):
@@ -17,7 +19,8 @@ class DICCrackList(bu.ModelDict):
     '''State field component providing the history of 
     displacement, strain and damage within the grid.
     '''
-    depends_on = ['dsf']
+    depends_on = ['dsf', 'sz_bd']
+    tree = ['sz_bd']
 
     data_dir = tr.DelegatesTo('dsf')
     beam_param_file = tr.DelegatesTo('dsf')
@@ -28,9 +31,9 @@ class DICCrackList(bu.ModelDict):
     '''
     @tr.cached_property
     def _get_a_grid(self):
-        return DICAlignedGrid(dsf=self.dsf)
+        return DICAlignedGrid(dic_grid=self.dsf.dic_grid)
 
-    bd = tr.DelegatesTo('dsf')
+    sz_bd = tr.DelegatesTo('dsf')
     '''Beam design.
     '''
 
@@ -53,6 +56,7 @@ class DICCrackList(bu.ModelDict):
     delta_s = bu.Float(10, ALG=True)
     n_G = bu.Int(40, ALG=True)
     x_boundary = bu.Float(20, ALG=True)
+    omega_threshold = bu.Float(0.2, ALG=True)
     crack_fraction = bu.Float(0.2, ALG=True)
     t_detect = bu.Float(0.7, ALG=True)
 
@@ -65,6 +69,7 @@ class DICCrackList(bu.ModelDict):
         bu.Item('t_detect'),
         bu.Item('n_G'),
         bu.Item('x_boundary'),
+        bu.Item('omega_threshold'),
         bu.Item('crack_fraction'),
         bu.Item('show_cracks'),
         bu.Item('T_t', readonly=True),
@@ -149,7 +154,7 @@ class DICCrackList(bu.ModelDict):
         X_r0a = X_C0a[C_r]
         alpha_r0a = alpha_C0[C_r]
         # scale alpha_min to avoid turning of the cracks in the compression zone
-        H = self.dsf.dic_grid.sz_bd.H
+        H = self.sz_bd.H
         scale_alpha_r = 1 - (X_r0a[:, 1] / H)**(0.8)
         # range of angles in each crack
         alpha_min_r1 = alpha_r0a + (self.delta_alpha_min * scale_alpha_r)
@@ -176,7 +181,7 @@ class DICCrackList(bu.ModelDict):
         alpha_r1 = alpha_r1g[r_r, arg_g_omega_r1]
         # Update active crack tips
         C_C = np.arange(len(X_C0a))
-        r_running = max_omega_r1 > self.dsf.omega_threshold
+        r_running = max_omega_r1 > self.omega_threshold
         # new crack tip
         X_r1a = X_r1ga[r_r, arg_g_omega_r1]
         x_r1, y_r1 = np.einsum('...a->a...', X_r1a)
@@ -229,7 +234,7 @@ class DICCrackList(bu.ModelDict):
     """Get the crack paths as an array `X_CKa` of a crack $C \in [0, n_C]$
     with defined by the points $K \in [0, n_K$ with coordinates $a \in [0,1]$
     """
-    #@cached_array("beam_param_file",names=['X_CKa', 'X_tip_C'])
+    #@cached_array(names=['X_CKa', 'X_tip_C'])
     @tr.cached_property
     def _get_crack_paths(self):
         # spatial coordinates
@@ -310,7 +315,7 @@ class DICCrackList(bu.ModelDict):
     M_phi_Ct = tr.Property(depends_on='+MESH,+ALG')
     """Get the M and phi values for all cracks given the slider times
     """
-    @cached_array("beam_param_file",names='M_phi_Ct')
+    @cached_array(names='M_phi_Ct')
     def _get_M_phi_Ct(self):
         F_T = self.dsf.dic_grid.dic_inp.F_T
         t_range = F_T / F_T[-1]
@@ -348,12 +353,11 @@ class DICCrackList(bu.ModelDict):
         return self.items[str(critical_C)]
 
     def plot_MQ(self, ax_M, ax_Q):
-        dg = self.dsf.dic_grid
-        L_right = dg.sz_bd.L_right
-        M_1_kN = -dg.M_1 / 1000
+        L_right = self.sz_bd.L_right
+        M_1_kN = -self.M_1 / 1000
         ax_M.plot([0, L_right], [M_1_kN, 0], color='gray')
         ax_M.fill_between([0, L_right], [M_1_kN, 0], 0, color='gray', alpha=0.1)
-        M_t_kN = -dg.M_t / 1000
+        M_t_kN = -self.M_t / 1000
         ax_M.plot([0, L_right], [M_t_kN, 0], color='brown')
         ax_M.fill_between([0, L_right], [M_t_kN, 0], 0, color='brown', alpha=0.2)
 
@@ -387,7 +391,7 @@ class DICCrackList(bu.ModelDict):
         self.fig = fig
         gs = gridspec.GridSpec(ncols=3, nrows=2,
                                width_ratios=[1, 1, 1],
-                               wspace=0.5,
+                               wspace=0.2,
                                # hspace=0.5,
                                height_ratios=[1, 1]
                                )
@@ -401,7 +405,7 @@ class DICCrackList(bu.ModelDict):
         ax_cl, ax_FU, ax_M, ax_Q = axes
 #        self.dsf.dic_grid.plot_bounding_box(ax_dsf)
         # self.dsf.dic_grid.plot_box_annotate(ax_dsf)
-        # self.bd.plot_sz_bd(ax_cl)
+        # self.sz_bd.plot_sz_bd(ax_cl)
         self.dsf.plot_crack_detection_field(ax_cl, self.fig)
         #self.critical_crack.plot_x_t_crc_Ka(ax_cl, linewidth=2, line_color='red', tipcolor='red')
 
@@ -423,12 +427,170 @@ class DICCrackList(bu.ModelDict):
     #self.critical_crack.plot_u_t_crc_Ka(ax_u)
 
     # self.critical_crack.plot_eps_unc_t_Kab(ax_eps)
-    # ax_eps.set_ylim(0, self.bd.H)
-    # ax_u.set_ylim(0, self.bd.H * 1.04)
+    # ax_eps.set_ylim(0, self.sz_bd.H)
+    # ax_u.set_ylim(0, self.sz_bd.H * 1.04)
     # bu.mpl_align_xaxis(ax_u, ax_eps)
 
     # self.critical_crack.sp.plot_sig_t_unc_Lab(ax_sig)
     # self.critical_crack.sp.plot_sig_t_crc_La(ax_sig)
     # self.critical_crack.sp.plot_F_t_a(ax_F)
     # bu.mpl_align_xaxis(ax_sig, ax_F)
+
+
+    # ----------
+    # TODO - move to the beam level - this is still the DIC snapshot level
+    # 
+
+
+    beam_param_file_name = bu.Str('beam_params.txt', ALG=True)
+    """Default name of the file with the parameters of the beam.
+    L_right - length of the beam at the side with DIC measurement
+    L_left - length of the beam at th side without DIC measurement  
+    """
+
+    beam_param_types = {'L_right' : float,
+                        'L_left' : float,
+                        'B' : float,
+                        'H' : float,
+                        'n_s' : float,
+                        'y_s' : float,
+                        'd_s' : float,
+                        'd_agg' : float}
+    """Parameters of the test specifying the length, width and depth of the beam.
+    """
+
+    beam_param_file = tr.Property
+    """File containing the parameters of the beam
+    """
+    def _get_beam_param_file(self):
+        return self.data_dir / self.beam_param_file_name
+
+    L_left = bu.Float(1, ALG=True)
+    L_right = bu.Float(2, ALG=True)
+
+    sz_bd = bu.Instance(RCBeamDesign)
+    """Beam design object provides geometrical data and material data.
+    """
+    def _sz_bd_default(self):
+        return RCBeamDesign()
+
+    def read_beam_design(self):
+        """Read the file with the input data using the input configuration
+        including the beam param types.
+        """
+        params_str = {}
+        with open(self.beam_param_file) as f:
+            data = f.readlines()
+            for line in data:
+                key, value = line.split(":")
+                params_str[key.strip()] = value.strip()
+        # convert the strings to the parameter types specified in the param_types table
+        params = {key : type_(params_str[key]) for key, type_ in self.beam_param_types.items()}
+        self.sz_bd.trait_set(**{key: params[key] for key in ['H', 'B', 'L_right', 'L_left']})
+        self.sz_bd.trait_set(**{key: params[key] for key in ['d_s', 'n_s', 'y_s', 'd_agg']})
+        self.sz_bd.L = self.sz_bd.L_left + self.sz_bd.L_right
+        self.sz_bd.X0 = -self.sz_bd.L_left
+        self.sz_bd.X_point_load = 0
+        self.sz_bd.Rectangle = True
+        self.sz_bd.csl.add_layer(CrackBridgeAdv(z=params['y_s'], n=params['n_s'], d_s=params['d_s']))
+
+
+    Q_T = tr.Property(depends_on='state_changed')
+
+    @tr.cached_property
+    def _get_Q_T(self):
+        L_right = self.sz_bd.L_right
+        L_left = self.sz_bd.L_left
+        return self.dic_inp.F_T * L_left / (L_left + L_right)
+
+    M_T = tr.Property(depends_on='state_changed')
+
+    @tr.cached_property
+    def _get_M_T(self):
+        L_right = self.sz_bd.L_right
+        return self.Q_T * L_right
+
+    Q_1 = tr.Property
+
+    def _get_Q_1(self):
+        return self.Q_T[-1]
+
+    M_1 = tr.Property
+
+    def _get_M_1(self):
+        return self.M_T[-1]
+
+    Q_t = tr.Property
+
+    def _get_Q_t(self):
+        return self.Q_T[self.T_t]
+
+    M_t = tr.Property
+
+    def _get_M_t(self):
+        return self.M_T[self.T_t]
+
+    def get_latex_design_params(self):
+        sz_bd = self.sz_bd
+        return f'''
+    \\begin{{center}}
+    \\begin{{tabular}}{{|c|c|c|c|}}
+    \\hline
+    Name & Symbol & Unit & Value \\\\
+    \\hline
+    beam length & $L$ & mm & {sz_bd.L_left + sz_bd.L_right:.0f} \\\\
+    \\hline
+    span & $a$ & mm & {sz_bd.L_right:.0f} \\\\
+    \\hline
+    height & $H$ & mm & {sz_bd.H:.0f} \\\\
+    \\hline
+    width & $B$ & mm & {sz_bd.B:.0f} \\\\
+    \\hline
+    max aggregate size & $d_\\mathrm{{agg}}$ & mm & {sz_bd.d_agg:.0f} \\\\
+    \\hline
+    depth & $d$ & mm & {sz_bd.H - sz_bd.y_s:.0f} \\\\
+    \\hline
+    slenderness & $\\lambda = a/d$ & - & {self.lambda_ad:.1f} \\\\
+    \\hline
+    bar diameter & $d_\\mathrm{{s}}$ & mm & {sz_bd.d_s:.0f} \\\\
+    \\hline
+    \# bars & $n_\\mathrm{{s}}$ & - & {sz_bd.n_s:.0f} \\\\
+    \\hline
+    reinf. ratio & $\\rho$ & \\% & {self.rho*100:.2f} \\\\
+    \\hline
+    \\end{{tabular}}
+    \\end{{center}}
+    '''
+    
+    rho = tr.Property()
+    def _get_rho(self):
+        sz_bd = self.sz_bd
+        d = sz_bd.H - sz_bd.y_s
+        return (sz_bd.n_s * np.pi * (sz_bd.d_s/2)**2) / (d * sz_bd.B)
+    
+    lambda_ad = tr.Property()
+    def _get_lambda_ad(self):
+        sz_bd = self.sz_bd
+        d = sz_bd.H - sz_bd.y_s
+        return (sz_bd.L_right) / d
+
+    def get_latex_dic_params(self):
+        sz_bd = self.sz_bd
+        names = [name.replace('_', r'\_') for name in self.dic_params.keys()]
+        values = [str(value) for value in self.dic_params.values()]
+
+        table_body = r" & ".join(values)
+
+        return r'''
+    \begin{center}
+    \begin{tabular}{|c|''' + 'c|' * len(names) + r'''}
+    \hline
+    ''' + ' & '.join(names) + r'''\\
+    \hline
+    ''' + table_body + r'''\\
+    \hline
+    \end{tabular}
+    \end{center}
+    '''
+
 

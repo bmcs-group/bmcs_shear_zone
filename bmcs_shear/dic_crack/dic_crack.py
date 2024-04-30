@@ -63,7 +63,7 @@ class DICCrack(bu.Model):
 
     color = bu.Str('black')
     
-    bd = tr.DelegatesTo('cl')
+    sz_bd = tr.DelegatesTo('cl')
     '''Access to the beam design available through crack list.
     '''
 
@@ -141,7 +141,7 @@ class DICCrack(bu.Model):
 
     omega_threshold = tr.Property
     def _get_omega_threshold(self):
-        return self.cl.dsf.omega_threshold * self.omega_threshold_ratio
+        return self.cl.omega_threshold * self.omega_threshold_ratio
 
     T_t = tr.Property(bu.Int, depends_on='state_changed')
     @tr.cached_property
@@ -500,12 +500,12 @@ class DICCrack(bu.Model):
     z_N = tr.Property
 
     def _get_z_N(self):
-        return self.bd.csl.z_j
+        return self.sz_bd.csl.z_j
 
     A_N = tr.Property
 
     def _get_A_N(self):
-        return self.bd.csl.A_j
+        return self.sz_bd.csl.A_j
 
     x_N = tr.Property(bu.Float, depends_on='state_changed')
     @tr.cached_property
@@ -695,3 +695,4 @@ class DICCrack(bu.Model):
             bu.mpl_align_xaxis(ax_sig, ax_F)
 
         # self.plot_u_t_Kb(ax_sig_0)
+

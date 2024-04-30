@@ -8,6 +8,7 @@ import pandas as pd
 from bmcs_shear.beam_design import RCBeamDesign
 from bmcs_shear.matmod import CrackBridgeAdv
 from .i_dic_inp import IDICInp
+from .dic_inp_time_sync import DICInpTimeSync
 from .cached_array import cached_array
 
 def convert_to_bool(str_bool):
@@ -22,6 +23,7 @@ def convert_to_bool(str_bool):
                  'false' : False}
     return value_map[str_bool]
 
+@tr.provides(IDICInp)
 class DICInpDICTime(bu.Model):
     """
     History slice of displacement grids imported from the DIC measurement.
@@ -30,12 +32,22 @@ class DICInpDICTime(bu.Model):
 
     force_array_refresh = bu.Bool(False)
 
-    dir_name = bu.Str('<unnamed>', GEO=True)
-    """Directory name containing the test data.
-    """
-    def _dir_name_change(self):
-        self.name = f'DIC grid {self.name}'
-        self._set_dic_params()
+    time_F_w = bu.Instance(DICInpTimeSync, ())
+    
+    depends_on = ['time_F_w']
+    tree = ['time_F_w']
+
+    time_0 = tr.Property
+    def _get_time_0(self):
+        return self.time_F_w.ld_time.time_0
+
+    time_1 = tr.Property
+    def _get_time_1(self):
+        return self.time_F_w.ld_time.time_1
+
+    dir_name = tr.DelegatesTo('time_F_w')
+    dic_data_dir = tr.DelegatesTo('time_F_w')
+    time_shift = tr.DelegatesTo('time_F_w')
 
     dic_param_file_name = bu.Str('dic_params.txt', GEO=True)
     """Default name of the file with the parameters of the grid.
@@ -112,10 +124,6 @@ class DICInpDICTime(bu.Model):
     def _get_pad_r(self):
         return self.dic_params['pad_r']
 
-    time_0 = bu.Float(0, TIME=True, ALG=True)
-
-    time_1 = bu.Float(100, TIME=True, ALG=True)
-
     time_t = tr.Property(bu.Float, depends_on='t')
     @tr.cached_property
     def _get_time_t(self):
@@ -135,7 +143,6 @@ class DICInpDICTime(bu.Model):
     t = bu.Float(1, ALG=True)
 
     ipw_view = bu.View(
-        bu.Item('time_shift'),
         bu.Item('U_factor'),
         bu.Item('pad_t', readonly=True),
         bu.Item('pad_b', readonly=True),
@@ -144,15 +151,13 @@ class DICInpDICTime(bu.Model):
         bu.Item('n_S', readonly=True),
         bu.Item('x_offset', readonly=True),
         bu.Item('y_offset', readonly=True),
-        bu.Item('time_0'),
-        bu.Item('time_1', readonly=True),
+        # bu.Item('time_0'),
+        # bu.Item('time_1'),
         bu.Item('time_t', readonly=True),
         time_editor=bu.HistoryEditor(
             var='t'
         )
     )
-
-    time_shift = bu.Float(0, TIME=True)
 
     base_dir = tr.Property
     def _get_base_dir(self):
@@ -201,18 +206,11 @@ class DICInpDICTime(bu.Model):
     pxyz_T = tr.Property
     def _get_pxyz_T(self): return self.time_pxyz_T[1]
 
-    _time_S = bu.Array(np.int_, TIME=True)
-
-    time_S = tr.Property(bu.Array(np.int_))
+    time_S = tr.Property(bu.Array(np.int_), depends_on='state_changed')
     """Select the time steps for the DIC data"""
-    def _set_time_S(self, value):
-        self._time_S = np.copy(value)
-
+    @tr.cached_property
     def _get_time_S(self):
-        time_S = np.copy(self.time_T) if len(self._time_S) == 0 else self._time_S
-        T_0 = np.argmax(time_S > self.time_0)
-        T_1 = np.argmax(time_S > self.time_1)+1
-        return time_S[T_0:T_1]
+        return self.time_F_w.ld_time.time_T
 
     pxyz_S = tr.Property(depends_on='+TIME, +GEO')
     @tr.cached_property
