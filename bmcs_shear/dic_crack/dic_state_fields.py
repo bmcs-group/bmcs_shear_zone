@@ -4,6 +4,7 @@
 
 import bmcs_utils.api as bu
 from .dic_grid import DICGrid
+from .dic_grid_txy import DICGridTXY
 import traits.api as tr
 from matplotlib import cm
 from matplotlib.colors import SymLogNorm
@@ -52,12 +53,14 @@ class DICStateFields(bu.Model):
     """State analysis of the field simulated by DIC.
     """
 
-    dic_grid = bu.Instance(DICGrid)
+    dic_grid = bu.Instance(DICGridTXY)
 
     X_IJa = tr.DelegatesTo('dic_grid')
     n_I = tr.DelegatesTo('dic_grid')
     n_J = tr.DelegatesTo('dic_grid')
     n_T = tr.DelegatesTo('dic_grid')
+    xy_IJ = tr.DelegatesTo('dic_grid')
+    dic_inp = tr.DelegatesTo('dic_grid')
 
     ct_tmodel = bu.EitherType(options=[('microplane_mdm', ib.MATS2DMplDamageEEQ),
                                     ('scalar_damage', ib.MATS2DScalarDamage)])
@@ -212,12 +215,12 @@ class DICStateFields(bu.Model):
 
     f_U_TIJ_txy = tr.DelegatesTo('dic_grid')
     
-    eps_TIJab = tr.Property(depends_on='state_changed')
+    eps_TIJab = tr.Property # (depends_on='state_changed')
     @cached_array(names='eps_TIJab')
     def _get_eps_TIJab(self):
         return self._get_eps(self.X_IJa, self.dic_grid.U_TIJa)
     
-    f_eps_TIJab_txy = tr.Property(depends_on='state_changed')
+    f_eps_TIJab_txy = tr.Property # (depends_on='state_changed')
     """Interpolator of strains over the time and spatial domains.
     This method is used to provide an interpolator for a fine scale resolution 
     of strains.
@@ -229,44 +232,42 @@ class DICStateFields(bu.Model):
         txy = (t_T, x_IJ[:, 0], y_IJ[0, :])
         return RegularGridInterpolator(txy, self.eps_TIJab)
 
-    state_fields_TIJ = tr.Property(depends_on='state_changed')
-    @cached_array(names=['kappa_TIJr', 'omega_TIJr', 'sig_TIJab', 'dY_TIJ'])
+    state_fields_TIJ = tr.Property # (depends_on='state_changed')
     def _get_state_fields_TIJ(self):
         """Run the stress analysis for all load levels
         """
         # self.hist.init_state()
-        kappa_TIJ = np.zeros((self.n_T, self.n_I, self.n_J))
-        omega_TIJ = np.zeros((self.n_T, self.n_I, self.n_J))
+        tmodel = self.ct_tmodel_
+        base_shape = (self.n_T, self.n_I, self.n_J)
+        intvars_TIJ = {key: np.zeros(base_shape + shape) for key, shape in tmodel.state_var_shapes.items()}
         sig_TIJab = np.zeros_like(self.eps_TIJab)
-        kappa_IJ = np.copy(kappa_TIJ[0])
-        omega_IJ = np.copy(omega_TIJ[0])
-        for T in range(self.n_T):
+        intvars_IJ = {
+            key: np.copy(intvar_TIJ[0]) for key, intvar_TIJ in intvars_TIJ.items()
+        }
+        for T, eps_IJab in enumerate(self.eps_TIJab):
             sig_TIJab[T], _ = self.ct_tmodel_.get_corr_pred(
-                self.eps_TIJab[T], 1, kappa_IJ, omega_IJ)
-            kappa_TIJ[T, ...] = kappa_IJ            
-            omega_TIJ[T, ...] = omega_IJ
+                eps_IJab, 1, **intvars_IJ)
+            for key, intvar_IJ in intvars_IJ.items():
+                intvars_TIJ[key][T, ...] = intvar_IJ
 
-        t_T = self.dic_grid.t_T
-        domega_TIJ = np.gradient(omega_TIJ, t_T, axis=0)
-        D_abcd = self.ct_tmodel_.D_abcd
-        dY_TIJ = np.einsum('TIJab, abcd, TIJcd, TIJ->TIJ', 
-                           self.eps_TIJab, D_abcd, self.eps_TIJab, domega_TIJ)
-
-        return sig_TIJab, kappa_TIJ, omega_TIJ, dY_TIJ
+        return sig_TIJab, intvars_TIJ
 
     sig_TIJab = tr.Property
+    @cached_array(names='sig_TIJab')
     def _get_sig_TIJab(self):
         return self.state_fields_TIJ[0]
 
     kappa_TIJ = tr.Property
+    @cached_array(names='kappa_TIJr')
     def _get_kappa_TIJ(self):
-        return self.state_fields_TIJ[1]
+        return self.state_fields_TIJ[1]['kappa']
 
     omega_TIJ = tr.Property
+    @cached_array(names='omega_TIJr')
     def _get_omega_TIJ(self):
-        return self.state_fields_TIJ[2]
+        return self.state_fields_TIJ[1]['omega']
 
-    f_omega_TIJ_txy = tr.Property(depends_on='state_changed')
+    f_omega_TIJ_txy = tr.Property # (depends_on='state_changed')
     """Interpolator of maximum damage value in time-space domain"""
     @tr.cached_property
     def _get_f_omega_TIJ_txy(self):
@@ -275,8 +276,16 @@ class DICStateFields(bu.Model):
         return RegularGridInterpolator(txy, self.omega_TIJ, bounds_error=False, fill_value=0)
 
     dY_TIJ = tr.Property
+    @cached_array(names='dY_TIJ')
     def _get_dY_TIJ(self):
-        return self.state_fields_TIJ[3]
+        t_T = self.dic_grid.t_T
+        domega_TIJ = np.gradient(self.omega_TIJ, t_T, axis=0)
+        # avoid truncation induced small negative values
+        domega_TIJ[domega_TIJ<0] = 0
+        D_abcd = self.ct_tmodel_.D_abcd
+        dY_TIJ = np.einsum('TIJab, abcd, TIJcd, TIJ->TIJ', 
+                           self.eps_TIJab, D_abcd, self.eps_TIJab, domega_TIJ)
+        return dY_TIJ
 
     Y_TIJ = tr.Property
     def _get_Y_TIJ(self):
@@ -286,7 +295,7 @@ class DICStateFields(bu.Model):
     # Fields evaluated on an on a macro grid 
     #========================================================================
 
-    X_MNa = tr.Property(depends_on='state_changed')
+    X_MNa = tr.Property # (depends_on='state_changed')
     """Interpolation grid
     """
     @tr.cached_property
@@ -300,12 +309,12 @@ class DICStateFields(bu.Model):
         X_MNa = np.einsum('aNM->MNa', X_aNM)
         return X_MNa
 
-    xy_MN = tr.Property(depends_on='state_changed')
+    xy_MN = tr.Property # (depends_on='state_changed')
     @tr.cached_property
     def _get_xy_MN(self):
         return np.einsum('MNa->aMN', self.X_MNa)
 
-    sig_TMNab = tr.Property(depends_on='+ALG')
+    sig_TMNab = tr.Property # (depends_on='+ALG')
     @cached_array(names='sig_TMNab')
     def _get_sig_TMNab(self):
         """Interpolation grid
@@ -354,7 +363,7 @@ class DICStateFields(bu.Model):
         ax.axis('equal')
         ax.axis('off')
 
-    f_sig_TMNab_txy = tr.Property(depends_on='state_changed')
+    f_sig_TMNab_txy = tr.Property # (depends_on='state_changed')
     """Interpolator of strains over the time and spatial domains.
     This method is used to provide an interpolator for a fine scale resolution 
     of strains.
@@ -379,7 +388,7 @@ class DICStateFields(bu.Model):
             for eps_eff_IJab in eps_eff_TIJab
             ])
     
-    f_eps_TMNab_txy = tr.Property(depends_on='state_changed')
+    f_eps_TMNab_txy = tr.Property # (depends_on='state_changed')
     """Interpolator of strains over the time and spatial domains.
     This method is used to provide an interpolator for a fine scale resolution 
     of strains.
@@ -404,7 +413,7 @@ class DICStateFields(bu.Model):
     # Fields evaluated on averaged grid 
     #========================================================================
 
-    X_irn_MNa = tr.Property(depends_on='state_changed')
+    X_irn_MNa = tr.Property # (depends_on='state_changed')
     @tr.cached_property
     def _get_X_irn_MNa(self):
         """Interpolation grid
@@ -418,18 +427,18 @@ class DICStateFields(bu.Model):
         X_irn_MNa = np.einsum('aNM->MNa', X_irn_aNM)
         return X_irn_MNa
     
-    xy_irn_MN = tr.Property(depends_on='state_changed')
+    xy_irn_MN = tr.Property # (depends_on='state_changed')
     @tr.cached_property
     def _get_xy_irn_MN(self):
         return np.einsum('IJa->aIJ', self.X_irn_MNa)
 
-    X_irn_bb_Ca = tr.Property(depends_on='state_changed')
+    X_irn_bb_Ca = tr.Property # (depends_on='state_changed')
     @tr.cached_property
     def _get_X_irn_bb_Ca(self):
         """Bounding box of the interpolated field"""
         return self.X_irn_MNa[(0,-1),(0,-1)]
 
-    omega_irn_TMN = tr.Property(depends_on='+ALG')
+    omega_irn_TMN = tr.Property # (depends_on='+ALG')
     @cached_array(names='omega_irn_TMN')
     def _get_omega_irn_TMN(self):
         """Interpolation grid
@@ -439,10 +448,10 @@ class DICStateFields(bu.Model):
         x_irn_MN, y_irn_MN = np.einsum('MNa->aMN', self.X_irn_MNa)
         return np.array([
             self.get_z_MN_ironed(x_IJ, y_IJ, omega_IJ, self.R, x_irn_MN, y_irn_MN)
-            for omega_IJ in self.omega_TIJ
+            for omega_IJ in self.Y_TIJ
             ])
 
-    f_omega_irn_txy = tr.Property(depends_on='+ALG')
+    f_omega_irn_txy = tr.Property # (depends_on='+ALG')
     @tr.cached_property
     def _get_f_omega_irn_txy(self):
         """Interpolator of maximum damage value in time-space domain"""
@@ -553,9 +562,20 @@ class DICStateFields(bu.Model):
     #     ax_sig.axis('off')
 
     def plot_dY_t_IJ(self, ax, t):
-        x_IJ, y_IJ = np.einsum('IJa->aIJ', self.X_IJa)
+        x_IJ, y_IJ = self.xy_IJ
         self.dic_grid.t = t
         T = self.dic_grid.T_t
+        if T > 1:
+            # Create a grayscale colormap
+            cmap = cm.get_cmap('binary')
+
+            # Plot the contourf with the grayscale colormap
+            # ax.contourf(x_IJ, y_IJ, self.Y_TIJ[T-1], # levels=[0.0001, 0.001, 0.002, 0.004, 0.008, 0.016, np.inf], 
+            #             cmap=cmap)
+
+            ax.contourf(x_IJ, y_IJ, self.Y_TIJ[T-1], 
+                        levels=[0.004, 0.009, np.inf], colors=['gray', 'black'])
+
         dY_IJ = self.dY_TIJ[T]
         vmax, vmid = np.max(dY_IJ), np.average(dY_IJ) * 20
         if vmax > 0:
@@ -598,10 +618,10 @@ class DICStateFields(bu.Model):
         if sum_cd_field == 0:
             # return without warning if there is no damage or strain
             return
-        contour_levels = np.array([-1, 0.35, 0.4, 0.45, 0.6, 0.8], dtype=np.float_)
+        # contour_levels = np.array([-1, 0.35, 0.4, 0.45, 0.6, 0.8], dtype=np.float_)
         cs = ax_cracks.contourf(x_irn_MN, y_irn_MN, cd_field_irn_MN, 
-                                contour_levels,
-                                cmap=cm.Greys_r,
+#                                 contour_levels,
+#                                 cmap=cm.Greys_r,
 #                                cmap=cm.GnBu_r,
                                antialiased=False)
         if self.show_color_bar and fig:

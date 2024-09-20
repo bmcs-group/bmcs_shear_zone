@@ -86,7 +86,7 @@ class DICGrid(bu.Model):
         return Delaunay(points)
 
     n_T = tr.DelegatesTo('dic_inp')
-    t_T = tr.DelegatesTo('dic_inp')
+#    t_T = tr.DelegatesTo('dic_inp')
     U_factor = tr.DelegatesTo('dic_inp')
     T_stepping = tr.DelegatesTo('dic_inp')
 

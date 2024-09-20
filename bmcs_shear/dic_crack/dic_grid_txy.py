@@ -2,7 +2,7 @@
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
-from .dic_inp_unstructured_points import DICInpUnstructuredPoints
+from .dic_inp_X_TPa import DICInpXTPa
 from scipy.interpolate import LinearNDInterpolator
 from scipy.interpolate import RegularGridInterpolator
 from scipy.spatial import Delaunay
@@ -24,12 +24,14 @@ class DICGridTXY(bu.Model):
         bu.Item('d_y'),
         bu.Item('n_I', readonly=True),
         bu.Item('n_J', readonly=True),
+        bu.Item('n_T', readonly=True),
         time_editor=bu.HistoryEditor(
             var='t'
         )
     )
 
-    dic_inp = bu.Instance(DICInpUnstructuredPoints, ())
+    force_array_refresh = False
+    dic_inp = bu.Instance(DICInpXTPa, ())
 
     dir_name = tr.DelegatesTo('dic_inp')
     data_dir = tr.DelegatesTo('dic_inp')
@@ -39,6 +41,7 @@ class DICGridTXY(bu.Model):
     y_offset = tr.DelegatesTo('dic_inp')
     T_t = tr.DelegatesTo('dic_inp')
     F_T_t = tr.DelegatesTo('dic_inp')
+    t_T = tr.DelegatesTo('dic_inp')
 
     n_I = tr.Property(bu.Int, depends_on='state_changed')
     """Number of horizontal nodes of the DIC input displacement grid.
@@ -62,7 +65,7 @@ class DICGridTXY(bu.Model):
     """Vertical spacing between nodes of the DIC input displacement grid.
     """
 
-    X0_IJa = tr.Property(depends_on='state_changed')
+    X0_IJa = tr.Property # (depends_on='state_changed')
     """Coordinates of the DIC markers in the grid"""
     @tr.cached_property
     def _get_X0_IJa(self):
@@ -79,34 +82,32 @@ class DICGridTXY(bu.Model):
         x_IJ, y_IJ = X_aIJ
         return np.einsum('aIJ->IJa', np.array([x_IJ, y_IJ]))
 
-    delaunay = tr.Property(depends_on='state_changed')
+    delaunay = tr.Property # (depends_on='state_changed')
     @tr.cached_property
     def _get_delaunay(self):
-        points = self.dic_inp.X_Qa[:, :-1]
+        points = self.dic_inp.X_0Qa[:, :-1]
         return Delaunay(points)
 
-    n_T = tr.DelegatesTo('dic_inp')
-    t_T = tr.DelegatesTo('dic_inp')
+    n_T = tr.DelegatesTo('dic_inp', 'n_S')
+    time_T = tr.DelegatesTo('dic_inp', 'time_S')
     U_factor = tr.DelegatesTo('dic_inp')
     T_stepping = tr.DelegatesTo('dic_inp')
 
-    U_TIJa = tr.Property(depends_on='state_changed')
+    U_TIJa = tr.Property # (depends_on='state_changed')
     """Read the displacement data from the individual csv files"""
     @cached_array(names='U_TIJa',
                   data_dir_trait='data_dir')
     def _get_U_TIJa(self):
         x0_IJ, y0_IJ = np.einsum('IJa->aIJ', self.X0_IJa)
         U_IJa_list = []
-        for T in range(self.n_T):
-            values = self.dic_inp.U_TQa[T, :, :]
+        for values in self.dic_inp.U_SQa:
             get_U = LinearNDInterpolator(self.delaunay, values)
             U_IJa = get_U(x0_IJ, y0_IJ)
             U_IJa_list.append(U_IJa)
         U_TIJa = np.array(U_IJa_list)
         return U_TIJa[...,:-1]
 
-
-    X_IJa = tr.Property(depends_on='state_changed')
+    X_IJa = tr.Property # (depends_on='state_changed')
     """Coordinates of the DIC markers in the grid"""
     @tr.cached_property
     def _get_X_IJa(self):
@@ -120,18 +121,18 @@ class DICGridTXY(bu.Model):
         return np.einsum('a...->...a', X_aIJ)
 
 
-    U_IJa = tr.Property(depends_on='state_changed')
+    U_IJa = tr.Property # (depends_on='state_changed')
     """Total displacement at step T_t w.r.t. T0
     """
     @tr.cached_property
     def _get_U_IJa(self):
-        return self.U_TIJa[self.dic_inp.T_t] - self.U_TIJa[self.dic_inp.T0]
+        return self.U_TIJa[self.dic_inp.T_t] - self.U_TIJa[0]
 
     #========================================================================
     # Displacement field - time-space interpolator 
     #========================================================================
 
-    f_U_IJ_xy = tr.Property(depends_on='state_changed')
+    f_U_IJ_xy = tr.Property # (depends_on='state_changed')
     """Construct an interpolator over the domain
     """
     @tr.cached_property
@@ -140,12 +141,12 @@ class DICGridTXY(bu.Model):
         u = self.U_IJa.reshape(-1, 2)
         return LinearNDInterpolator(xy, u)
 
-    xy_IJ = tr.Property(depends_on='state_changed')
+    xy_IJ = tr.Property # (depends_on='state_changed')
     @tr.cached_property
     def _get_xy_IJ(self):
         return np.einsum('IJa->aIJ', self.X_IJa)
 
-    f_U_TIJ_txy = tr.Property(depends_on='state_changed')
+    f_U_TIJ_txy = tr.Property # (depends_on='state_changed')
     """Interpolator of displacements over the time and spatial domains.
     This method is used to extract the displacements along the crack path.
 
@@ -154,8 +155,8 @@ class DICGridTXY(bu.Model):
     @tr.cached_property
     def _get_f_U_TIJ_txy(self):
         x_IJ, y_IJ = self.xy_IJ
-        txy = (self.t_T, x_IJ[:, 0], y_IJ[0, :])
-        return RegularGridInterpolator(txy, self.U_TIJa)
+        txy = (self.time_T, x_IJ[:, 0], y_IJ[0, :])
+        return RegularGridInterpolator(txy, self.U_TIJa, bounds_error=False, fill_value=0)
     
     X_Ca = tr.Property
     def _geT_X_Ca(self):
@@ -202,7 +203,7 @@ class DICGridTXY(bu.Model):
         self.plot_grid(ax_u)
         self.plot_bounding_box(ax_u)
         self.plot_box_annotate(ax_u)
-        self.plot_load_deflection(ax_load)
+#        self.plot_load_deflection(ax_load)
 
     def get_latex_grid_params(self):
         return f'''

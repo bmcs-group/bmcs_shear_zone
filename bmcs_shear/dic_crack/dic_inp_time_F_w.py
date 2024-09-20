@@ -124,7 +124,8 @@ class DICInpLDTime(bu.Model):
     def _get_f_F_time(self):
         """Return the load for a specified time"""
         time_m, F_m, _ = self.time_F_w_m
-        return interp1d(time_m, F_m, kind='linear', bounds_error=True)
+        print('F_range', time_m[0], time_m[-1])
+        return interp1d(time_m, F_m, kind='linear', bounds_error=False, fill_value=(0, 0))
 
 
     argmax_F_m = tr.Property(depends_on="state_changed")

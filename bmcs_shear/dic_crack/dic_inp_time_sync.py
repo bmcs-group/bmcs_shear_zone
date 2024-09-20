@@ -1,7 +1,7 @@
 import bmcs_utils.api as bu
 import traits.api as tr
 from pathlib import Path
-from .dic_inp_ld_time import DICInpLDTime
+from .dic_inp_time_F_w import DICInpLDTime
 
 import numpy as np
 import pandas as pd
@@ -24,7 +24,7 @@ class DICInpTimeSync(bu.Model):
     the time->load mapping. Alternative synchronizations can be produced by subclassing.
 
     Normally, the primary chanel contains a displacement or strain profile. By defining
-    the idea is to define qualitatively comparable monitor in the DIC or FOS data which 
+    the idea is to define qualitatively comparable monitor in the DIC or FOS data 
     for which the functional dependency can be defined in a certain time frame. By constructing 
     the derivative of the time function and matching the zero points of this function, the 
     maxima and minima of the response variable can be matched.
@@ -44,6 +44,7 @@ class DICInpTimeSync(bu.Model):
     base_dir = tr.DelegatesTo('ld_time')
     data_dir = tr.DelegatesTo('ld_time')
     dic_data_dir = tr.DelegatesTo('ld_time')
+    plot_load_deflection = tr.DelegatesTo('ld_time')
 
     dic_data_dir = tr.Property
     """Directory with the DIC data"""

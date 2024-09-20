@@ -9,7 +9,7 @@ import matplotlib.gridspec as gridspec
 from .dic_stress_profile import DICStressProfile
 from .dic_crack_cor import DICCrackCOR
 from .i_dic_crack import IDICCrack
-from .dic_grid import DICGrid
+from .dic_grid_txy import DICGridTXY
 
 
 def get_f_ironed_weighted(x_, y_, r=10):
@@ -81,7 +81,7 @@ class DICCrack(bu.Model):
     def _cor_default(self):
         return DICCrackCOR(dic_crack=self)
 
-    dic_grid = bu.Instance(DICGrid)
+    dic_grid = bu.Instance(DICGridTXY)
     '''Input data grid.
     '''
 
@@ -519,7 +519,7 @@ class DICCrack(bu.Model):
         """Plot the root of the crack.
         """
         x_0, y_0 = self.X_1_Ka[0,:]
-        ax_x.annotate(str(self.C), (x_0, y_0), xytext=(0, -7),
+        ax_x.annotate(str(self.C+1), (x_0, y_0), xytext=(0, -7),
                     textcoords='offset points', ha='center', va='center',
                     bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=self.color, lw=0.5),
                     fontsize=10, color=self.color)

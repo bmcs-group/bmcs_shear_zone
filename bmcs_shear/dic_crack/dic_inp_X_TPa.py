@@ -24,7 +24,7 @@ def convert_to_bool(str_bool):
     return value_map[str_bool]
 
 @tr.provides(IDICInp)
-class DICInpDICTime(bu.Model):
+class DICInpXTPa(bu.Model):
     """
     History slice of displacement grids imported from the DIC measurement.
     """
@@ -48,6 +48,8 @@ class DICInpDICTime(bu.Model):
     dir_name = tr.DelegatesTo('time_F_w')
     dic_data_dir = tr.DelegatesTo('time_F_w')
     time_shift = tr.DelegatesTo('time_F_w')
+    plot_load_deflection = tr.DelegatesTo('time_F_w')
+
 
     dic_param_file_name = bu.Str('dic_params.txt', GEO=True)
     """Default name of the file with the parameters of the grid.
@@ -127,13 +129,23 @@ class DICInpDICTime(bu.Model):
     time_t = tr.Property(bu.Float, depends_on='t')
     @tr.cached_property
     def _get_time_t(self):
-        return (self.time_1 - self.time_0) * self.t
+        return self.time_0 + (self.time_1 - self.time_0) * self.t
 
     T_t = tr.Property(bu.Int, depends_on='+TIME,+ALG')
     @tr.cached_property
     def _get_T_t(self):
         return self._find_nearest_index(self.time_S, self.time_t)
     
+    t_T = tr. Property(depends_on='+TIME, + ALG')
+    @tr.cached_property
+    def _get_t_T(self):
+        return (self.time_S - self.time_S[0]) / (self.time_S[-1] - self.time_S[0])
+
+    F_T_t = tr.Property(bu.Float, depends_on='+TIME,+ALG')
+    @tr.cached_property
+    def _get_F_T_t(self):
+        return self.time_F_w.ld_time.f_F_time(self.time_t)
+
     @staticmethod
     def _find_nearest_index(arr, value):
         return np.argmin(np.abs(arr - value))
@@ -151,8 +163,6 @@ class DICInpDICTime(bu.Model):
         bu.Item('n_S', readonly=True),
         bu.Item('x_offset', readonly=True),
         bu.Item('y_offset', readonly=True),
-        # bu.Item('time_0'),
-        # bu.Item('time_1'),
         bu.Item('time_t', readonly=True),
         time_editor=bu.HistoryEditor(
             var='t'
@@ -281,6 +291,19 @@ class DICInpDICTime(bu.Model):
             np.array([max_x - pad_r, max_y - pad_t])
         )
 
+    L_x = tr.Property
+    """Width of the domain"""
+    def _get_L_x(self):
+        X_min, X_max = self.X_inner_frame
+        return X_max[0] - X_min[0]
+
+    L_y = tr.Property
+    """Height of the domain"""
+    def _get_L_y(self):
+        X_min, X_max = self.X_inner_frame
+        return X_max[1] - X_min[1]
+
+
     def plot_points(self, ax):
         U_t_Qa = self.U_SQa[self.T_t] * self.U_factor
         X_t_Qa = self.X_0Qa + U_t_Qa
@@ -300,6 +323,13 @@ class DICInpDICTime(bu.Model):
                 [min_X_a[0], min_X_a[1]],
             ]
         )
+
+    def plot_load_deflection(self, ax_load):
+        self.time_F_w.ld_time.plot_load_deflection(ax_load)
+        time_ = self.time_S[self.T_t]
+        F_T = self.time_F_w.ld_time.f_F_time(time_)
+        w_T = self.time_F_w.ld_time.f_w_time(time_)
+        ax_load.scatter(w_T, F_T, s=100, marker='o', color='orange')
 
     def plot_bounding_box(self, ax):
         X_Ca = self.X_Ca
@@ -350,7 +380,6 @@ class DICInpDICTime(bu.Model):
 
 
     def get_latex_dic_params(self):
-        sz_bd = self.sz_bd
         names = [name.replace('_', r'\_') for name in self.dic_params.keys()]
         values = [str(value) for value in self.dic_params.values()]
 

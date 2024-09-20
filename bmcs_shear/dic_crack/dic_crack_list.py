@@ -24,6 +24,7 @@ class DICCrackList(bu.ModelDict):
 
     data_dir = tr.DelegatesTo('dsf')
     beam_param_file = tr.DelegatesTo('dsf')
+    dic_inp = tr.DelegatesTo('dsf')
 
     a_grid = tr.Property(depends_on='dsf')
     '''Grid aligned to a specified fixed frame - used 

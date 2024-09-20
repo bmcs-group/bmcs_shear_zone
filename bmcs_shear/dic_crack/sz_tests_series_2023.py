@@ -216,3 +216,19 @@ def new_dcl(test):
     dcl = DICCrackList(dsf=dsf, **test)
     dcl.read_beam_design()
     return dcl 
+
+from bmcs_shear.dic_crack import\
+    DICInpUnstructuredPoints, DICStateFields, \
+    DICGridTXY, DICInpXTPa, DICCrackList
+def new_dclx(test):
+
+    dic_inp = DICInpXTPa(dir_name='B1_TV1')
+    dic_grid = DICGridTXY(dic_inp=dic_inp, **test)
+    dsf = DICStateFields(dic_grid=dic_grid, **test)
+    dsf.ct_tmodel_.trait_set(**test)
+    dsf.ct_tmodel_.omega_fn_.trait_set(kappa_0=0.002, kappa_f=0.0028);
+    # dsf.ct_tmodel = 'microplane_mdm'
+    # dsf.ct_tmodel_.trait_set(E=3000, eps_max=0.01, epsilon_0 = 0.001, epsilon_f=0.0014)
+    dcl = DICCrackList(dsf=dsf, **test)
+    dcl.read_beam_design()
+    return dcl 

@@ -2,7 +2,7 @@
 import bmcs_utils.api as bu
 import traits.api as tr
 import numpy as np
-from .dic_grid import DICGrid
+from .dic_grid_txy import DICGridTXY
 
 def rotate_around_ref(X_MNa, X_ref_a, T_ab):
     """Rotate the points around X_ref_a
@@ -26,7 +26,7 @@ class DICAlignedGrid(bu.Model):
     """
     name = 'rotated grid'
 
-    dic_grid = bu.Instance(DICGrid)
+    dic_grid = bu.Instance(DICGridTXY)
 
     depends_on = ['dic_grid']
 
