@@ -448,7 +448,7 @@ class DICStateFields(bu.Model):
         x_irn_MN, y_irn_MN = np.einsum('MNa->aMN', self.X_irn_MNa)
         return np.array([
             self.get_z_MN_ironed(x_IJ, y_IJ, omega_IJ, self.R, x_irn_MN, y_irn_MN)
-            for omega_IJ in self.Y_TIJ
+            for omega_IJ in self.omega_TIJ
             ])
 
     f_omega_irn_txy = tr.Property # (depends_on='+ALG')

@@ -318,7 +318,8 @@ class DICCrackList(bu.ModelDict):
     """
     @cached_array(names='M_phi_Ct')
     def _get_M_phi_Ct(self):
-        F_T = self.dsf.dic_grid.dic_inp.F_T
+        
+        F_T = self.dic_inp.time_F_w.ld_time.F_T
         t_range = F_T / F_T[-1]
         t_range[t_range<0] = 0
         M_phi_Ct = [cr.cor.get_M_phi_t(t_range) for cr in self.cracks]
@@ -502,7 +503,8 @@ class DICCrackList(bu.ModelDict):
     def _get_Q_T(self):
         L_right = self.sz_bd.L_right
         L_left = self.sz_bd.L_left
-        return self.dic_inp.F_T * L_left / (L_left + L_right)
+        F_T = self.dic_inp.time_F_w.ld_time.F_T
+        return F_T * L_left / (L_left + L_right)
 
     M_T = tr.Property(depends_on='state_changed')
 
