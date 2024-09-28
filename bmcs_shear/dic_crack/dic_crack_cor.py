@@ -252,7 +252,7 @@ class DICCrackCOR(bu.Model):
         return cov_phi
 
     M_t = tr.Property(bu.Float, depends_on='state_changed')
-    '''Bending moment related to the center of rotation.
+    '''External bending moment.
     '''
     @tr.cached_property
     def _get_M_t(self):
@@ -262,19 +262,16 @@ class DICCrackCOR(bu.Model):
             # if the crack does not exist yet, take it's initial position
             # at the bottom layer
             X_cor_r = self.dic_crack.X_crc_1_Ka[0,0]
-        L_right = self.dic_grid.sz_bd.L_right
-        L_left = self.dic_grid.sz_bd.L_left
-        F_right = self.dic_grid.F_T_t * L_left / (L_left + L_right)
-        M = (F_right * (L_right - X_cor_r)) / 1000
-        return M
+        L_right = self.cl.sz_bd.L_right
+        return (self.V_t * (L_right - X_cor_r))
 
     V_t = tr.Property(bu.Float, depends_on='state_changed')
-    '''Shear force related to the center of rotation.
+    '''External shear force.
     '''
     @tr.cached_property
     def _get_V_t(self):
-        L_right = self.dic_grid.sz_bd.L_right
-        L_left = self.dic_grid.sz_bd.L_left
+        L_right = self.cl.sz_bd.L_right
+        L_left = self.cl.sz_bd.L_left
         return self.dic_grid.F_T_t * L_left / (L_left + L_right)
 
     def get_M_phi_t(self, t_range):
@@ -290,10 +287,7 @@ class DICCrackCOR(bu.Model):
     '''
     @tr.cached_property
     def _get_M_phi_t(self):
-        F_T = self.dic_grid.dic_inp.F_T 
-        t_range = F_T / F_T[-1]
-        t_range[t_range<0] = 0
-        return self.get_M_phi_t(t_range)
+        return self.get_M_phi_t(self.dic_grid.t_T)
 
     def plot_X_cor_rot_t(self, ax):
         if not self.crack_exists:

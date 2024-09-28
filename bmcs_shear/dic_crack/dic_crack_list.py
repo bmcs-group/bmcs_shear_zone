@@ -47,10 +47,10 @@ class DICCrackList(bu.ModelDict):
     '''Flag to force the array refresh.
     '''
 
-    T_t = tr.Property(bu.Int, depends_on='state_changed')
-    @tr.cached_property
-    def _get_T_t(self):
-        return self.dsf.dic_grid.T_t
+    # T_t = tr.Property(bu.Int, depends_on='state_changed')
+    # @tr.cached_property
+    # def _get_T_t(self):
+    #     return self.dsf.dic_grid.T_t
 
     delta_alpha_min = bu.Float(-np.pi/6, ALG=True)
     delta_alpha_max = bu.Float(np.pi/3, ALG=True)
@@ -73,7 +73,7 @@ class DICCrackList(bu.ModelDict):
         bu.Item('omega_threshold'),
         bu.Item('crack_fraction'),
         bu.Item('show_cracks'),
-        bu.Item('T_t', readonly=True),
+        # bu.Item('T_t', readonly=True),
         time_editor=bu.HistoryEditor(var='dsf.dic_grid.t')
     )
 
@@ -466,9 +466,6 @@ class DICCrackList(bu.ModelDict):
     """
     def _get_beam_param_file(self):
         return self.data_dir / self.beam_param_file_name
-
-    L_left = bu.Float(1, ALG=True)
-    L_right = bu.Float(2, ALG=True)
 
     sz_bd = bu.Instance(RCBeamDesign)
     """Beam design object provides geometrical data and material data.

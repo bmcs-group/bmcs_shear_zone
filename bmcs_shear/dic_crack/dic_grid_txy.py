@@ -155,7 +155,7 @@ class DICGridTXY(bu.Model):
     @tr.cached_property
     def _get_f_U_TIJ_txy(self):
         x_IJ, y_IJ = self.xy_IJ
-        txy = (self.time_T, x_IJ[:, 0], y_IJ[0, :])
+        txy = (self.t_T, x_IJ[:, 0], y_IJ[0, :])
         return RegularGridInterpolator(txy, self.U_TIJa, bounds_error=False, fill_value=0)
     
     X_Ca = tr.Property

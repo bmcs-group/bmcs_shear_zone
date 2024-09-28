@@ -663,7 +663,7 @@ class DICCrack(bu.Model):
         ax_cl, ax_FU, ax_u, ax_eps, ax_F, ax_sig = axes
         self.dic_grid.plot_bounding_box(ax_cl)
         # self.dic_grid.plot_box_annotate(ax_cl)
-        self.bd.plot_sz_bd(ax_cl)
+        self.sz_bd.plot_sz_bd(ax_cl)
         if self.plot_field == 'damage':
             self.cl.dsf.plot_crack_detection_field(ax_cl, self.fig)
         elif self.plot_field == 'stress':
@@ -683,8 +683,8 @@ class DICCrack(bu.Model):
         # self.plot_u_t_Nib(ax_x)
         self.plot_u_crc_t_Ka(ax_u)
         self.plot_eps_unc_t_Kab(ax_eps)
-        ax_eps.set_ylim(0, self.bd.H)
-        ax_u.set_ylim(0, self.bd.H * 1.04)
+        ax_eps.set_ylim(0, self.sz_bd.H)
+        ax_u.set_ylim(0, self.sz_bd.H * 1.04)
         bu.mpl_align_xaxis(ax_u, ax_eps)
 
         if 'sp' in self.tree:
